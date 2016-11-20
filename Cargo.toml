@@ -1,0 +1,11 @@
+[package]
+name = "matrix-rocketchat"
+version = "0.1.0"
+authors = ["Andreas Brönnimann"]
+license = "MIT OR Apache-2.0"
+
+[lib]
+name = "matrix_rocketchat"
+path = "src/matrix-rocketchat/lib.rs"
+
+[dependencies]

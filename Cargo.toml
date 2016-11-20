@@ -9,3 +9,7 @@ name = "matrix_rocketchat"
 path = "src/matrix-rocketchat/lib.rs"
 
 [dependencies]
+slog = "*"
+slog-json = "*"
+slog-term = "*"
+slog-stream = "*"

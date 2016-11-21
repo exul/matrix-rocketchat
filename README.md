@@ -8,7 +8,11 @@ There will be breaking changs!**
 
 ## Compiling from Source
 
-To compile the application service you need Rust >= 1.13.
+To compile the application service you need Rust nightly (I know that's bad,
+sorry).
+
+But this should change soon, because the only crate that needs rust nightly is
+`serde_derive`.
 
 ```
 git clone https://github.com/exul/matrix-rocketchat.git

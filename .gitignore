@@ -1,3 +1,4 @@
 config.yaml
 matrix-rocketchat.log
 target
+tests/matrix-rocketchat-test/Cargo.lock

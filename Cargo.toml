@@ -1,5 +1,5 @@
 [package]
-name = "matrix-rocketchat"
+name = "matrix_rocketchat"
 version = "0.1.0"
 authors = ["Andreas Brönnimann"]
 license = "MIT OR Apache-2.0"
@@ -17,3 +17,6 @@ slog = "1.3"
 slog-json = "1.2"
 slog-term = "1.3"
 slog-stream = "1.2"
+
+[dev-dependencies]
+matrix_rocketchat_test = { path = "tests/matrix-rocketchat-test" }

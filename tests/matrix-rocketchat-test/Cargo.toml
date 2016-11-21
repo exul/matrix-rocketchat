@@ -1,0 +1,12 @@
+[package]
+name = "matrix_rocketchat_test"
+version = "0.1.0"
+authors = ["Andreas Brönnimann"]
+license = "MIT OR Apache-2.0"
+
+[lib]
+path = "lib.rs"
+
+[dependencies]
+matrix_rocketchat = { path = "../.." }
+tempdir = "0.3"

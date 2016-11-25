@@ -1,6 +1,12 @@
 pub use config::Config;
 
+use iron::Listening;
+use iron::Iron;
 use slog::Logger;
+use router::Router;
+
+use errors::ASError;
+use handlers::Welcome;
 
 /// The application service server
 pub struct Server<'a> {
@@ -20,7 +26,18 @@ impl<'a> Server<'a> {
     }
 
     /// Runs the application service bridge.
-    pub fn run(&self) {
-        info!(self.logger, "Starting server");
+    pub fn run(&self) -> Result<Listening, ASError> {
+        info!(self.logger, "Starting server"; "address" => format!("{:?}", self.config.as_address));
+        let router = self.setup_routes();
+        Iron::new(router).http(self.config.as_address).map_err(ASError::from)
+    }
+
+
+    fn setup_routes(&self) -> Router {
+        debug!(self.logger, "Setting up routes");
+        let mut router = Router::new();
+        router.get("/", Welcome {});
+
+        router
     }
 }

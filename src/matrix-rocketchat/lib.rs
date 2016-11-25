@@ -4,6 +4,8 @@
 
 #![deny(missing_docs)]
 
+extern crate iron;
+extern crate router;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -16,8 +18,11 @@ extern crate slog_term;
 pub mod config;
 /// Application service errors
 pub mod errors;
+/// Iron handlers
+pub mod handlers;
 /// The server that runs the application service.
 pub mod server;
 
+pub use errors::ASError;
 pub use config::Config;
 pub use server::Server;

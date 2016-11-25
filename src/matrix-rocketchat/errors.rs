@@ -3,13 +3,14 @@ use std::fmt::{Display, Formatter};
 use std::fmt::Error as FmtError;
 use std::io::Error as IoError;
 
+use iron::error::HttpError;
 use serde_yaml::Error as YamlError;
 
 /// Application Service Error
 #[derive(Debug)]
 pub struct ASError {
     /// Application service error code
-    pub error_code: ASErrorCode,
+    error_code: ASErrorCode,
     /// The detailed error message
     error_message: String,
     /// Error message that is supposed to be shown to the user
@@ -56,6 +57,13 @@ impl From<IoError> for ASError {
 impl From<YamlError> for ASError {
     fn from(error: YamlError) -> ASError {
         let message = format!("YAML error: {}", error);
+        ASError::internal_server_error(&message)
+    }
+}
+
+impl From<HttpError> for ASError {
+    fn from(error: HttpError) -> ASError {
+        let message = format!("HTTP error: {}", error);
         ASError::internal_server_error(&message)
     }
 }

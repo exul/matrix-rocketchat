@@ -1,19 +1,20 @@
 use std::fs::File;
 use std::io::Read;
+use std::net::SocketAddr;
 
 use serde_yaml;
 
 use errors::ASError;
 
 /// Configuration for the application service.
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct Config {
     /// Token the application service uses when calling the homeserver api.
     pub as_token: String,
     /// Token the homeserver uses when calling the application service.
     pub hs_token: String,
     /// The address on which the application service will run.
-    pub as_address: String,
+    pub as_address: SocketAddr,
     /// The URL under which the application service will be reachable.
     pub as_url: String,
     /// The URL under wich the homeserver is reachable.

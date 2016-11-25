@@ -27,7 +27,7 @@ fn main() {
     let log_file_path = matches.value_of("log_file").expect("Could not find log file path").to_string();
     let log = build_logger(&log_file_path);
 
-    Server::new(&config, log).run();
+    Server::new(&config, log).run().expect("Could not start application service");
 }
 
 fn build_logger(log_file_path: &str) -> slog::Logger {
@@ -37,7 +37,7 @@ fn build_logger(log_file_path: &str) -> slog::Logger {
     let term_drain = slog_term::streamer().stderr().full().build();
     slog::Logger::root(slog::duplicate(term_drain, file_drain).fuse(),
                        o!("version" => env!("CARGO_PKG_VERSION"),
-                                    "place" => file_line_logger_format))
+                          "place" => file_line_logger_format))
 }
 
 fn file_line_logger_format(info: &Record) -> String {

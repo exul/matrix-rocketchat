@@ -11,6 +11,7 @@ path = "src/matrix-rocketchat/lib.rs"
 [dependencies]
 clap = {version = "2.1", features = ["yaml"]}
 iron = { version = "0.4"}
+lazy_static = "0.1"
 router = "0.2"
 serde = "0.8"
 serde_derive = "0.8"
@@ -19,6 +20,7 @@ slog = "1.3"
 slog-json = "1.2"
 slog-term = "1.3"
 slog-stream = "1.2"
+yaml-rust = "0.3"
 
 [dev-dependencies]
 matrix_rocketchat_test = { path = "tests/matrix-rocketchat-test" }

@@ -1,0 +1,3 @@
+en:
+  handlers:
+    welcome: "Your Rocket.Chat <-> Matrix application service is running"

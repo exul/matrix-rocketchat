@@ -5,6 +5,8 @@
 #![deny(missing_docs)]
 
 extern crate iron;
+#[macro_use]
+extern crate lazy_static;
 extern crate router;
 extern crate serde;
 #[macro_use]
@@ -13,7 +15,11 @@ extern crate serde_yaml;
 #[macro_use]
 extern crate slog;
 extern crate slog_term;
+extern crate yaml_rust;
 
+/// Translations
+#[macro_use]
+pub mod i18n;
 /// Helpers to interact with the application service configuration.
 pub mod config;
 /// Application service errors

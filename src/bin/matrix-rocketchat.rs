@@ -4,6 +4,7 @@
 
 #[macro_use]
 extern crate clap;
+extern crate iron;
 extern crate matrix_rocketchat;
 #[macro_use]
 extern crate slog;
@@ -15,19 +16,30 @@ use std::fs::OpenOptions;
 use std::path::Path;
 
 use clap::App;
+use iron::Listening;
 use matrix_rocketchat::{Config, Server};
+use matrix_rocketchat::errors::*;
 use slog::{DrainExt, Record};
 
 fn main() {
+    if let Err(ref e) = run() {
+        println!("error: {}", e);
+
+        for e in e.iter().skip(1) {
+            println!("caused by: {}", e);
+        }
+    }
+}
+
+fn run() -> Result<Listening> {
     let cli_yaml = load_yaml!("../../assets/cli.yaml");
     let matches = App::from_yaml(cli_yaml).get_matches();
 
     let config_path = matches.value_of("config").expect("Could not find config path").to_string();
-    let config = Config::read_from_file(&config_path).expect("Reading config file failed");
+    let config = Config::read_from_file(&config_path).chain_err(|| "Reading config file failed")?;
     let log_file_path = matches.value_of("log_file").expect("Could not find log file path").to_string();
     let log = build_logger(&log_file_path);
-
-    Server::new(&config, log).run().expect("Could not start application service");
+    Server::new(&config, log).run()
 }
 
 fn build_logger(log_file_path: &str) -> slog::Logger {

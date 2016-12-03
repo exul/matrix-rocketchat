@@ -5,7 +5,7 @@ use iron::Iron;
 use slog::Logger;
 use router::Router;
 
-use errors::ASError;
+use errors::*;
 use handlers::Welcome;
 
 /// The application service server
@@ -26,10 +26,10 @@ impl<'a> Server<'a> {
     }
 
     /// Runs the application service bridge.
-    pub fn run(&self) -> Result<Listening, ASError> {
+    pub fn run(&self) -> Result<Listening> {
         info!(self.logger, "Starting server"; "address" => format!("{:?}", self.config.as_address));
         let router = self.setup_routes();
-        Iron::new(router).http(self.config.as_address).map_err(ASError::from)
+        Iron::new(router).http(self.config.as_address).chain_err(|| "unable to start server")
     }
 
 

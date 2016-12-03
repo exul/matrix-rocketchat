@@ -1,6 +1,7 @@
 # Matrix <-> Rocket.Chat bridge
 
 [![Build Status](https://travis-ci.org/exul/matrix-rocketchat.svg?branch=master)](https://travis-ci.org/exul/matrix-rocketchat)
+[![Coverage Status](https://coveralls.io/repos/github/exul/matrix-rocketchat/badge.svg?branch=master)](https://coveralls.io/github/exul/matrix-rocketchat?branch=master)
 
 This is an application service that bridges [Matrix](https://matrix.org) to
 [Rocket.Chat](https://rocket.chat).

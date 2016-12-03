@@ -6,6 +6,8 @@ use std::io::Error as IoError;
 use iron::error::HttpError;
 use serde_yaml::Error as YamlError;
 
+use i18n::*;
+
 /// Application Service Error
 #[derive(Debug)]
 pub struct ASError {
@@ -26,11 +28,11 @@ pub enum ASErrorCode {
 
 impl ASError {
     /// Build an ASError of type InternalServerError
-    pub fn internal_server_error(message: &str) -> ASError {
+    pub fn internal_server_error(message: &str, lang: &str) -> ASError {
         ASError {
             error_code: ASErrorCode::InternalServerError,
             error_message: format!("An internal error occured: {}", message),
-            user_message: "An internal error occurred".to_string(),
+            user_message: t!(["errors", "internal"]).l(lang),
         }
     }
 }
@@ -50,20 +52,20 @@ impl Display for ASError {
 impl From<IoError> for ASError {
     fn from(error: IoError) -> ASError {
         let message = format!("IO Error: {}", error);
-        ASError::internal_server_error(&message)
+        ASError::internal_server_error(&message, DEFAULT_LANGUAGE)
     }
 }
 
 impl From<YamlError> for ASError {
     fn from(error: YamlError) -> ASError {
         let message = format!("YAML error: {}", error);
-        ASError::internal_server_error(&message)
+        ASError::internal_server_error(&message, DEFAULT_LANGUAGE)
     }
 }
 
 impl From<HttpError> for ASError {
     fn from(error: HttpError) -> ASError {
         let message = format!("HTTP error: {}", error);
-        ASError::internal_server_error(&message)
+        ASError::internal_server_error(&message, DEFAULT_LANGUAGE)
     }
 }

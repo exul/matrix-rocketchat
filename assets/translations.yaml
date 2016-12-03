@@ -1,3 +1,5 @@
 en:
   handlers:
     welcome: "Your Rocket.Chat <-> Matrix application service is running"
+  errors:
+    internal: "An internal error occurred"

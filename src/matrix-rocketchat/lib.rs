@@ -4,6 +4,8 @@
 
 #![deny(missing_docs)]
 
+#[macro_use]
+extern crate error_chain;
 extern crate iron;
 #[macro_use]
 extern crate lazy_static;
@@ -29,6 +31,5 @@ pub mod handlers;
 /// The server that runs the application service.
 pub mod server;
 
-pub use errors::ASError;
 pub use config::Config;
 pub use server::Server;

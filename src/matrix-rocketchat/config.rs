@@ -4,7 +4,7 @@ use std::net::SocketAddr;
 
 use serde_yaml;
 
-use errors::ASError;
+use errors::*;
 
 /// Configuration for the application service.
 #[derive(Clone, Debug, Deserialize)]
@@ -35,11 +35,11 @@ pub struct Config {
 
 impl Config {
     /// Loads the configuration from a YAML File.
-    pub fn read_from_file(path: &str) -> Result<Config, ASError> {
+    pub fn read_from_file(path: &str) -> Result<Config> {
         let mut config_content = String::new();
-        let mut config_file = File::open(path).map_err(ASError::from)?;
-        config_file.read_to_string(&mut config_content).map_err(ASError::from)?;
-        let config: Config = serde_yaml::from_str(&config_content).map_err(ASError::from)?;
+        let mut config_file = File::open(path).chain_err(|| "unable to open configuration file")?;
+        config_file.read_to_string(&mut config_content).chain_err(|| "unable to read configuration file")?;
+        let config: Config = serde_yaml::from_str(&config_content).chain_err(|| "unable to deserialize configuration")?;
         Ok(config)
     }
 }

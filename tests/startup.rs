@@ -12,7 +12,8 @@ use std::sync::mpsc::channel;
 use std::thread;
 
 use iron::Listening;
-use matrix_rocketchat::{ASError, Server};
+use matrix_rocketchat::Server;
+use matrix_rocketchat::errors::*;
 use matrix_rocketchat_test::DEFAULT_LOGGER;
 use tempdir::TempDir;
 
@@ -24,7 +25,7 @@ fn starup_fails_when_server_cannot_bind_to_address() {
 
     let running_server_config = config.clone();
     let running_server_log = log.clone();
-    let (running_server_tx, running_server_rx) = channel::<Result<Listening, ASError>>();
+    let (running_server_tx, running_server_rx) = channel::<Result<Listening>>();
     thread::spawn(move || {
         let running_server_result = Server::new(&running_server_config, running_server_log).run();
         running_server_tx.send(running_server_result).unwrap();
@@ -33,7 +34,7 @@ fn starup_fails_when_server_cannot_bind_to_address() {
     let running_server_result = running_server_rx.recv_timeout(matrix_rocketchat_test::default_timeout()).unwrap();
     assert!(running_server_result.is_ok());
 
-    let (failed_server_tx, failed_server_rx) = channel::<Result<Listening, ASError>>();
+    let (failed_server_tx, failed_server_rx) = channel::<Result<Listening>>();
     thread::spawn(move || {
         let failed_server_result = Server::new(&config, log).run();
         failed_server_tx.send(failed_server_result).unwrap();

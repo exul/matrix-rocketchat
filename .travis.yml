@@ -23,6 +23,15 @@ script:
       travis-cargo build &&
       travis-cargo test
 
+after_success:
+  # upload the result to coveralls (upload via travis-cargo is currently broken -> https://github.com/huonw/travis-cargo/issues/58)
+  - |
+    wget https://github.com/SimonKagstrom/kcov/archive/master.zip &&
+    unzip master.zip && mv kcov-master kcov && mkdir kcov/build && cd kcov/build &&
+    cmake .. && make && make install DESTDIR=../built && cd ../.. &&
+    find ./target/debug -maxdepth 1 -regex '.*-.*[0-9]+.*' | while read file; do ./kcov/built/usr/local/bin/kcov --verify --exclude-pattern=/.cargo,$PWD/target/debug/build,$PWD/tests ./target/kcov ${file}; done &&
+    ./kcov/built/usr/local/bin/kcov --coveralls-id=${TRAVIS_JOB_ID} --merge ./target/kcov-merge ./target/kcov
+
 env:
   global:
     - TRAVIS_CARGO_NIGHTLY_FEATURE=""

@@ -14,9 +14,12 @@ sorry).
 But this should change soon, because the only crate that needs rust nightly is
 `serde_derive`.
 
+It's highly recommended that you use [rustup](https://www.rustup.rs).
+
 ```
 git clone https://github.com/exul/matrix-rocketchat.git
 cd matrix-rocketchat
+rustup override set nightly
 cargo build --release
 ./target/release/matrix-rocketchat
 ```

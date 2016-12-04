@@ -28,6 +28,8 @@ pub mod config;
 pub mod errors;
 /// Iron handlers
 pub mod handlers;
+/// Helpers to interact with the database.
+pub mod db;
 /// The server that runs the application service.
 pub mod server;
 

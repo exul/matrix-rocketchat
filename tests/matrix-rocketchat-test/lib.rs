@@ -3,6 +3,7 @@ extern crate iron;
 extern crate lazy_static;
 extern crate matrix_rocketchat;
 extern crate reqwest;
+extern crate router;
 #[macro_use]
 extern crate slog;
 extern crate slog_json;
@@ -11,17 +12,22 @@ extern crate slog_term;
 extern crate tempdir;
 
 mod api;
+mod helpers;
 
 pub use api::call_url;
+pub use helpers::create_admin_room;
 
+use std::mem;
 use std::net::SocketAddr;
 use std::net::TcpListener;
 use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
 
-use iron::Listening;
+use iron::{Iron, Listening};
+use iron::Protocol::Http;
 use matrix_rocketchat::{Config, Server};
+use router::Router;
 use slog::{DrainExt, Record};
 use tempdir::TempDir;
 
@@ -33,6 +39,8 @@ const AS_TOKEN: &'static str = "at";
 const HS_TOKEN: &'static str = "ht";
 /// Name of the test database file
 const DATABASE_NAME: &'static str = "test_database.sqlite3";
+/// Number of threads that iron uses when running tests
+const IRON_THREADS: usize = 1;
 
 lazy_static! {
     pub static ref DEFAULT_LOGGER: slog::Logger = {
@@ -40,10 +48,21 @@ lazy_static! {
     };
 }
 
+/// Helpers to forward messages from iron handlers
+pub mod message_forwarder;
+
+pub use message_forwarder::MessageForwarder;
+
 /// A helper struct when running the tests that manages test resources and offers some helper methods.
 pub struct Test {
     /// Configuration that is used during the test
     pub config: Config,
+    /// Flag to indicate if the test should start a matrix homeserver mock
+    pub with_matrix_homeserver_mock: bool,
+    /// Routes that the homeserver mock can handle
+    pub matrix_homeserver_mock_router: Option<Router>,
+    /// The matrix homeserver mock listening server
+    pub hs_listening: Option<Listening>,
     /// The application service listening server
     pub as_listening: Option<Listening>,
 }
@@ -56,33 +75,82 @@ impl Test {
         let config = build_test_config(&temp_dir);
         Test {
             config: config,
+            with_matrix_homeserver_mock: false,
+            matrix_homeserver_mock_router: None,
+            hs_listening: None,
             as_listening: None,
         }
     }
 
+    /// Run the test with a matrix homeserver mock
+    pub fn with_matrix_homeserver_mock(mut self) -> Test {
+        self.with_matrix_homeserver_mock = true;
+        self
+    }
+
+    /// Use custom routes when running the matrix homeserver mock instead of the default ones.
+    pub fn with_custom_matrix_routes(mut self, router: Router) -> Test {
+        self.matrix_homeserver_mock_router = Some(router);
+        self
+    }
+
     /// Run the application service so that a test can interact with it.
     pub fn run(mut self) -> Test {
+        if self.with_matrix_homeserver_mock {
+            self.run_matrix_homeserver_mock();
+        }
+
+        self.run_application_service();
+
+        self
+    }
+
+    fn run_matrix_homeserver_mock(&mut self) {
+        let (hs_tx, hs_rx) = channel::<Listening>();
+        let hs_socket_addr = get_free_socket_addr();
+        self.config.hs_url = format!("http://{}:{}", hs_socket_addr.ip(), hs_socket_addr.port());
+
+        let router = match mem::replace(&mut self.matrix_homeserver_mock_router, None) {
+            Some(router) => router,
+            None => Router::new(),
+        };
+
+        thread::spawn(move || {
+            let listening = Iron::new(router)
+                .listen_with(&hs_socket_addr, IRON_THREADS, Http, None)
+                .unwrap();
+            hs_tx.send(listening).unwrap();
+        });
+
+        let hs_listening = hs_rx.recv_timeout(default_timeout()).unwrap();
+        self.hs_listening = Some(hs_listening);
+    }
+
+    fn run_application_service(&mut self) {
         let server_config = self.config.clone();
-        let (tx, rx) = channel::<Listening>();
+        let (as_tx, as_rx) = channel::<Listening>();
 
         thread::spawn(move || {
             let log = slog::Logger::root(slog_term::streamer().full().build().fuse(),
                                          o!("version" => env!("CARGO_PKG_VERSION"),
                                             "place" => file_line_logger_format));
             let listening = Server::new(&server_config, log).run().expect("Could not start server");
-            tx.send(listening).unwrap();
+            as_tx.send(listening).unwrap();
         });
-        let listening = rx.recv_timeout(default_timeout()).unwrap();
-        self.as_listening = Some(listening);
 
-        self
+        let as_listening = as_rx.recv_timeout(default_timeout()).unwrap();
+        self.as_listening = Some(as_listening);
     }
 }
 
 impl Drop for Test {
     fn drop(&mut self) {
+        if let Some(ref mut listening) = self.hs_listening {
+            listening.close().expect("Could not shutdown matrix homeserver server mock")
+        };
+
         if let Some(ref mut listening) = self.as_listening {
-            listening.close().expect("Could not shutdown server");
+            listening.close().expect("Could not shutdown application server");
         };
     }
 }
@@ -90,8 +158,6 @@ impl Drop for Test {
 pub fn build_test_config(temp_dir: &TempDir) -> Config {
     let as_socket_addr = get_free_socket_addr();
     let as_url = format!("http://{}:{}", as_socket_addr.ip(), as_socket_addr.port());
-    let hs_socket_addr = get_free_socket_addr();
-    let hs_url = format!("http://{}:{}", hs_socket_addr.ip(), as_socket_addr.port());
     let database_path = temp_dir.path().join(DATABASE_NAME);
     let database_url = database_path.to_str().expect("could not build database url");
 
@@ -100,7 +166,8 @@ pub fn build_test_config(temp_dir: &TempDir) -> Config {
         hs_token: HS_TOKEN.to_string(),
         as_address: as_socket_addr,
         as_url: as_url,
-        hs_url: hs_url,
+        // is set if a homeserver mock is used in the test
+        hs_url: "".to_string(),
         hs_domain: "localhost".to_string(),
         sender_localpart: "rocketchat".to_string(),
         database_url: database_url.to_string(),

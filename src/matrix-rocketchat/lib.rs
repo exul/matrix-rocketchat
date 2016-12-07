@@ -5,6 +5,10 @@
 #![deny(missing_docs)]
 
 #[macro_use]
+extern crate diesel;
+#[macro_use]
+extern crate diesel_codegen;
+#[macro_use]
 extern crate error_chain;
 extern crate iron;
 #[macro_use]
@@ -18,6 +22,8 @@ extern crate serde_yaml;
 extern crate slog;
 extern crate slog_term;
 extern crate yaml_rust;
+
+embed_migrations!();
 
 /// Translations
 #[macro_use]

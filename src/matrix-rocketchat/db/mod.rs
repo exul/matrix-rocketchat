@@ -2,6 +2,8 @@
 
 /// Room entry
 pub mod room;
+/// The database schema
+pub mod schema;
 /// User entry
 pub mod user;
 

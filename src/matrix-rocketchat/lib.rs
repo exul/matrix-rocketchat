@@ -13,6 +13,8 @@ extern crate error_chain;
 extern crate iron;
 #[macro_use]
 extern crate lazy_static;
+extern crate r2d2;
+extern crate r2d2_diesel;
 extern crate router;
 extern crate serde;
 #[macro_use]

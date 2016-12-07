@@ -1,7 +1,11 @@
+#[macro_use]
+extern crate diesel;
 extern crate iron;
 #[macro_use]
 extern crate lazy_static;
 extern crate matrix_rocketchat;
+extern crate r2d2;
+extern crate r2d2_diesel;
 extern crate reqwest;
 extern crate router;
 #[macro_use]
@@ -9,7 +13,6 @@ extern crate slog;
 extern crate slog_json;
 extern crate slog_stream;
 extern crate slog_term;
-extern crate tempdir;
 
 mod api;
 mod helpers;
@@ -24,12 +27,15 @@ use std::sync::mpsc::channel;
 use std::thread;
 use std::time::Duration;
 
+use diesel::sqlite::SqliteConnection;
 use iron::{Iron, Listening};
 use iron::Protocol::Http;
 use matrix_rocketchat::{Config, Server};
+use matrix_rocketchat::db::ConnectionPool;
+use r2d2::Pool;
+use r2d2_diesel::ConnectionManager;
 use router::Router;
 use slog::{DrainExt, Record};
-use tempdir::TempDir;
 
 /// Name of the temporary directory that is used for each test
 pub const TEMP_DIR_NAME: &'static str = "matrix_rocketchat_test";
@@ -37,8 +43,6 @@ pub const TEMP_DIR_NAME: &'static str = "matrix_rocketchat_test";
 const AS_TOKEN: &'static str = "at";
 /// Homeserver token used in the tests
 const HS_TOKEN: &'static str = "ht";
-/// Name of the test database file
-const DATABASE_NAME: &'static str = "test_database.sqlite3";
 /// Number of threads that iron uses when running tests
 const IRON_THREADS: usize = 1;
 
@@ -57,6 +61,8 @@ pub use message_forwarder::MessageForwarder;
 pub struct Test {
     /// Configuration that is used during the test
     pub config: Config,
+    /// Connection pool to get connection to the test database
+    pub connection_pool: Pool<ConnectionManager<SqliteConnection>>,
     /// Flag to indicate if the test should start a matrix homeserver mock
     pub with_matrix_homeserver_mock: bool,
     /// Routes that the homeserver mock can handle
@@ -70,11 +76,11 @@ pub struct Test {
 impl Test {
     /// Create a new Test struct with helper methods that can be used for testing.
     pub fn new() -> Test {
-        // create a temp directory with a database for each test to be able to run them in parallel
-        let temp_dir = TempDir::new("matrix-rocketchat-tests").expect("Could not create temp dir");
-        let config = build_test_config(&temp_dir);
+        let config = build_test_config();
+        let connection_pool = ConnectionPool::create(&config.database_url);
         Test {
             config: config,
+            connection_pool: connection_pool,
             with_matrix_homeserver_mock: false,
             matrix_homeserver_mock_router: None,
             hs_listening: None,
@@ -155,11 +161,9 @@ impl Drop for Test {
     }
 }
 
-pub fn build_test_config(temp_dir: &TempDir) -> Config {
+pub fn build_test_config() -> Config {
     let as_socket_addr = get_free_socket_addr();
     let as_url = format!("http://{}:{}", as_socket_addr.ip(), as_socket_addr.port());
-    let database_path = temp_dir.path().join(DATABASE_NAME);
-    let database_url = database_path.to_str().expect("could not build database url");
 
     Config {
         as_token: AS_TOKEN.to_string(),
@@ -170,7 +174,7 @@ pub fn build_test_config(temp_dir: &TempDir) -> Config {
         hs_url: "".to_string(),
         hs_domain: "localhost".to_string(),
         sender_localpart: "rocketchat".to_string(),
-        database_url: database_url.to_string(),
+        database_url: ":memory:".to_string(),
         use_ssl: false,
         ssl_certificate_path: None,
         ssl_key_path: None,

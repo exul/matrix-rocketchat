@@ -3,14 +3,14 @@ name = "matrix_rocketchat"
 version = "0.1.0"
 dependencies = [
  "clap 2.19.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "diesel 0.8.2 (git+https://github.com/diesel-rs/diesel.git)",
- "diesel_codegen 0.8.2 (git+https://github.com/diesel-rs/diesel.git)",
+ "diesel 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "diesel_codegen 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "error-chain 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "iron 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.1.16 (registry+https://github.com/rust-lang/crates.io-index)",
  "matrix_rocketchat_test 0.1.0",
  "r2d2 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "r2d2-diesel 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "r2d2-diesel 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "router 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 0.8.19 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 0.8.19 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -19,7 +19,6 @@ dependencies = [
  "slog-json 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "slog-stream 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slog-term 1.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
  "yaml-rust 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -167,17 +166,7 @@ dependencies = [
 
 [[package]]
 name = "diesel"
-version = "0.8.2"
-source = "git+https://github.com/diesel-rs/diesel.git#fb00654b2bab0f0b86673ef1198af75dd6fd0a2f"
-dependencies = [
- "byteorder 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.18 (registry+https://github.com/rust-lang/crates.io-index)",
- "pq-sys 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
-name = "diesel"
-version = "0.8.2"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "byteorder 0.3.13 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -188,21 +177,21 @@ dependencies = [
 
 [[package]]
 name = "diesel_codegen"
-version = "0.8.2"
-source = "git+https://github.com/diesel-rs/diesel.git#fb00654b2bab0f0b86673ef1198af75dd6fd0a2f"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "diesel 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "diesel_codegen_shared 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "diesel 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "diesel_codegen_shared 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "quote 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "syn 0.10.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
 name = "diesel_codegen_shared"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "diesel 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "diesel 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "dotenv 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -377,16 +366,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 name = "matrix_rocketchat_test"
 version = "0.1.0"
 dependencies = [
+ "diesel 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "iron 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lazy_static 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "matrix_rocketchat 0.1.0",
+ "r2d2 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
+ "r2d2-diesel 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "reqwest 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "router 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slog 1.3.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "slog-json 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "slog-stream 1.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slog-term 1.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "tempdir 0.3.5 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -529,10 +520,10 @@ dependencies = [
 
 [[package]]
 name = "r2d2-diesel"
-version = "0.8.0"
+version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
- "diesel 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "diesel 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "r2d2 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
@@ -967,10 +958,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum core-foundation-sys 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "05eed248dc504a5391c63794fe4fb64f46f071280afaa1b73308f3c0ce4574c5"
 "checksum crypt32-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "e34988f7e069e0b2f3bfc064295161e489b2d4e04a2e4248fb94360cdf00b4ec"
 "checksum dbghelp-sys 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)" = "97590ba53bcb8ac28279161ca943a924d1fd4a8fb3fa63302591647c4fc5b850"
-"checksum diesel 0.8.2 (git+https://github.com/diesel-rs/diesel.git)" = "<none>"
-"checksum diesel 0.8.2 (registry+https://github.com/rust-lang/crates.io-index)" = "db28fcebf975cf122aa96563ad67c1f1db43eba60894f3138691efcc7eb97163"
-"checksum diesel_codegen 0.8.2 (git+https://github.com/diesel-rs/diesel.git)" = "<none>"
-"checksum diesel_codegen_shared 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "09d4c594e4fce9b1dc34bf82220493204fffa323354f44f3c391824423986caf"
+"checksum diesel 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8d6e2f9e6cd752c8cabdf619920d4c23e838f51554f77ed1e49b8bde7802c1af"
+"checksum diesel_codegen 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "7d82a29a989cb2e41bd2e79aaf5f0344a3890ba8d9669c7b25ab640aeebfdc4c"
+"checksum diesel_codegen_shared 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "28f681b07da462c6146886bef5417a857dd8f83b23c2e6011e4875c3c4e161c8"
 "checksum dotenv 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "eea1395d2df3b5344dc577809296d9578303296e8d105c408aa80ed67d598ef1"
 "checksum dtoa 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "0dd841b58510c9618291ffa448da2e4e0f699d984d436122372f446dae62263d"
 "checksum error 0.1.9 (registry+https://github.com/rust-lang/crates.io-index)" = "a6e606f14042bb87cc02ef6a14db6c90ab92ed6f62d87e69377bc759fd7987cc"
@@ -1009,7 +999,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum pq-sys 0.2.4 (registry+https://github.com/rust-lang/crates.io-index)" = "bef99a69a5220cade3a7bd056ea33abde833b14d872bca84dddc98663c4a911c"
 "checksum quote 0.3.10 (registry+https://github.com/rust-lang/crates.io-index)" = "6732e32663c9c271bfc7c1823486b471f18c47a2dbf87c066897b7b51afc83be"
 "checksum r2d2 0.7.1 (registry+https://github.com/rust-lang/crates.io-index)" = "4ecfed1b03be2e66624ec87cef173dad54253f25405bd3c918b321e4dda3ad32"
-"checksum r2d2-diesel 0.8.0 (registry+https://github.com/rust-lang/crates.io-index)" = "acdada4f8c81b10e84cf6e273de0363d8b28b7929265587622a74643566ad7cc"
+"checksum r2d2-diesel 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)" = "8ace5b9b2a072286e15b43a41d8574a1e6701ac6b31dd54404f5a5f9e5d017b0"
 "checksum rand 0.3.15 (registry+https://github.com/rust-lang/crates.io-index)" = "022e0636ec2519ddae48154b028864bdce4eaf7d35226ab8e65c611be97b189d"
 "checksum regex 0.1.80 (registry+https://github.com/rust-lang/crates.io-index)" = "4fd4ace6a8cf7860714a2c2280d6c1f7e6a413486c13298bbc86fd3da019402f"
 "checksum regex-syntax 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)" = "f9ec002c35e86791825ed294b50008eea9ddfc8def4420124fbc6b08db834957"

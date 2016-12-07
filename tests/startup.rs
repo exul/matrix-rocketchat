@@ -6,7 +6,6 @@ extern crate slog;
 extern crate slog_json;
 extern crate slog_stream;
 extern crate slog_term;
-extern crate tempdir;
 
 use std::sync::mpsc::channel;
 use std::thread;
@@ -15,12 +14,10 @@ use iron::Listening;
 use matrix_rocketchat::Server;
 use matrix_rocketchat::errors::*;
 use matrix_rocketchat_test::DEFAULT_LOGGER;
-use tempdir::TempDir;
 
 #[test]
 fn starup_fails_when_server_cannot_bind_to_address() {
-    let temp_dir = TempDir::new(matrix_rocketchat_test::TEMP_DIR_NAME).expect("Could not create temp dir");
-    let config = matrix_rocketchat_test::build_test_config(&temp_dir);
+    let config = matrix_rocketchat_test::build_test_config();
     let log = DEFAULT_LOGGER.clone();
 
     let running_server_config = config.clone();

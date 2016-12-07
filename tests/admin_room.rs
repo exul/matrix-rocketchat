@@ -22,10 +22,11 @@ fn successfully_create_an_admin_room() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.starts_with("Hi, I'm the Rocket.Chat application service"));
 
-    let room = Room::find("!admin:localhost").unwrap();
+    let connection = test.connection_pool.get().unwrap();
+    let room = Room::find(&connection, "!admin:localhost").unwrap();
     assert!(room.is_admin_room);
 
-    let members = room.users().unwrap();
+    let members = room.users(&connection).unwrap();
     assert!(members.iter().any(|m| m.matrix_user_id == "@rocketchat:localhost"));
     assert!(members.iter().any(|m| m.matrix_user_id == "@spec_user:localhost"));
     assert_eq!(members.len(), 2);

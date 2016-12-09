@@ -42,7 +42,7 @@ pub const TEMP_DIR_NAME: &'static str = "matrix_rocketchat_test";
 /// Application service token used in the tests
 const AS_TOKEN: &'static str = "at";
 /// Homeserver token used in the tests
-const HS_TOKEN: &'static str = "ht";
+pub const HS_TOKEN: &'static str = "ht";
 /// Number of threads that iron uses when running tests
 const IRON_THREADS: usize = 1;
 

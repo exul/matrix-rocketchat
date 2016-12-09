@@ -29,3 +29,4 @@ yaml-rust = "0.3"
 
 [dev-dependencies]
 matrix_rocketchat_test = { path = "tests/matrix-rocketchat-test" }
+reqwest = "0.1"

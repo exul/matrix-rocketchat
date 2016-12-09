@@ -1,16 +1,16 @@
-pub use config::Config;
-
 use diesel::Connection;
 use diesel::migrations::setup_database;
 use diesel::sqlite::SqliteConnection;
 use embedded_migrations::run as run_embedded_migrations;
-use iron::Listening;
-use iron::Iron;
-use slog::Logger;
+use iron::{Chain, Iron, Listening};
+use persistent::State;
 use router::Router;
+use slog::Logger;
 
+use config::Config;
 use errors::*;
-use handlers::Welcome;
+use handlers::{Transactions, Welcome};
+use log::IronLogger;
 
 /// The application service server
 pub struct Server<'a> {
@@ -34,13 +34,17 @@ impl<'a> Server<'a> {
         self.prepare_database().chain_err(|| "Database setup failed")?;
         info!(self.logger, "Starting server"; "address" => format!("{:?}", self.config.as_address));
         let router = self.setup_routes();
-        Iron::new(router).http(self.config.as_address).chain_err(|| "Unable to start server")
+
+        let mut chain = Chain::new(router);
+        chain.link_before(State::<IronLogger>::one::<Logger>(self.logger.clone()));
+        Iron::new(chain).http(self.config.as_address).chain_err(|| "Unable to start server")
     }
 
     fn setup_routes(&self) -> Router {
         debug!(self.logger, "Setting up routes");
         let mut router = Router::new();
         router.get("/", Welcome {});
+        router.put("/transactions/:txn_id", Transactions::chain(self.config.clone()));
 
         router
     }

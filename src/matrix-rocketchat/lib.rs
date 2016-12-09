@@ -13,6 +13,7 @@ extern crate error_chain;
 extern crate iron;
 #[macro_use]
 extern crate lazy_static;
+extern crate persistent;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate router;
@@ -32,12 +33,16 @@ embed_migrations!();
 pub mod i18n;
 /// Helpers to interact with the application service configuration.
 pub mod config;
+/// Helpers to interact with the database.
+pub mod db;
 /// Application service errors
 pub mod errors;
 /// Iron handlers
 pub mod handlers;
-/// Helpers to interact with the database.
-pub mod db;
+/// Logging helpers
+pub mod log;
+/// Iron middleware
+pub mod middleware;
 /// The server that runs the application service.
 pub mod server;
 

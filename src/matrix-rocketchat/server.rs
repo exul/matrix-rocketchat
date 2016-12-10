@@ -3,11 +3,12 @@ use diesel::migrations::setup_database;
 use diesel::sqlite::SqliteConnection;
 use embedded_migrations::run as run_embedded_migrations;
 use iron::{Chain, Iron, Listening};
-use persistent::State;
+use persistent::{State, Write};
 use router::Router;
 use slog::Logger;
 
 use config::Config;
+use db::ConnectionPool;
 use errors::*;
 use handlers::{Transactions, Welcome};
 use log::IronLogger;
@@ -32,11 +33,14 @@ impl<'a> Server<'a> {
     /// Runs the application service bridge.
     pub fn run(&self) -> Result<Listening> {
         self.prepare_database().chain_err(|| "Database setup failed")?;
-        info!(self.logger, "Starting server"; "address" => format!("{:?}", self.config.as_address));
-        let router = self.setup_routes();
+        let connection_pool = ConnectionPool::new(&self.config.database_url);
 
+        let router = self.setup_routes();
         let mut chain = Chain::new(router);
+        chain.link_before(Write::<ConnectionPool>::one(connection_pool));
         chain.link_before(State::<IronLogger>::one::<Logger>(self.logger.clone()));
+
+        info!(self.logger, "Starting server"; "address" => format!("{:?}", self.config.as_address));
         Iron::new(chain).http(self.config.as_address).chain_err(|| "Unable to start server")
     }
 

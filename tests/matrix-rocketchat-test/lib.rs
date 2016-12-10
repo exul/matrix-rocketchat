@@ -77,7 +77,7 @@ impl Test {
     /// Create a new Test struct with helper methods that can be used for testing.
     pub fn new() -> Test {
         let config = build_test_config();
-        let connection_pool = ConnectionPool::create(&config.database_url);
+        let connection_pool = ConnectionPool::new(&config.database_url);
         Test {
             config: config,
             connection_pool: connection_pool,

@@ -28,6 +28,11 @@ error_chain!{
             description("The provided JSON is not valid")
             display("Could not process request, the submitted data is not valid json")
         }
+
+        InternalServerError {
+            description("An internal error occured")
+            display("An internal error occured")
+        }
     }
 }
 

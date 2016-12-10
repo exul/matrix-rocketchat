@@ -10,7 +10,7 @@ use slog::Logger;
 use config::Config;
 use db::ConnectionPool;
 use errors::*;
-use handlers::{Transactions, Welcome};
+use handlers::iron::{Transactions, Welcome};
 use log::IronLogger;
 
 /// The application service server
@@ -22,7 +22,7 @@ pub struct Server<'a> {
 }
 
 impl<'a> Server<'a> {
-    /// Create a new server with a given configuration.
+    /// Create a new `Server` with a given configuration.
     pub fn new(config: &Config, logger: Logger) -> Server {
         Server {
             config: config,

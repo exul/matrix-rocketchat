@@ -45,6 +45,8 @@ pub mod handlers;
 pub mod log;
 /// Iron middleware
 pub mod middleware;
+/// Models used by the application service
+pub mod models;
 /// The server that runs the application service.
 pub mod server;
 

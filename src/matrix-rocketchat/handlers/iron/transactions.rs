@@ -7,20 +7,14 @@ use serde_json;
 use config::Config;
 use db::ConnectionPool;
 use errors::*;
+use handlers::events::EventDispatcher;
 use log::IronLogger;
 use middleware::AccessToken;
-use ruma_events::collections::all::Event;
+use models::Events;
 
 /// Transactions is an endpoint of the application service API which is called by the homeserver
 /// to push new events.
 pub struct Transactions {}
-
-/// A collection of Matrix events.
-#[derive(Deserialize)]
-pub struct Events {
-    /// Matrix events
-    pub events: Vec<Box<Event>>,
-}
 
 impl Transactions {
     /// Transactions endpoint with middleware
@@ -52,6 +46,9 @@ impl Handler for Transactions {
         };
 
         let connection = ConnectionPool::get_from_request(request)?;
+
+        EventDispatcher::new(&connection).process(events)?;
+
         Ok(Response::with((status::Ok, "{}".to_string())))
     }
 }

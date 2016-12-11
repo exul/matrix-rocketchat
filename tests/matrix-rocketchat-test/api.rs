@@ -3,6 +3,13 @@ use std::collections::HashMap;
 use std::str;
 
 use reqwest::{Client, Method, StatusCode, Url};
+use super::HS_TOKEN;
+
+pub fn simulate_message_from_matrix(method: &str, url: &str, payload: &str) -> (String, StatusCode) {
+    let mut params = HashMap::new();
+    params.insert("access_token", HS_TOKEN);
+    call_url(method, url, payload, &params)
+}
 
 pub fn call_url(method: &str, url: &str, payload: &str, params: &HashMap<&str, &str>) -> (String, StatusCode) {
     let client = Client::new().expect("Error when creating HTTP Client");
@@ -16,7 +23,7 @@ pub fn call_url(method: &str, url: &str, payload: &str, params: &HashMap<&str, &
         }
     };
 
-    let mut resp = req.form(params).send().expect("Error when calling URL");
+    let mut resp = req.send().expect("Error when calling URL");
     let mut body = String::new();
 
     resp.read_to_string(&mut body).expect("Error when reading response");

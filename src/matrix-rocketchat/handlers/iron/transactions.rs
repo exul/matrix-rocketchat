@@ -14,12 +14,14 @@ use models::Events;
 
 /// Transactions is an endpoint of the application service API which is called by the homeserver
 /// to push new events.
-pub struct Transactions {}
+pub struct Transactions {
+    config: Config,
+}
 
 impl Transactions {
     /// Transactions endpoint with middleware
     pub fn chain(config: Config) -> Chain {
-        let transactions = Transactions {};
+        let transactions = Transactions { config: config.clone() };
         let mut chain = Chain::new(transactions);
         chain.link_before(AccessToken { config: config });
 
@@ -47,7 +49,10 @@ impl Handler for Transactions {
 
         let connection = ConnectionPool::get_from_request(request)?;
 
-        EventDispatcher::new(&connection, logger).process(events_batch.events)?;
+        if let Err(err) = EventDispatcher::new(&self.config, &connection, logger.clone()).process(events_batch.events) {
+            error!(logger, format!("{:?}", err));
+            return Err(err.into());
+        }
 
         Ok(Response::with((status::Ok, "{}".to_string())))
     }

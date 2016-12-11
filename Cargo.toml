@@ -20,6 +20,7 @@ r2d2 = "0.7"
 r2d2-diesel = "0.9"
 router = "0.2"
 ruma-events = { git = "https://github.com/ruma/ruma-events.git", branch = "master" }
+ruma-identifiers = "0.5.0"
 serde = "0.8"
 serde_derive = "0.8"
 serde_json = "0.8"

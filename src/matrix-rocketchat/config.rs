@@ -1,7 +1,9 @@
+use std::convert::TryFrom;
 use std::fs::File;
 use std::io::Read;
 use std::net::SocketAddr;
 
+use ruma_identifiers::UserId;
 use serde_yaml;
 
 use errors::*;
@@ -41,5 +43,11 @@ impl Config {
         config_file.read_to_string(&mut config_content).chain_err(|| "unable to read configuration file")?;
         let config: Config = serde_yaml::from_str(&config_content).chain_err(|| "unable to deserialize configuration")?;
         Ok(config)
+    }
+
+    /// Matrix id of the bot user.
+    pub fn matrix_bot_user_id(&self) -> Result<UserId> {
+        let user_id = format!("@{}:{}", &self.sender_localpart, &self.hs_domain);
+        UserId::try_from(&user_id).chain_err(|| ErrorKind::InvalidUserId(user_id))
     }
 }

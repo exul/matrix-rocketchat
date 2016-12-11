@@ -1,6 +1,6 @@
 //! Application service to bridge Matrix <-> Rocket.Chat.
 
-#![feature(proc_macro)]
+#![feature(proc_macro, try_from)]
 
 #![deny(missing_docs)]
 
@@ -18,6 +18,7 @@ extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate router;
 extern crate ruma_events;
+extern crate ruma_identifiers;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;

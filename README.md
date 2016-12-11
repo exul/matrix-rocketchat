@@ -14,8 +14,9 @@ There will be breaking changs!**
 To compile the application service you need Rust nightly (I know that's bad,
 sorry).
 
-This will change, once [serde](https://serde.rs)
-[diesel.rs](http://diesel.rs) are working on stable rust.
+This will change, once [serde](https://serde.rs), [diesel.rs](http://diesel.rs)
+and [ruma-identifiers](https://github.com/ruma/ruma-identifiers) are working on
+stable rust.
 
 It's highly recommended that you use [rustup](https://www.rustup.rs).
 

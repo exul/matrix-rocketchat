@@ -29,6 +29,11 @@ error_chain!{
             display("Could not process request, the submitted data is not valid json")
         }
 
+        InvalidUserId(user_id: String) {
+            description("The provided user ID is not valid")
+            display("The provided user ID {} is not valid", user_id)
+        }
+
         InternalServerError {
             description("An internal error occured")
             display("An internal error occured")

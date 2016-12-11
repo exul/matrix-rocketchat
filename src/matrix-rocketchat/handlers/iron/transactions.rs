@@ -37,8 +37,8 @@ impl Handler for Transactions {
             return Err(err.into());
         };
 
-        let events: Events = match serde_json::from_str(&payload).chain_err(|| ErrorKind::InvalidJSON) {
-            Ok(events) => events,
+        let events_batch: Events = match serde_json::from_str(&payload).chain_err(|| ErrorKind::InvalidJSON) {
+            Ok(events_batch) => events_batch,
             Err(err) => {
                 error!(logger, format!("{:?}", err));
                 return Err(err.into());
@@ -47,7 +47,7 @@ impl Handler for Transactions {
 
         let connection = ConnectionPool::get_from_request(request)?;
 
-        EventDispatcher::new(&connection).process(events)?;
+        EventDispatcher::new(&connection, logger).process(events_batch.events)?;
 
         Ok(Response::with((status::Ok, "{}".to_string())))
     }

@@ -16,7 +16,9 @@ extern crate lazy_static;
 extern crate persistent;
 extern crate r2d2;
 extern crate r2d2_diesel;
+extern crate reqwest;
 extern crate router;
+extern crate ruma_client_api;
 extern crate ruma_events;
 extern crate ruma_identifiers;
 extern crate serde;
@@ -34,6 +36,8 @@ embed_migrations!();
 /// Translations
 #[macro_use]
 pub mod i18n;
+/// REST APIs
+pub mod api;
 /// Helpers to interact with the application service configuration.
 pub mod config;
 /// Helpers to interact with the database.

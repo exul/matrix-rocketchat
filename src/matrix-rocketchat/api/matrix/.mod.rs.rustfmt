@@ -1,0 +1,60 @@
+use std::collections::HashMap;
+
+use slog::Logger;
+
+use api::RestApi;
+use config::Config;
+use errors::*;
+
+mod r0;
+
+const VERSION_ENDPOINT: &'static str = "/_matrix/client/versions";
+
+pub type MatrixVersionResponse {
+
+}
+
+/// Matrix REST API
+pub trait MatrixApi: Send + Sync + MatrixApiClone {
+    /// Join a room with a user.
+    fn join(&self, matrix_room_id: &str, matrix_user_id: &str) -> Result<()>;
+}
+
+/// Helper trait because Clone cannot be part of the `MatrixApi` trait since that would cause the
+/// `MatrixApi` trait to not be object safe.
+pub trait MatrixApiClone {
+    /// Clone the object inside the trait and return it in box.
+    fn clone_box(&self) -> Box<MatrixApi>;
+}
+
+impl<T> MatrixApiClone for T
+    where T: 'static + MatrixApi + Clone
+{
+    fn clone_box(&self) -> Box<MatrixApi> {
+        Box::new(self.clone())
+    }
+}
+
+impl Clone for Box<MatrixApi> {
+    fn clone(&self) -> Box<MatrixApi> {
+        self.clone_box()
+    }
+}
+
+impl MatrixApi {
+    /// Creates a new Matrix API depending on the version of the homeserver.
+    /// It returns a `MatrixApi` trait, because for each version a different API is created.
+    pub fn new(config: &Config, logger: Logger) -> Result<Box<MatrixApi>> {
+        let endpoint = config.hs_url.clone() + VERSION_ENDPOINT;
+        let mut parameters = HashMap::new();
+
+        info!(logger, format!("VERSION ENDPOINT: {}", endpoint));
+        let (body, status_code) = RestApi::call("GET", &endpoint, "", &mut parameters, None)?;
+        info!(logger, format!("VERSION RESPONSE: {}", body));
+        info!(logger, format!("VERSION RESPONSE CODE: {}", status_code));
+
+        let matrix_api = r0::MatrixApi::new(config, logger);
+
+        Ok(Box::new(matrix_api))
+    }
+}

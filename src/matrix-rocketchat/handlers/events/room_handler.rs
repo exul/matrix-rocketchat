@@ -1,7 +1,11 @@
+use std::convert::TryFrom;
+
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::member::{MemberEvent, MembershipState};
+use ruma_identifiers::{RoomId, UserId};
 use slog::Logger;
 
+use api::MatrixApi;
 use config::Config;
 use errors::*;
 
@@ -10,42 +14,54 @@ pub struct RoomHandler<'a> {
     config: &'a Config,
     connection: &'a SqliteConnection,
     logger: Logger,
+    matrix_api: Box<MatrixApi>,
 }
 
 impl<'a> RoomHandler<'a> {
     /// Create a new `RoomHandler` with an SQLite connection
-    pub fn new(config: &'a Config, connection: &'a SqliteConnection, logger: Logger) -> RoomHandler<'a> {
+    pub fn new(config: &'a Config,
+               connection: &'a SqliteConnection,
+               logger: Logger,
+               matrix_api: Box<MatrixApi>)
+               -> RoomHandler<'a> {
         RoomHandler {
             config: config,
             connection: connection,
             logger: logger,
+            matrix_api: matrix_api,
         }
 
     }
 
     /// Handles room membership changes
     pub fn process(&self, event: &MemberEvent) -> Result<()> {
-        let matrix_bot_user_id = format!("{}", &self.config.matrix_bot_user_id()?);
-        let addressed_to_matrix_bot = &event.state_key == &matrix_bot_user_id;
+        let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
+        let state_key = UserId::try_from(&event.state_key).chain_err(|| ErrorKind::InvalidUserId(event.state_key.clone()))?;
+        let addressed_to_matrix_bot = state_key == matrix_bot_user_id;
 
         match event.content.membership {
             MembershipState::Invite if addressed_to_matrix_bot => {
-                debug!(self.logger,
-                       format!("Creating admin room for user `{}` with bot user `{}`",
-                               event.user_id,
-                               matrix_bot_user_id));
+                let msg = format!("Bot `{}` got invitation for room `{}`", event.user_id, matrix_bot_user_id);
+                debug!(self.logger, msg);
+
+                self.join_room(event.room_id.clone(), matrix_bot_user_id)?;
             }
             MembershipState::Join if addressed_to_matrix_bot => {
-                debug!(self.logger,
-                       format!("Bot user `{}` is joining room `{}`", matrix_bot_user_id, event.room_id));
+                let msg = format!("Bot {} entered room {}", matrix_bot_user_id, event.room_id);
+                debug!(self.logger, msg);
             }
             _ => {
-                info!(self.logger,
-                      format!("Skipping event, don't know how to handle membership state `{}` with state key `{}`",
-                              event.content.membership,
-                              event.state_key));
+                let msg = format!("Skipping event, don't know how to handle membership state `{}` with state key `{}`",
+                                  event.content.membership,
+                                  event.state_key);
+                info!(self.logger, msg);
             }
         }
+
         Ok(())
+    }
+
+    fn join_room(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {
+        self.matrix_api.join(matrix_room_id, matrix_user_id)
     }
 }

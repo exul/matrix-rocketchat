@@ -7,18 +7,19 @@ extern crate matrix_rocketchat;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate reqwest;
+extern crate ruma_client_api;
+extern crate ruma_events;
+extern crate ruma_identifiers;
 extern crate router;
+extern crate serde_json;
 #[macro_use]
 extern crate slog;
 extern crate slog_json;
 extern crate slog_stream;
 extern crate slog_term;
 
-mod api;
-mod helpers;
-
-pub use api::call_url;
-pub use helpers::create_admin_room;
+pub mod handlers;
+pub mod helpers;
 
 use std::mem;
 use std::net::SocketAddr;
@@ -116,10 +117,12 @@ impl Test {
         let hs_socket_addr = get_free_socket_addr();
         self.config.hs_url = format!("http://{}:{}", hs_socket_addr.ip(), hs_socket_addr.port());
 
-        let router = match mem::replace(&mut self.matrix_homeserver_mock_router, None) {
+        let mut router = match mem::replace(&mut self.matrix_homeserver_mock_router, None) {
             Some(router) => router,
             None => Router::new(),
         };
+
+        router.get("/_matrix/client/versions", handlers::matrix_version);
 
         thread::spawn(move || {
             let listening = Iron::new(router)

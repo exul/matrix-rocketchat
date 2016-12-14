@@ -7,6 +7,7 @@ use persistent::{State, Write};
 use router::Router;
 use slog::Logger;
 
+use api::MatrixApi;
 use config::Config;
 use db::ConnectionPool;
 use errors::*;
@@ -35,7 +36,9 @@ impl<'a> Server<'a> {
         self.prepare_database().chain_err(|| "Database setup failed")?;
         let connection_pool = ConnectionPool::new(&self.config.database_url);
 
-        let router = self.setup_routes();
+        let matrix_api = MatrixApi::new(&self.config, self.logger.clone())?;
+
+        let router = self.setup_routes(matrix_api);
         let mut chain = Chain::new(router);
         chain.link_before(Write::<ConnectionPool>::one(connection_pool));
         chain.link_before(State::<IronLogger>::one::<Logger>(self.logger.clone()));
@@ -44,11 +47,11 @@ impl<'a> Server<'a> {
         Iron::new(chain).http(self.config.as_address).chain_err(|| "Unable to start server")
     }
 
-    fn setup_routes(&self) -> Router {
+    fn setup_routes(&self, matrix_api: Box<MatrixApi>) -> Router {
         debug!(self.logger, "Setting up routes");
         let mut router = Router::new();
         router.get("/", Welcome {});
-        router.put("/transactions/:txn_id", Transactions::chain(self.config.clone()));
+        router.put("/transactions/:txn_id", Transactions::chain(self.config.clone(), matrix_api));
 
         router
     }

@@ -4,6 +4,7 @@ use iron::{Handler, status};
 use iron::prelude::*;
 use serde_json;
 
+use api::MatrixApi;
 use config::Config;
 use db::ConnectionPool;
 use errors::*;
@@ -16,12 +17,16 @@ use models::Events;
 /// to push new events.
 pub struct Transactions {
     config: Config,
+    matrix_api: Box<MatrixApi>,
 }
 
 impl Transactions {
     /// Transactions endpoint with middleware
-    pub fn chain(config: Config) -> Chain {
-        let transactions = Transactions { config: config.clone() };
+    pub fn chain(config: Config, matrix_api: Box<MatrixApi>) -> Chain {
+        let transactions = Transactions {
+            config: config.clone(),
+            matrix_api: matrix_api,
+        };
         let mut chain = Chain::new(transactions);
         chain.link_before(AccessToken { config: config });
 
@@ -39,7 +44,8 @@ impl Handler for Transactions {
             return Err(err.into());
         };
 
-        let events_batch: Events = match serde_json::from_str(&payload).chain_err(|| ErrorKind::InvalidJSON) {
+        let events_batch: Events = match serde_json::from_str(&payload).
+            chain_err(|| ErrorKind::InvalidJSON(format!("Could not deserialize events that the homeserver sent to the transactions endpoint: `{}`", payload))) {
             Ok(events_batch) => events_batch,
             Err(err) => {
                 error!(logger, format!("{:?}", err));
@@ -49,7 +55,8 @@ impl Handler for Transactions {
 
         let connection = ConnectionPool::get_from_request(request)?;
 
-        if let Err(err) = EventDispatcher::new(&self.config, &connection, logger.clone()).process(events_batch.events) {
+        if let Err(err) = EventDispatcher::new(&self.config, &connection, logger.clone(), self.matrix_api.clone())
+            .process(events_batch.events) {
             error!(logger, format!("{:?}", err));
             return Err(err.into());
         }

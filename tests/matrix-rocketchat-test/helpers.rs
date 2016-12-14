@@ -1,40 +1,71 @@
-use api::simulate_message_from_matrix;
+use std::collections::HashMap;
 
-pub fn create_admin_room(as_url: String, admin_room_id: &str, test_user_id: &str, bot_user_id: &str) {
-    let url = as_url + "/transactions/adminroomcreationmessageid";
+use matrix_rocketchat::api::RestApi;
+use matrix_rocketchat::models::Events;
+use reqwest::{Method, StatusCode};
+use ruma_events::EventType;
+use ruma_events::collections::all::Event;
+use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
+use ruma_identifiers::{EventId, RoomId, UserId};
+use serde_json::to_string;
+use super::HS_TOKEN;
 
-    let invite_payload = r#"{
-            "events": [{
-                "event_id": "$1:localhost",
-                "room_id": "ADMIN_ROOM_ID",
-                "type": "m.room.member",
-                "state_key": "BOT_USER_ID",
-                "sender": "TEST_USER_ID",
-                "content": {
-                    "membership": "invite"
-                }
-            }]
-        }"#
-        .replace("ADMIN_ROOM_ID", admin_room_id)
-        .replace("TEST_USER_ID", test_user_id)
-        .replace("BOT_USER_ID", bot_user_id);
+pub fn create_admin_room(as_url: String, admin_room_id: RoomId, test_user_id: UserId, bot_user_id: UserId) {
+    let invite_event = MemberEvent{
+        content: MemberEventContent {
+            avatar_url: None,
+            displayname: None,
+            membership: MembershipState::Invite,
+            third_party_invite: None,
+        },
+        event_id: EventId::new("localhost").unwrap(),
+        event_type: EventType::RoomMember,
+        invite_room_state: None,
+        prev_content: None,
+        room_id: admin_room_id.clone(),
+        state_key: format!("{}", bot_user_id),
+        unsigned: None,
+        user_id: test_user_id,
+    };
 
-    simulate_message_from_matrix("PUT", &url, &invite_payload);
+    let events = Events{
+        events: vec![Box::new(Event::RoomMember(invite_event))],
+    };
 
-    let join_payload = r#"{
-            "events": [{
-                "event_id": "$2:localhost",
-                "room_id": "ADMIN_ROOM_ID",
-                "type": "m.room.member",
-                "state_key": "BOT_USER_ID",
-                "sender": "BOT_USER_ID",
-                "content": {
-                    "membership": "join"
-                }
-            }]
-        }"#
-        .replace("ADMIN_ROOM_ID", admin_room_id)
-        .replace("BOT_USER_ID", bot_user_id);
+    let invite_payload = to_string(&events).unwrap();
 
-    simulate_message_from_matrix("PUT", &url, &join_payload);
+    let url = format!("{}/transactions/{}", as_url, "specid") ;
+
+    simulate_message_from_matrix(Method::Put, &url, &invite_payload);
+
+    let join_event = MemberEvent{
+        content: MemberEventContent {
+            avatar_url: None,
+            displayname: None,
+            membership: MembershipState::Join,
+            third_party_invite: None,
+        },
+        event_id: EventId::new("localhost").unwrap(),
+        event_type: EventType::RoomMember,
+        invite_room_state: None,
+        prev_content: None,
+        room_id: admin_room_id,
+        state_key: format!("{}", bot_user_id),
+        unsigned: None,
+        user_id: bot_user_id,
+    };
+
+    let events = Events{
+        events: vec![Box::new(Event::RoomMember(join_event))],
+    };
+
+    let join_payload = to_string(&events).unwrap();
+    
+    simulate_message_from_matrix(Method::Put, &url, &join_payload);
+}
+
+pub fn simulate_message_from_matrix(method: Method, url: &str, payload: &str) -> (String, StatusCode) {
+    let mut params = HashMap::new();
+    params.insert("access_token", HS_TOKEN);
+    RestApi::call(method, url, payload, &mut params, None).unwrap()
 }

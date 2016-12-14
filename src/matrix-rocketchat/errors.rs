@@ -12,6 +12,15 @@ struct ErrorResponse {
     causes: Vec<String>,
 }
 
+/// Response from the Matrix homeserver when an error occurred
+#[derive(Deserialize)]
+pub struct MatrixErrorResponse {
+    /// Error code returned by the Matrix API
+    pub errcode: String,
+    /// Error message returned by the Matrix API
+    pub error: String,
+}
+
 error_chain!{
     errors {
         InvalidAccessToken(token: String) {
@@ -24,8 +33,8 @@ error_chain!{
             display("Could not process request, no access token was provided")
         }
 
-        InvalidJSON {
-            description("The provided JSON is not valid")
+        InvalidJSON(msg: String) {
+            description("The provided JSON is not valid: {}")
             display("Could not process request, the submitted data is not valid json")
         }
 
@@ -34,9 +43,29 @@ error_chain!{
             display("The provided user ID {} is not valid", user_id)
         }
 
+        UnsupportedHttpMethod(method: String) {
+            description("Could not call REST API")
+            display("Unsupported HTTP method {}", method)
+        }
+
+        ApiCallFailed {
+            description("Call to REST API failed")
+            display("Call to REST API failed")
+        }
+
+        MatrixError(error_msg: String) {
+            description("An error occurred when calling the Matrix API")
+            display("Matrix error: {}", error_msg)
+        }
+
+        UnsupportedMatrixApiVersion(versions: String) {
+            description("None of the Matrix homeserver's versions are supported")
+            display("No supported API version found for the Matrix homeserver, found versions: {}", versions)
+        }
+
         InternalServerError {
-            description("An internal error occured")
-            display("An internal error occured")
+            description("An internal error occurred")
+            display("An internal error occurred")
         }
     }
 }
@@ -46,7 +75,7 @@ impl ErrorKind {
         match *self {
             ErrorKind::InvalidAccessToken(_) => Status::Forbidden,
             ErrorKind::MissingAccessToken => Status::Unauthorized,
-            ErrorKind::InvalidJSON => Status::UnprocessableEntity,
+            ErrorKind::InvalidJSON(_) => Status::UnprocessableEntity,
             _ => Status::InternalServerError,
         }
     }

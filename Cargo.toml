@@ -18,8 +18,9 @@ lazy_static = "0.1"
 persistent = "0.2"
 r2d2 = "0.7"
 r2d2-diesel = "0.9"
+reqwest = "0.2"
 router = "0.2"
-ruma-events = { git = "https://github.com/ruma/ruma-events.git", branch = "master" }
+ruma-events = "0.1"
 ruma-identifiers = "0.5.0"
 serde = "0.8"
 serde_derive = "0.8"
@@ -33,4 +34,3 @@ yaml-rust = "0.3"
 
 [dev-dependencies]
 matrix_rocketchat_test = { path = "tests/matrix-rocketchat-test" }
-reqwest = "0.1"

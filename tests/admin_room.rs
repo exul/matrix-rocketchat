@@ -15,22 +15,29 @@ use matrix_rocketchat_test::helpers;
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::membership::join_by_room_id::Endpoint as JoinEndpoint;
+use ruma_client_api::r0::get::members::Endpoint as MembersEndpoint;
 use ruma_identifiers::{RoomId, UserId};
 
 #[test]
 fn successfully_create_an_admin_room() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
-    matrix_router.post(JoinEndpoint::router_path(), handlers::empty_json);
+    matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {});
+    let two_room_members = handlers::TwoRoomMembers {
+        room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
+        members: [UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
+                  UserId::try_from("@spec_user:localhost").expect("Could not create user ID")],
+    };
+    matrix_router.get(MembersEndpoint::router_path(), two_room_members);
+    // TODO: Replace this with the corresponding ruma-client-api method once it's implemented there
     matrix_router.put("/_matrix/client/r0/rooms/!admin:localhost/send/m.room.message/:txid",
                       message_forwarder);
     let test = Test::new().with_matrix_homeserver_mock().with_custom_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(test.config.as_url.to_string(),
-                       RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
-                       UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
-                       UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")
-                    );
+                               RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
+                               UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
+                               UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.starts_with("Hi, I'm the Rocket.Chat application service"));
@@ -65,3 +72,6 @@ fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {}
 
 #[test]
 fn the_user_gets_a_message_when_forgetting_the_room_failes_for_the_bot_user() {}
+
+#[test]
+fn bot_leaves_when_a_third_user_joins_the_admin_room() {}

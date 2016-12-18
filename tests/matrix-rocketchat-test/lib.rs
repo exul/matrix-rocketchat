@@ -122,7 +122,7 @@ impl Test {
             None => Router::new(),
         };
 
-        router.get("/_matrix/client/versions", handlers::matrix_version);
+        router.get("/_matrix/client/versions", handlers::MatrixVersion {});
 
         thread::spawn(move || {
             let listening = Iron::new(router)

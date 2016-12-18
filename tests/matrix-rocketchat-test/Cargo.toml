@@ -17,7 +17,7 @@ r2d2-diesel = "0.9"
 reqwest = "0.2"
 ruma-client-api = { path = "../../../ruma-client-api" }
 ruma-events = { path = "../../../ruma-events" }
-ruma-identifiers = { path = "../../../ruma-identifiers" }
+ruma-identifiers = "0.6"
 router = "0.2"
 serde_json = "0.8"
 slog = "1.3"

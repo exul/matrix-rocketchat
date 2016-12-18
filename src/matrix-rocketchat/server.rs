@@ -36,7 +36,7 @@ impl<'a> Server<'a> {
         self.prepare_database().chain_err(|| "Database setup failed")?;
         let connection_pool = ConnectionPool::new(&self.config.database_url);
 
-        let matrix_api = MatrixApi::new(&self.config, self.logger.clone())?;
+        let matrix_api = MatrixApi::new(self.config, self.logger.clone())?;
 
         let router = self.setup_routes(matrix_api);
         let mut chain = Chain::new(router);

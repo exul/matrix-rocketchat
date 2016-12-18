@@ -49,6 +49,8 @@ impl<'a> RoomHandler<'a> {
             MembershipState::Join if addressed_to_matrix_bot => {
                 let msg = format!("Bot {} entered room {}", matrix_bot_user_id, event.room_id);
                 debug!(self.logger, msg);
+
+                self.send_instructions(event.room_id.clone())?;
             }
             _ => {
                 let msg = format!("Skipping event, don't know how to handle membership state `{}` with state key `{}`",
@@ -63,5 +65,23 @@ impl<'a> RoomHandler<'a> {
 
     fn join_room(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {
         self.matrix_api.join(matrix_room_id, matrix_user_id)
+    }
+
+    fn send_instructions(&self, matrix_room_id: RoomId) -> Result<()> {
+        if !self.is_private_room(matrix_room_id.clone())? {
+            info!(self.logger,
+                  format!("Room {} has more then two members and cannot be used as admin room",
+                          matrix_room_id));
+            // TODO: Send message to user
+            return Ok(());
+        }
+
+        // TODO: Send instructions
+
+        Ok(())
+    }
+
+    fn is_private_room(&self, matrix_room_id: RoomId) -> Result<bool> {
+        Ok(self.matrix_api.get_room_members(matrix_room_id)?.len() <= 2)
     }
 }

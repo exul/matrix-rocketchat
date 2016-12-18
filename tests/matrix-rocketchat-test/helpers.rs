@@ -11,7 +11,7 @@ use serde_json::to_string;
 use super::HS_TOKEN;
 
 pub fn create_admin_room(as_url: String, admin_room_id: RoomId, test_user_id: UserId, bot_user_id: UserId) {
-    let invite_event = MemberEvent{
+    let invite_event = MemberEvent {
         content: MemberEventContent {
             avatar_url: None,
             displayname: None,
@@ -28,17 +28,15 @@ pub fn create_admin_room(as_url: String, admin_room_id: RoomId, test_user_id: Us
         user_id: test_user_id,
     };
 
-    let events = Events{
-        events: vec![Box::new(Event::RoomMember(invite_event))],
-    };
+    let events = Events { events: vec![Box::new(Event::RoomMember(invite_event))] };
 
     let invite_payload = to_string(&events).unwrap();
 
-    let url = format!("{}/transactions/{}", as_url, "specid") ;
+    let url = format!("{}/transactions/{}", as_url, "specid");
 
     simulate_message_from_matrix(Method::Put, &url, &invite_payload);
 
-    let join_event = MemberEvent{
+    let join_event = MemberEvent {
         content: MemberEventContent {
             avatar_url: None,
             displayname: None,
@@ -55,12 +53,10 @@ pub fn create_admin_room(as_url: String, admin_room_id: RoomId, test_user_id: Us
         user_id: bot_user_id,
     };
 
-    let events = Events{
-        events: vec![Box::new(Event::RoomMember(join_event))],
-    };
+    let events = Events { events: vec![Box::new(Event::RoomMember(join_event))] };
 
     let join_payload = to_string(&events).unwrap();
-    
+
     simulate_message_from_matrix(Method::Put, &url, &join_payload);
 }
 

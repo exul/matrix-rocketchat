@@ -43,6 +43,11 @@ error_chain!{
             display("The provided user ID {} is not valid", user_id)
         }
 
+        EventIdGenerationFailed{
+            description("Could not generate a new event ID")
+            display("Could not generate a new event ID")
+        }
+
         UnsupportedHttpMethod(method: String) {
             description("Could not call REST API")
             display("Unsupported HTTP method {}", method)

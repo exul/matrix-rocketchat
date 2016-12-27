@@ -13,10 +13,12 @@ mod r0;
 
 /// Matrix REST API
 pub trait MatrixApi: Send + Sync + MatrixApiClone {
-    /// Join a room with a user.
-    fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
     /// Get the list of members for this room.
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>>;
+    /// Join a room with a user.
+    fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
+    /// Send a text message to a room.
+    fn send_text_message_event(&self, matrix_room_id: RoomId, matrix_user_id: UserId, body: String) -> Result<()>;
 }
 
 /// Helper trait because Clone cannot be part of the `MatrixApi` trait since that would cause the

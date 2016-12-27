@@ -3,6 +3,8 @@
 pub struct User {
     /// The users unique id on the Matrix server.
     pub matrix_user_id: String,
+    /// The language the user prefers to get messages in.
+    pub language: String,
     /// Flag to indicate if the user is only used to send messages from Rocket.Chat
     pub is_virtual_user: bool,
     /// Time when the user sent the last message in seconds since UNIX_EPOCH

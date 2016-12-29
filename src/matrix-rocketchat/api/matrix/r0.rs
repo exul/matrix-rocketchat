@@ -43,10 +43,7 @@ impl MatrixApi {
 
 impl super::MatrixApi for MatrixApi {
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>> {
-        let path_params = get_members::PathParams {
-            room_id: matrix_room_id.clone(),
-            event_type: "".to_string(),
-        };
+        let path_params = get_members::PathParams { room_id: matrix_room_id.clone() };
         let endpoint = self.base_url.clone() + &GetMembersEndpoint::request_path(path_params);
         let parameters = self.parameter_hash();
 

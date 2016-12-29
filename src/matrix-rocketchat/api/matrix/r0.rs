@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::membership::join_by_room_id::{self, Endpoint as JoinEndpoint};
-use ruma_client_api::r0::get::members::{self, Endpoint as MembersEndpoint};
+use ruma_client_api::r0::events::get_members::{self, Endpoint as GetMembersEndpoint};
 use ruma_client_api::r0::send::send_event::{self, Endpoint as SendEventEndpoint};
 use ruma_events::EventType;
 use ruma_events::room::member::MemberEvent;
@@ -43,11 +43,14 @@ impl MatrixApi {
 
 impl super::MatrixApi for MatrixApi {
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>> {
-        let path_params = members::PathParams { room_id: matrix_room_id.clone() };
-        let endpoint = self.base_url.clone() + &MembersEndpoint::request_path(path_params);
+        let path_params = get_members::PathParams {
+            room_id: matrix_room_id.clone(),
+            event_type: "".to_string(),
+        };
+        let endpoint = self.base_url.clone() + &GetMembersEndpoint::request_path(path_params);
         let parameters = self.parameter_hash();
 
-        let (body, status_code) = RestApi::call_matrix(MembersEndpoint::method(), &endpoint, "{}")?;
+        let (body, status_code) = RestApi::call_matrix(GetMembersEndpoint::method(), &endpoint, "{}")?;
         if !status_code.is_success() {
             let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
                     ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix members API \
@@ -60,11 +63,11 @@ impl super::MatrixApi for MatrixApi {
         debug!(self.logger,
                format!("List of room members for room {} successfully received", matrix_room_id));
 
-        let room_member_events: members::Response = serde_json::from_str(&body).chain_err(|| {
+        let room_member_events: get_members::Response = serde_json::from_str(&body).chain_err(|| {
                 ErrorKind::InvalidJSON(format!("Could not deserialize reseponse from Matrix members API endpoint: `{}`",
                                                body))
             })?;
-        Ok(room_member_events.chunk)
+        Ok(room_member_events.chunks)
     }
 
     fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {

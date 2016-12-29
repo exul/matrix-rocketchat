@@ -57,6 +57,7 @@ impl<'a> Server<'a> {
     }
 
     fn prepare_database(&self) -> Result<()> {
+        debug!(self.logger, format!("Setting up database {}", self.config.database_url));
         let connection =
             SqliteConnection::establish(&self.config.database_url).chain_err(|| "Could not establish database connection")?;
         setup_database(&connection).chain_err(|| "Could not setup database")?;

@@ -44,8 +44,11 @@ impl Handler for Transactions {
             return Err(err.into());
         };
 
-        let events_batch: Events = match serde_json::from_str(&payload).
-            chain_err(|| ErrorKind::InvalidJSON(format!("Could not deserialize events that the homeserver sent to the transactions endpoint: `{}`", payload))) {
+        let events_batch: Events = match serde_json::from_str(&payload).chain_err(|| {
+            ErrorKind::InvalidJSON(format!("Could not deserialize events that the homeserver sent to the transactions \
+                                            endpoint: `{}`",
+                                           payload))
+        }) {
             Ok(events_batch) => events_batch,
             Err(err) => {
                 error!(logger, format!("{:?}", err));

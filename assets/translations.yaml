@@ -1,4 +1,6 @@
 en:
+  defaults:
+    admin_room_display_name: "Admin Room"
   handlers:
     welcome: "Your Rocket.Chat <-> Matrix application service is running"
   errors:

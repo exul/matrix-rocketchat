@@ -68,6 +68,16 @@ error_chain!{
             display("No supported API version found for the Matrix homeserver, found versions: {}", versions)
         }
 
+        DBInsertFailed {
+            description("Inserting record into the database failed")
+            display("Inserting record into the database failed")
+        }
+
+        DBSelectFailed{
+            description("Select record from the database failed")
+            display("Select record from the database failed")
+        }
+
         InternalServerError {
             description("An internal error occurred")
             display("An internal error occurred")

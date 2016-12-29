@@ -13,7 +13,7 @@ pub struct RestApi {}
 impl RestApi {
     /// Call a matrix REST API endpoint
     pub fn call_matrix(method: RumaHttpMethod, url: &str, payload: &str) -> Result<(String, StatusCode)> {
-        let method = match method{
+        let method = match method {
             RumaHttpMethod::Delete => Method::Delete,
             RumaHttpMethod::Get => Method::Get,
             RumaHttpMethod::Post => Method::Post,

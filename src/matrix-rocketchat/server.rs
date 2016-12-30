@@ -62,5 +62,6 @@ impl<'a> Server<'a> {
             SqliteConnection::establish(&self.config.database_url).chain_err(|| "Could not establish database connection")?;
         setup_database(&connection).chain_err(|| "Could not setup database")?;
         run_embedded_migrations(&connection).chain_err(|| "Running migrations failed")
+
     }
 }

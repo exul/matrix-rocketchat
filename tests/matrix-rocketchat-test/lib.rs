@@ -17,6 +17,7 @@ extern crate slog;
 extern crate slog_json;
 extern crate slog_stream;
 extern crate slog_term;
+extern crate tempdir;
 
 pub mod handlers;
 pub mod helpers;
@@ -37,9 +38,12 @@ use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 use router::Router;
 use slog::{DrainExt, Record};
+use tempdir::TempDir;
 
 /// Name of the temporary directory that is used for each test
 pub const TEMP_DIR_NAME: &'static str = "matrix_rocketchat_test";
+/// Name of the database file
+pub const DATABASE_NAME: &'static str = "test.db";
 /// Application service token used in the tests
 const AS_TOKEN: &'static str = "at";
 /// Homeserver token used in the tests
@@ -72,12 +76,16 @@ pub struct Test {
     pub hs_listening: Option<Listening>,
     /// The application service listening server
     pub as_listening: Option<Listening>,
+    /// Temp directory to store data during the test, it has to be part of the struct so that it
+    /// does not get dropped until the test is over
+    pub temp_dir: TempDir,
 }
 
 impl Test {
     /// Create a new Test struct with helper methods that can be used for testing.
     pub fn new() -> Test {
-        let config = build_test_config();
+        let temp_dir = TempDir::new(TEMP_DIR_NAME).expect("Could not create temp dir");
+        let config = build_test_config(&temp_dir);
         let connection_pool = ConnectionPool::new(&config.database_url);
         Test {
             config: config,
@@ -86,6 +94,7 @@ impl Test {
             matrix_homeserver_mock_router: None,
             hs_listening: None,
             as_listening: None,
+            temp_dir: temp_dir,
         }
     }
 
@@ -164,9 +173,12 @@ impl Drop for Test {
     }
 }
 
-pub fn build_test_config() -> Config {
+pub fn build_test_config(temp_dir: &TempDir) -> Config {
     let as_socket_addr = get_free_socket_addr();
     let as_url = format!("http://{}:{}", as_socket_addr.ip(), as_socket_addr.port());
+    let database_path = temp_dir.path().join(DATABASE_NAME);
+    let database_url = database_path.to_str().expect("could not build database url");
+    debug!(DEFAULT_LOGGER, format!("Database URL is: {}", database_url));
 
     Config {
         as_token: AS_TOKEN.to_string(),
@@ -177,7 +189,7 @@ pub fn build_test_config() -> Config {
         hs_url: "".to_string(),
         hs_domain: "localhost".to_string(),
         sender_localpart: "rocketchat".to_string(),
-        database_url: ":memory:".to_string(),
+        database_url: database_url.to_string(),
         use_ssl: false,
         ssl_certificate_path: None,
         ssl_key_path: None,

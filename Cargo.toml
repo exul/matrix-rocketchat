@@ -35,3 +35,4 @@ yaml-rust = "0.3"
 
 [dev-dependencies]
 matrix_rocketchat_test = { path = "tests/matrix-rocketchat-test" }
+tempdir = "0.3"

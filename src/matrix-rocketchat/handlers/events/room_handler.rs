@@ -9,6 +9,7 @@ use api::MatrixApi;
 use config::Config;
 use db::room::{NewRoom, Room};
 use db::user::User;
+use db::user_in_room::{NewUserInRoom, UserInRoom};
 use errors::*;
 use i18n::*;
 
@@ -78,7 +79,11 @@ impl<'a> RoomHandler<'a> {
             is_bridged: false,
         };
         Room::insert(self.connection, &room)?;
-        // TODO: Create the room in the database and add the user who sent the invite as member
+        let user_in_room = NewUserInRoom {
+            matrix_user_id: user.matrix_user_id,
+            matrix_room_id: room.matrix_room_id,
+        };
+        UserInRoom::insert(self.connection, &user_in_room)?;
         self.matrix_api.join(matrix_room_id, invited_user_id)
     }
 

@@ -31,7 +31,7 @@ pub struct Room {
     pub updated_at: String,
 }
 
-/// A new room, not yet saved.
+/// A new `Room`, not yet saved.
 #[derive(Insertable)]
 #[table_name="rooms"]
 pub struct NewRoom {
@@ -49,19 +49,19 @@ pub struct NewRoom {
 }
 
 impl Room {
-    /// Insert a new room into the database.
+    /// Insert a new `Room` into the database.
     pub fn insert(connection: &SqliteConnection, room: &NewRoom) -> Result<Room> {
         diesel::insert(room).into(rooms::table).execute(connection).chain_err(|| ErrorKind::DBInsertFailed)?;
         Room::find(connection, &room.matrix_room_id)
     }
 
-    /// Find a room by its matrix room id. Returns an error if the room is not found.
+    /// Find a `Room` by its matrix room ID. Returns an error if the room is not found.
     pub fn find(connection: &SqliteConnection, matrix_room_id: &RoomId) -> Result<Room> {
         let room = rooms::table.find(matrix_room_id).first(connection).chain_err(|| "Room not found")?;
         Ok(room)
     }
 
-    /// Returns all users in the room.
+    /// Returns all `User`s in the room.
     pub fn users(&self, connection: &SqliteConnection) -> Result<Vec<User>> {
         let users: Vec<User>=
             users::table.filter(users::matrix_user_id.eq_any(UserInRoom::belonging_to(self).select(users_in_rooms::matrix_user_id)))

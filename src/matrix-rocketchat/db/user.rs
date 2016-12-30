@@ -7,7 +7,7 @@ use errors::*;
 use i18n::*;
 use super::schema::users;
 
-/// A Matrix user.
+/// A Matrix `User`.
 #[derive(Queryable)]
 pub struct User {
     /// The users unique id on the Matrix server.
@@ -24,7 +24,7 @@ pub struct User {
     pub updated_at: String,
 }
 
-/// A new Matrix user, not yet saved.
+/// A new Matrix `User`, not yet saved.
 #[derive(Insertable)]
 #[table_name="users"]
 pub struct NewUser<'a> {
@@ -39,19 +39,19 @@ pub struct NewUser<'a> {
 }
 
 impl User {
-    /// Insert a new user into the database.
+    /// Insert a new `User` into the database.
     pub fn insert(connection: &SqliteConnection, user: &NewUser) -> Result<User> {
         diesel::insert(user).into(users::table).execute(connection).chain_err(|| ErrorKind::DBInsertFailed)?;
         User::find(connection, &user.matrix_user_id)
     }
 
-    /// Find a user by his matrix user ID, return an error if the user is not found
+    /// Find a `User` by his matrix user ID, return an error if the user is not found
     pub fn find(connection: &SqliteConnection, matrix_user_id: &UserId) -> Result<User> {
         let user = users::table.find(matrix_user_id).first(connection).chain_err(|| "User not found")?;
         Ok(user)
     }
 
-    /// Find or create user with a given Matrix user ID.
+    /// Find or create `User` with a given Matrix user ID.
     pub fn find_or_create_by_matrix_user_id(connection: &SqliteConnection, matrix_user_id: UserId) -> Result<User> {
         match User::find_by_matrix_user_id(connection, &matrix_user_id)? {
             Some(user) => Ok(user),
@@ -68,7 +68,7 @@ impl User {
         }
     }
 
-    /// Find a user by his matrix user ID.
+    /// Find a `User` by his matrix user ID.
     pub fn find_by_matrix_user_id(connection: &SqliteConnection, matrix_user_id: &UserId) -> Result<Option<User>> {
         let users = users::table.find(matrix_user_id).load(connection).chain_err(|| ErrorKind::DBSelectFailed)?;
         Ok(users.into_iter().next())

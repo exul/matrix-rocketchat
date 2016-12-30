@@ -4,6 +4,7 @@ use diesel::sqlite::SqliteConnection;
 use ruma_identifiers::UserId;
 
 use errors::*;
+use i18n::*;
 use super::schema::users;
 
 /// A Matrix user.
@@ -48,6 +49,23 @@ impl User {
     pub fn find(connection: &SqliteConnection, matrix_user_id: &UserId) -> Result<User> {
         let user = users::table.find(matrix_user_id).first(connection).chain_err(|| "User not found")?;
         Ok(user)
+    }
+
+    /// Find or create user with a given Matrix user ID.
+    pub fn find_or_create_by_matrix_user_id(connection: &SqliteConnection, matrix_user_id: UserId) -> Result<User> {
+        match User::find_by_matrix_user_id(connection, &matrix_user_id)? {
+            Some(user) => Ok(user),
+            None => {
+                let new_user = NewUser {
+                    matrix_user_id: matrix_user_id,
+                    language: DEFAULT_LANGUAGE,
+                    is_virtual_user: false,
+                    last_message_sent: 0,
+                };
+                User::insert(connection, &new_user)
+            }
+
+        }
     }
 
     /// Find a user by his matrix user ID.

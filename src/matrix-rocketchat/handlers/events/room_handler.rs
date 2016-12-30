@@ -8,7 +8,7 @@ use slog::Logger;
 use api::MatrixApi;
 use config::Config;
 use db::room::{NewRoom, Room};
-use db::user::{NewUser, User};
+use db::user::User;
 use errors::*;
 use i18n::*;
 
@@ -50,7 +50,7 @@ impl<'a> RoomHandler<'a> {
                 self.handle_invite(event.room_id.clone(), matrix_bot_user_id, event.user_id.clone())?;
             }
             MembershipState::Join if addressed_to_matrix_bot => {
-                let msg = format!("Bot {} entered room {}", matrix_bot_user_id, event.room_id);
+                let msg = format!("Bot {} joined room {}", matrix_bot_user_id, event.room_id);
                 debug!(self.logger, msg);
 
                 self.handle_join(event.room_id.clone())?;
@@ -68,19 +68,7 @@ impl<'a> RoomHandler<'a> {
 
     /// Process join invite for the bot user.
     pub fn handle_invite(&self, matrix_room_id: RoomId, invited_user_id: UserId, sender_id: UserId) -> Result<()> {
-        let user: User = match User::find_by_matrix_user_id(self.connection, &sender_id)? {
-            Some(user) => user,
-            None => {
-                let new_user = NewUser {
-                    matrix_user_id: sender_id.clone(),
-                    language: DEFAULT_LANGUAGE,
-                    is_virtual_user: false,
-                    last_message_sent: 0,
-                };
-                User::insert(self.connection, &new_user)?
-            }
-        };
-        // TODO: Check if the sender user already exists, it not, create a db record
+        let user = User::find_or_create_by_matrix_user_id(self.connection, sender_id)?;
         let display_name = t!(["defaults", "admin_room_display_name"]).l(&user.language);
         let room = NewRoom {
             matrix_room_id: matrix_room_id.clone(),

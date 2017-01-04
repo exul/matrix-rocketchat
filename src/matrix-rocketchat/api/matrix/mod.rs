@@ -14,8 +14,6 @@ mod r0;
 
 /// Matrix REST API
 pub trait MatrixApi: Send + Sync + MatrixApiClone {
-    /// Looks up the creator of a room.
-    fn get_room_creator(&self, matrix_room_id: RoomId) -> Result<UserId>;
     /// Get the list of members for this room.
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>>;
     /// Join a room with a user.

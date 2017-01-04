@@ -14,10 +14,14 @@ mod r0;
 
 /// Matrix REST API
 pub trait MatrixApi: Send + Sync + MatrixApiClone {
+    /// Forget a room.
+    fn forget_room(&self, matrix_room_id: RoomId) -> Result<()>;
     /// Get the list of members for this room.
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>>;
     /// Join a room with a user.
     fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
+    /// Leave a room.
+    fn leave_room(&self, matrix_room_id: RoomId) -> Result<()>;
     /// Send a text message to a room.
     fn send_text_message_event(&self, matrix_room_id: RoomId, matrix_user_id: UserId, body: String) -> Result<()>;
 }

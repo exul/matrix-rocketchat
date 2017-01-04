@@ -90,14 +90,7 @@ impl<'a> RoomHandler<'a> {
     /// Process join events for the bot user.
     pub fn handle_join(&self, matrix_room_id: RoomId) -> Result<()> {
         if !self.is_private_room(matrix_room_id.clone())? {
-            info!(self.logger,
-                  format!("Room {} has more then two members and cannot be used as admin room",
-                          matrix_room_id));
-            let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
-            // TODO: Find admin room user and get the language from the user settings
-            let body = t!(["admin_room", "too_many_members_in_room"]).l(DEFAULT_LANGUAGE);
-            self.matrix_api.send_text_message_event(matrix_room_id, matrix_bot_user_id, body)?;
-            return Ok(());
+            return self.handle_non_private_room(matrix_room_id);
         }
 
         // TODO: Add the bot user as member of the room
@@ -109,5 +102,22 @@ impl<'a> RoomHandler<'a> {
 
     fn is_private_room(&self, matrix_room_id: RoomId) -> Result<bool> {
         Ok(self.matrix_api.get_room_members(matrix_room_id)?.len() <= 2)
+    }
+
+    fn handle_non_private_room(&self, matrix_room_id: RoomId) -> Result<()> {
+        info!(self.logger,
+              format!("Room {} has more then two members and cannot be used as admin room",
+                      matrix_room_id));
+        let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
+        let room = Room::find(self.connection, &matrix_room_id)?;
+        let users_in_room = room.users(self.connection)?;
+        let invitation_submitter = users_in_room.first()
+            .expect("There is always a user in the room, because this user invited the bot");
+        let body = t!(["admin_room", "too_many_members_in_room"]).l(&invitation_submitter.language);
+        self.matrix_api.send_text_message_event(matrix_room_id.clone(), matrix_bot_user_id, body)?;
+        self.matrix_api.leave_room(matrix_room_id.clone())?;
+        self.matrix_api.forget_room(matrix_room_id)?;
+        room.delete(self.connection)?;
+        Ok(())
     }
 }

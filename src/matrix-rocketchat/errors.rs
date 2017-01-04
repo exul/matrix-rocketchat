@@ -78,6 +78,11 @@ error_chain!{
             display("Select record from the database failed")
         }
 
+        DBDeleteFailed{
+            description("Deleting record from the database failed")
+            display("Deleting record from the database failed")
+        }
+
         InternalServerError {
             description("An internal error occurred")
             display("An internal error occurred")

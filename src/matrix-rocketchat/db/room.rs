@@ -69,4 +69,12 @@ impl Room {
                 .unwrap();
         Ok(users)
     }
+
+    /// Delete a room, this also deletes any users_in_rooms relations for that room.
+    pub fn delete(&self, connection: &SqliteConnection) -> Result<()> {
+        diesel::delete(UserInRoom::belonging_to(self)).execute(connection).chain_err(|| ErrorKind::DBDeleteFailed)?;
+        diesel::delete(rooms::table.filter(rooms::matrix_room_id.eq(self.matrix_room_id.clone()))).execute(connection)
+            .chain_err(|| ErrorKind::DBDeleteFailed)?;
+        Ok(())
+    }
 }

@@ -1,7 +1,9 @@
 use std::collections::HashMap;
 
 use ruma_client_api::Endpoint;
+use ruma_client_api::r0::membership::forget_room::{self, Endpoint as ForgetRoomEndpoint};
 use ruma_client_api::r0::membership::join_room_by_id::{self, Endpoint as JoinRoomByIdEndpoint};
+use ruma_client_api::r0::membership::leave_room::{self, Endpoint as LeaveRoomEndpoint};
 use ruma_client_api::r0::send::send_message_event::{self, Endpoint as SendMessageEventEndpoint};
 use ruma_client_api::r0::sync::get_member_events::{self, Endpoint as GetMemberEventsEndpoint};
 use ruma_events::EventType;
@@ -42,6 +44,23 @@ impl MatrixApi {
 }
 
 impl super::MatrixApi for MatrixApi {
+    fn forget_room(&self, matrix_room_id: RoomId) -> Result<()> {
+        let path_params = forget_room::PathParams { room_id: matrix_room_id };
+        let endpoint = self.base_url.clone() + &ForgetRoomEndpoint::request_path(path_params);
+        let parameters = self.parameter_hash();
+
+        let (body, status_code) = RestApi::call_matrix(ForgetRoomEndpoint::method(), &endpoint, "{}")?;
+        if !status_code.is_success() {
+            let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
+                    ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix members API \
+                                                    endpoint: `{}`",
+                                                   body))
+                })?;
+            bail!(ErrorKind::MatrixError(matrix_error_resp.error));
+        }
+        Ok(())
+    }
+
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>> {
         let path_params = get_member_events::PathParams { room_id: matrix_room_id.clone() };
         let endpoint = self.base_url.clone() + &GetMemberEventsEndpoint::request_path(path_params);
@@ -88,6 +107,23 @@ impl super::MatrixApi for MatrixApi {
                "User {} successfully joined room {}",
                matrix_room_id,
                matrix_user_id);
+        Ok(())
+    }
+
+    fn leave_room(&self, matrix_room_id: RoomId) -> Result<()> {
+        let path_params = leave_room::PathParams { room_id: matrix_room_id };
+        let endpoint = self.base_url.clone() + &LeaveRoomEndpoint::request_path(path_params);
+        let parameters = self.parameter_hash();
+
+        let (body, status_code) = RestApi::call_matrix(LeaveRoomEndpoint::method(), &endpoint, "{}")?;
+        if !status_code.is_success() {
+            let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
+                    ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix members API \
+                                                    endpoint: `{}`",
+                                                   body))
+                })?;
+            bail!(ErrorKind::MatrixError(matrix_error_resp.error));
+        }
         Ok(())
     }
 

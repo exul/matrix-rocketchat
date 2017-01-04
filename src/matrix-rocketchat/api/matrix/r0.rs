@@ -44,6 +44,36 @@ impl MatrixApi {
 }
 
 impl super::MatrixApi for MatrixApi {
+    fn get_room_creator(&self, matrix_room_id: RoomId) -> Result<UserId> {
+        let path_params = get_state_event_by_event_type::PathParams {
+            room_id: matrix_room_id.clone(),
+            event_type: format!("{}", EventType::RoomCreate),
+        };
+        let endpoint = self.base_url.clone() + &GetStateEventByEventtypeEndpoint::request_path(path_params);
+        let parameters = self.parameter_hash();
+
+        let (body, status_code) = RestApi::call_matrix(GetStateEventByEventtypeEndpoint::method(), &endpoint, "{}")?;
+        if !status_code.is_success() {
+            let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
+                    ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix members API \
+                                                    endpoint: `{}`",
+                                                   body))
+                })?;
+            bail!(ErrorKind::MatrixError(matrix_error_resp.error));
+        }
+
+        debug!(self.logger,
+               format!("Creator of the room {} successfully received", matrix_room_id));
+
+        let create_event: CreateEvent = serde_json::from_str(&body).chain_err(|| {
+                ErrorKind::InvalidJSON(format!("Could not deserialize reseponse from Matrix get state event by event \
+                                                type API endpoint: `{}`",
+                                               body))
+            })?;
+
+        Ok(create_event.content.creator)
+    }
+
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>> {
         let path_params = get_member_events::PathParams { room_id: matrix_room_id.clone() };
         let endpoint = self.base_url.clone() + &GetMemberEventsEndpoint::request_path(path_params);

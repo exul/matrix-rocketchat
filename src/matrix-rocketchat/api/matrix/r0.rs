@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use ruma_client_api::Endpoint;
-use ruma_client_api::r0::membership::join_by_room_id::{self, Endpoint as JoinEndpoint};
-use ruma_client_api::r0::events::get_members::{self, Endpoint as GetMembersEndpoint};
-use ruma_client_api::r0::send::send_event::{self, Endpoint as SendEventEndpoint};
+use ruma_client_api::r0::membership::join_room_by_id::{self, Endpoint as JoinRoomByIdEndpoint};
+use ruma_client_api::r0::send::send_message_event::{self, Endpoint as SendMessageEventEndpoint};
+use ruma_client_api::r0::sync::get_member_events::{self, Endpoint as GetMemberEventsEndpoint};
+use ruma_client_api::r0::sync::get_state_event_by_event_type::{self, Endpoint as GetStateEventByEventtypeEndpoint};
 use ruma_events::EventType;
+use ruma_events::room::create::CreateEvent;
 use ruma_events::room::member::MemberEvent;
 use ruma_events::room::message::{MessageType, TextMessageEventContent};
 use ruma_identifiers::{EventId, RoomId, UserId};
@@ -43,11 +45,11 @@ impl MatrixApi {
 
 impl super::MatrixApi for MatrixApi {
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>> {
-        let path_params = get_members::PathParams { room_id: matrix_room_id.clone() };
-        let endpoint = self.base_url.clone() + &GetMembersEndpoint::request_path(path_params);
+        let path_params = get_member_events::PathParams { room_id: matrix_room_id.clone() };
+        let endpoint = self.base_url.clone() + &GetMemberEventsEndpoint::request_path(path_params);
         let parameters = self.parameter_hash();
 
-        let (body, status_code) = RestApi::call_matrix(GetMembersEndpoint::method(), &endpoint, "{}")?;
+        let (body, status_code) = RestApi::call_matrix(GetMemberEventsEndpoint::method(), &endpoint, "{}")?;
         if !status_code.is_success() {
             let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
                     ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix members API \
@@ -60,7 +62,7 @@ impl super::MatrixApi for MatrixApi {
         debug!(self.logger,
                format!("List of room members for room {} successfully received", matrix_room_id));
 
-        let room_member_events: get_members::Response = serde_json::from_str(&body).chain_err(|| {
+        let room_member_events: get_member_events::Response = serde_json::from_str(&body).chain_err(|| {
                 ErrorKind::InvalidJSON(format!("Could not deserialize reseponse from Matrix members API endpoint: `{}`",
                                                body))
             })?;
@@ -68,13 +70,13 @@ impl super::MatrixApi for MatrixApi {
     }
 
     fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {
-        let path_params = join_by_room_id::PathParams { room_id: matrix_room_id.clone() };
-        let endpoint = self.base_url.clone() + &JoinEndpoint::request_path(path_params);
+        let path_params = join_room_by_id::PathParams { room_id: matrix_room_id.clone() };
+        let endpoint = self.base_url.clone() + &JoinRoomByIdEndpoint::request_path(path_params);
         let user_id = matrix_user_id.to_string();
         let mut parameters = self.parameter_hash();
         parameters.insert("user_id", &user_id);
 
-        let (body, status_code) = RestApi::call_matrix(JoinEndpoint::method(), &endpoint, "{}")?;
+        let (body, status_code) = RestApi::call_matrix(JoinRoomByIdEndpoint::method(), &endpoint, "{}")?;
         if !status_code.is_success() {
             let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
                     ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix join API endpoint: \
@@ -99,17 +101,17 @@ impl super::MatrixApi for MatrixApi {
         let payload =
             serde_json::to_string(&message).chain_err(|| ErrorKind::InvalidJSON("Could not serialize message".to_string()))?;
         let txn_id = EventId::new(&self.base_url).chain_err(|| ErrorKind::EventIdGenerationFailed)?;
-        let path_params = send_event::PathParams {
+        let path_params = send_message_event::PathParams {
             room_id: matrix_room_id.clone(),
             event_type: EventType::RoomMessage,
             txn_id: txn_id.to_string(),
         };
-        let endpoint = self.base_url.clone() + &SendEventEndpoint::request_path(path_params);
+        let endpoint = self.base_url.clone() + &SendMessageEventEndpoint::request_path(path_params);
         let user_id = matrix_user_id.to_string();
         let mut parameters = self.parameter_hash();
         parameters.insert("user_id", &user_id);
 
-        let (body, status_code) = RestApi::call_matrix(SendEventEndpoint::method(), &endpoint, &payload)?;
+        let (body, status_code) = RestApi::call_matrix(SendMessageEventEndpoint::method(), &endpoint, &payload)?;
 
         if !status_code.is_success() {
             let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {

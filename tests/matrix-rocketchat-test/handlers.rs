@@ -1,6 +1,6 @@
 use iron::prelude::*;
 use iron::{Handler, status};
-use ruma_client_api::r0::events::get_members;
+use ruma_client_api::r0::sync::get_member_events;
 use ruma_events::EventType;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
 use ruma_identifiers::{EventId, RoomId, UserId};
@@ -43,7 +43,7 @@ impl Handler for TwoRoomMembers {
             member_events.push(member_event);
         }
 
-        let response = get_members::Response { chunks: member_events };
+        let response = get_member_events::Response { chunks: member_events };
         let payload = serde_json::to_string(&response).expect("Could not serialize members response");
         Ok(Response::with((status::Ok, payload)))
     }

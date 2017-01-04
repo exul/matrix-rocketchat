@@ -14,9 +14,9 @@ use matrix_rocketchat_test::handlers;
 use matrix_rocketchat_test::helpers;
 use router::Router;
 use ruma_client_api::Endpoint;
-use ruma_client_api::r0::membership::join_by_room_id::Endpoint as JoinEndpoint;
-use ruma_client_api::r0::send::send_event::Endpoint as SendEventEndpoint;
-use ruma_client_api::r0::events::get_members::Endpoint as GetMembersEndpoint;
+use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinEndpoint;
+use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
+use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
 use ruma_identifiers::{RoomId, UserId};
 
 #[test]
@@ -29,8 +29,8 @@ fn successfully_create_an_admin_room() {
         members: [UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
                   UserId::try_from("@spec_user:localhost").expect("Could not create user ID")],
     };
-    matrix_router.get(GetMembersEndpoint::router_path(), two_room_members);
-    matrix_router.put(SendEventEndpoint::router_path(), message_forwarder);
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), two_room_members);
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
     let test = Test::new().with_matrix_homeserver_mock().with_custom_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(test.config.as_url.to_string(),

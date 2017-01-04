@@ -1,5 +1,6 @@
 use ruma_client_api::Endpoint;
-use ruma_client_api::supported_versions::{Endpoint as SupportedVersionsEndpoint, Response as SupportedVersionsResponse};
+use ruma_client_api::unversioned::get_supported_versions::{Endpoint as GetSupportedVersionsEndpoint,
+                                                           Response as GetSupportedVersionsResponse};
 use ruma_events::room::member::MemberEvent;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json;
@@ -46,9 +47,9 @@ impl MatrixApi {
     /// Creates a new Matrix API depending on the version of the homeserver.
     /// It returns a `MatrixApi` trait, because for each version a different API is created.
     pub fn new(config: &Config, logger: Logger) -> Result<Box<MatrixApi>> {
-        let url = config.hs_url.clone() + &SupportedVersionsEndpoint::request_path(());
+        let url = config.hs_url.clone() + &GetSupportedVersionsEndpoint::request_path(());
 
-        let (body, status_code) = RestApi::call_matrix(SupportedVersionsEndpoint::method(), &url, "")?;
+        let (body, status_code) = RestApi::call_matrix(GetSupportedVersionsEndpoint::method(), &url, "")?;
         if !status_code.is_success() {
             let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
                     ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix supported versions \
@@ -58,7 +59,7 @@ impl MatrixApi {
             return Err(Error::from(ErrorKind::MatrixError(matrix_error_resp.error)));
         }
 
-        let supported_versions: SupportedVersionsResponse = serde_json::from_str(&body).chain_err(|| {
+        let supported_versions: GetSupportedVersionsResponse = serde_json::from_str(&body).chain_err(|| {
                 ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix supported versions API \
                                                 endpoint: `{}`",
                                                body))

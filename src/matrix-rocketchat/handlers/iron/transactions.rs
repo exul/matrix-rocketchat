@@ -2,6 +2,7 @@ use std::io::Read;
 
 use iron::{Handler, status};
 use iron::prelude::*;
+use iron::request::Body;
 use serde_json;
 
 use api::MatrixApi;
@@ -38,20 +39,14 @@ impl Handler for Transactions {
     fn handle(&self, request: &mut Request) -> IronResult<Response> {
         let logger = IronLogger::from_request(request)?;
 
-        let mut payload = String::new();
-        if let Err(err) = request.body.read_to_string(&mut payload).chain_err(|| ErrorKind::InternalServerError) {
-            error!(logger, format!("{:?}", err));
-            return Err(err.into());
-        };
-
-        let events_batch: Events = match serde_json::from_str(&payload).chain_err(|| {
-            ErrorKind::InvalidJSON(format!("Could not deserialize events that the homeserver sent to the transactions \
-                                            endpoint: `{}`",
-                                           payload))
-        }) {
+        let events_batch = match deserialize_events(&mut request.body) {
             Ok(events_batch) => events_batch,
             Err(err) => {
-                error!(logger, format!("{:?}", err));
+                let mut msg = format!("{}", err);
+                for err in err.iter().skip(1) {
+                    msg = msg + "\n" + &format!("{}", err);
+                }
+                error!(logger, msg);
                 return Err(err.into());
             }
         };
@@ -62,4 +57,14 @@ impl Handler for Transactions {
 
         Ok(Response::with((status::Ok, "{}".to_string())))
     }
+}
+
+fn deserialize_events(body: &mut Body) -> Result<Events> {
+    let mut payload = String::new();
+    body.read_to_string(&mut payload).chain_err(|| ErrorKind::InternalServerError)?;
+    serde_json::from_str(&payload).chain_err(|| {
+        ErrorKind::InvalidJSON(format!("Could not deserialize events that were sent to the transactions \
+                                        endpoint: `{}`",
+                                       payload))
+    })
 }

@@ -4,6 +4,7 @@ en:
     too_many_members_in_room: "Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."
   defaults:
     admin_room_display_name: "Admin Room"
+    internal_error: "An internal error occurred"
   handlers:
     welcome: "Your Rocket.Chat <-> Matrix application service is running"
   errors:

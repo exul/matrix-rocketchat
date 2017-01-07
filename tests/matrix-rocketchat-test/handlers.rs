@@ -1,5 +1,6 @@
 use iron::prelude::*;
 use iron::{Handler, status};
+use matrix_rocketchat::errors::MatrixErrorResponse;
 use ruma_client_api::r0::sync::get_member_events;
 use ruma_events::EventType;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
@@ -54,5 +55,20 @@ pub struct EmptyJson {}
 impl Handler for EmptyJson {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
         Ok(Response::with((status::Ok, "{}")))
+    }
+}
+
+pub struct ErrorResponse {
+    pub status: status::Status,
+}
+
+impl Handler for ErrorResponse {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let error_response = MatrixErrorResponse {
+            errcode: "1234".to_string(),
+            error: "An error occurred".to_string(),
+        };
+        let payload = serde_json::to_string(&error_response).expect("Could not serialize error response");
+        Ok(Response::with((self.status, payload)))
     }
 }

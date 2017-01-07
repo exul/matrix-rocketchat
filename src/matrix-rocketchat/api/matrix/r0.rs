@@ -183,7 +183,7 @@ impl super::MatrixApi for MatrixApi {
         }
 
         debug!(self.logger,
-               "User {} successfully sent Message sent to room {}",
+               "User {} successfully sent a message to room {}",
                matrix_user_id,
                matrix_room_id);
         Ok(())

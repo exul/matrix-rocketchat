@@ -1,6 +1,7 @@
 #![feature(try_from)]
 
 extern crate diesel;
+extern crate iron;
 extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
 extern crate router;
@@ -10,6 +11,7 @@ extern crate ruma_identifiers;
 use std::convert::TryFrom;
 
 use diesel::result::Error as DieselError;
+use iron::status;
 use matrix_rocketchat::db::Room;
 use matrix_rocketchat::db::UserInRoom;
 use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout};
@@ -147,7 +149,37 @@ fn bot_leaves_and_forgets_the_room_when_the_user_leaves_it() {
 }
 
 #[test]
-fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {}
+fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.post(JoinEndpoint::router_path(),
+                       handlers::ErrorResponse { status: status::InternalServerError });
+    let room_members = handlers::RoomMembers {
+        room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
+        members: vec![UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
+                      UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
+    };
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+
+    helpers::invite(test.config.as_url.to_string(),
+                    RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
+                    UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
+                    UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    println!("MESSAGE: {}", message_received_by_matrix);
+    assert!(message_received_by_matrix.contains("An internal error occurred (Matrix error: An error occurred)"));
+
+    let connection = test.connection_pool.get().unwrap();
+    let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
+    assert!(room.is_admin_room);
+
+    let members = room.users(&connection).unwrap();
+    assert_eq!(members.len(), 1);
+    assert!(members.iter().any(|m| m.matrix_user_id == UserId::try_from("@spec_user:localhost").unwrap()));
+}
 
 #[test]
 fn the_user_gets_a_message_when_getting_the_room_members_failes() {}

@@ -1,11 +1,14 @@
 use diesel::sqlite::SqliteConnection;
 use ruma_events::collections::all::Event;
+use ruma_identifiers::{RoomId, UserId};
 use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
+use db::user::User;
 use errors::*;
 use super::room_handler::RoomHandler;
+use i18n::*;
 
 /// Dispatches events to the corresponding handler.
 pub struct EventDispatcher<'a> {
@@ -36,14 +39,33 @@ impl<'a> EventDispatcher<'a> {
         for event in events {
             match *event {
                 Event::RoomMember(member_event) => {
-                    RoomHandler::new(self.config, self.connection, self.logger.clone(), self.matrix_api.clone()).process(&member_event)?;
+                    if let Err(err) = RoomHandler::new(self.config,
+                                                       self.connection,
+                                                       self.logger.clone(),
+                                                       self.matrix_api.clone())
+                        .process(&member_event) {
+                        return self.handle_error(err, member_event.room_id, &member_event.user_id);
+                    }
                 }
-                _ => {
-                    debug!(self.logger, "Skipping event, because the event type is not known");
-                }
+                _ => debug!(self.logger, "Skipping event, because the event type is not known"),
             }
         }
-
         Ok(())
+    }
+
+    fn handle_error(&self, err: Error, room_id: RoomId, user_id: &UserId) -> Result<()> {
+        let mut msg = format!("{}", err);
+        for err in err.iter().skip(1) {
+            msg = msg + "\n" + &format!("{}", err);
+        }
+        error!(self.logger, msg);
+
+        let language = match User::find_by_matrix_user_id(self.connection, user_id)? {
+            Some(user) => user.language,
+            None => DEFAULT_LANGUAGE.to_string(),
+        };
+        let user_msg = t!(["defaults", "internal_error"]).l(&language) + " (" + &msg + ")";
+        self.matrix_api.send_text_message_event(room_id, self.config.matrix_bot_user_id()?, user_msg)?;
+        Err(err)
     }
 }

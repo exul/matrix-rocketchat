@@ -11,6 +11,11 @@ use serde_json::to_string;
 use super::HS_TOKEN;
 
 pub fn create_admin_room(as_url: String, admin_room_id: RoomId, test_user_id: UserId, bot_user_id: UserId) {
+    invite(as_url.clone(), admin_room_id.clone(), test_user_id.clone(), bot_user_id.clone());
+    join(as_url, admin_room_id, bot_user_id);
+}
+
+pub fn invite(as_url: String, room_id: RoomId, sender_id: UserId, user_id: UserId) {
     let url = format!("{}/transactions/{}", as_url, "specid");
 
     let invite_event = MemberEvent {
@@ -24,10 +29,10 @@ pub fn create_admin_room(as_url: String, admin_room_id: RoomId, test_user_id: Us
         event_type: EventType::RoomMember,
         invite_room_state: None,
         prev_content: None,
-        room_id: admin_room_id.clone(),
-        state_key: format!("{}", bot_user_id),
+        room_id: room_id.clone(),
+        state_key: format!("{}", user_id),
         unsigned: None,
-        user_id: test_user_id,
+        user_id: sender_id,
     };
 
     let events = Events { events: vec![Box::new(Event::RoomMember(invite_event))] };
@@ -35,6 +40,10 @@ pub fn create_admin_room(as_url: String, admin_room_id: RoomId, test_user_id: Us
     let invite_payload = to_string(&events).unwrap();
 
     simulate_message_from_matrix(Method::Put, &url, &invite_payload);
+}
+
+pub fn join(as_url: String, room_id: RoomId, user_id: UserId) {
+    let url = format!("{}/transactions/{}", as_url, "specid");
 
     let join_event = MemberEvent {
         content: MemberEventContent {
@@ -47,10 +56,10 @@ pub fn create_admin_room(as_url: String, admin_room_id: RoomId, test_user_id: Us
         event_type: EventType::RoomMember,
         invite_room_state: None,
         prev_content: None,
-        room_id: admin_room_id,
-        state_key: format!("{}", bot_user_id),
+        room_id: room_id,
+        state_key: format!("{}", user_id),
         unsigned: None,
-        user_id: bot_user_id,
+        user_id: user_id,
     };
 
     let events = Events { events: vec![Box::new(Event::RoomMember(join_event))] };

@@ -13,7 +13,7 @@ struct ErrorResponse {
 }
 
 /// Response from the Matrix homeserver when an error occurred
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize)]
 pub struct MatrixErrorResponse {
     /// Error code returned by the Matrix API
     pub errcode: String,

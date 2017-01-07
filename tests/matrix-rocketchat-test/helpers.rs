@@ -11,6 +11,8 @@ use serde_json::to_string;
 use super::HS_TOKEN;
 
 pub fn create_admin_room(as_url: String, admin_room_id: RoomId, test_user_id: UserId, bot_user_id: UserId) {
+    let url = format!("{}/transactions/{}", as_url, "specid");
+
     let invite_event = MemberEvent {
         content: MemberEventContent {
             avatar_url: None,
@@ -31,8 +33,6 @@ pub fn create_admin_room(as_url: String, admin_room_id: RoomId, test_user_id: Us
     let events = Events { events: vec![Box::new(Event::RoomMember(invite_event))] };
 
     let invite_payload = to_string(&events).unwrap();
-
-    let url = format!("{}/transactions/{}", as_url, "specid");
 
     simulate_message_from_matrix(Method::Put, &url, &invite_payload);
 
@@ -58,6 +58,32 @@ pub fn create_admin_room(as_url: String, admin_room_id: RoomId, test_user_id: Us
     let join_payload = to_string(&events).unwrap();
 
     simulate_message_from_matrix(Method::Put, &url, &join_payload);
+}
+
+pub fn leave_room(as_url: String, room_id: RoomId, user_id: UserId) {
+    let url = format!("{}/transactions/{}", as_url, "specid");
+
+    let leave_event = MemberEvent {
+        content: MemberEventContent {
+            avatar_url: None,
+            displayname: None,
+            membership: MembershipState::Leave,
+            third_party_invite: None,
+        },
+        event_id: EventId::new("localhost").unwrap(),
+        event_type: EventType::RoomMember,
+        invite_room_state: None,
+        prev_content: None,
+        room_id: room_id,
+        state_key: format!("{}", user_id),
+        unsigned: None,
+        user_id: user_id,
+    };
+
+    let events = Events { events: vec![Box::new(Event::RoomMember(leave_event))] };
+    let leave_payload = to_string(&events).unwrap();
+
+    simulate_message_from_matrix(Method::Put, &url, &leave_payload);
 }
 
 pub fn simulate_message_from_matrix(method: Method, url: &str, payload: &str) -> (String, StatusCode) {

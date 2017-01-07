@@ -56,6 +56,12 @@ impl<'a> RoomHandler<'a> {
 
                 self.handle_join(event.room_id.clone(), matrix_bot_user_id)?;
             }
+            MembershipState::Leave if !addressed_to_matrix_bot => {
+                let msg = format!("User {} left room {}", event.user_id, event.room_id);
+                debug!(self.logger, msg);
+
+                self.handle_leave(event.room_id.clone())?;
+            }
             _ => {
                 let msg = format!("Skipping event, don't know how to handle membership state `{}` with state key `{}`",
                                   event.content.membership,
@@ -106,6 +112,17 @@ impl<'a> RoomHandler<'a> {
         let body = t!(["admin_room", "connection_instructions"]).l(&invitation_submitter.language);
         self.matrix_api.send_text_message_event(matrix_room_id.clone(), bot_user_id, body)?;
 
+        Ok(())
+    }
+
+    /// Process leave events.
+    pub fn handle_leave(&self, matrix_room_id: RoomId) -> Result<()> {
+        let room = Room::find(self.connection, &matrix_room_id)?;
+        if room.is_admin_room {
+            self.matrix_api.leave_room(room.matrix_room_id.clone())?;
+            self.matrix_api.forget_room(room.matrix_room_id.clone())?;
+            room.delete(self.connection)?;
+        }
         Ok(())
     }
 

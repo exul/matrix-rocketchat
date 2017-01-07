@@ -1,6 +1,7 @@
 en:
   admin_room:
     connection_instructions: "Hi, I'm the Rocket.Chat application service"
+    too_many_members_in_room: "Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."
   defaults:
     admin_room_display_name: "Admin Room"
   handlers:

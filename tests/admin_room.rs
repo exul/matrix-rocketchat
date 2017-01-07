@@ -1,5 +1,6 @@
 #![feature(try_from)]
 
+extern crate diesel;
 extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
 extern crate router;
@@ -8,7 +9,9 @@ extern crate ruma_identifiers;
 
 use std::convert::TryFrom;
 
+use diesel::result::Error as DieselError;
 use matrix_rocketchat::db::Room;
+use matrix_rocketchat::db::UserInRoom;
 use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout};
 use matrix_rocketchat_test::handlers;
 use matrix_rocketchat_test::helpers;
@@ -52,7 +55,51 @@ fn successfully_create_an_admin_room() {
 }
 
 #[test]
-fn attempt_to_create_an_admin_room_with_other_users_in_it() {}
+fn attempt_to_create_an_admin_room_with_other_users_in_it() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {});
+    let room_members = handlers::RoomMembers {
+        room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
+        members: vec![UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
+                      UserId::try_from("@other_user:localhost").expect("Could not create user ID"),
+                      UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
+    };
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+
+    helpers::create_admin_room(test.config.as_url.to_string(),
+                               RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
+                               UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
+                               UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."));
+
+    let connection = test.connection_pool.get().unwrap();
+    let room_error = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).err().unwrap();
+    let room_diesel_error = room_error.iter().nth(1).unwrap();
+    assert_eq!(format!("{}", room_diesel_error), format!("{}", DieselError::NotFound));
+
+    let spec_user_in_room_error = UserInRoom::find(&connection,
+                                                   &UserId::try_from("@spec_user:localhost").unwrap(),
+                                                   &RoomId::try_from("!admin:localhost").unwrap())
+        .err()
+        .unwrap();
+    let spec_user_in_room_diesel_error = spec_user_in_room_error.iter().nth(1).unwrap();
+    assert_eq!(format!("{}", spec_user_in_room_diesel_error),
+               format!("{}", DieselError::NotFound));
+
+    let bot_user_in_room_error = UserInRoom::find(&connection,
+                                                  &UserId::try_from("@rocketchat:localhost").unwrap(),
+                                                  &RoomId::try_from("!admin:localhost").unwrap())
+        .err()
+        .unwrap();
+    let bot_user_in_room_diesel_error = bot_user_in_room_error.iter().nth(1).unwrap();
+    assert_eq!(format!("{}", bot_user_in_room_diesel_error),
+               format!("{}", DieselError::NotFound));
+}
 
 #[test]
 fn bot_leaves_and_forgetts_the_room_when_the_user_leaves_it() {}

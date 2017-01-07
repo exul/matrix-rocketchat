@@ -19,11 +19,11 @@ impl BeforeMiddleware for AccessToken {
         if let Some((_, ref token)) = query_pairs.find(|&(ref key, _)| key == "access_token") {
             if token == &self.config.hs_token {
                 return Ok(());
-            } else {
-                let err = Error::from(ErrorKind::InvalidAccessToken(token.to_string()));
-                info!(logger, err);
-                return Err(err.into());
             }
+
+            let err = Error::from(ErrorKind::InvalidAccessToken(token.to_string()));
+            info!(logger, err);
+            return Err(err.into());
         }
 
         let err = Error::from(ErrorKind::MissingAccessToken);

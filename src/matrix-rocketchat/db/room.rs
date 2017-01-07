@@ -57,7 +57,7 @@ impl Room {
 
     /// Find a `Room` by its matrix room ID. Returns an error if the room is not found.
     pub fn find(connection: &SqliteConnection, matrix_room_id: &RoomId) -> Result<Room> {
-        let room = rooms::table.find(matrix_room_id).first(connection).chain_err(|| "Room not found")?;
+        let room = rooms::table.find(matrix_room_id).first(connection).chain_err(|| ErrorKind::DBSelectFailed)?;
         Ok(room)
     }
 

@@ -49,7 +49,7 @@ const AS_TOKEN: &'static str = "at";
 /// Homeserver token used in the tests
 pub const HS_TOKEN: &'static str = "ht";
 /// Number of threads that iron uses when running tests
-const IRON_THREADS: usize = 1;
+pub const IRON_THREADS: usize = 1;
 
 lazy_static! {
     pub static ref DEFAULT_LOGGER: slog::Logger = {
@@ -68,8 +68,6 @@ pub struct Test {
     pub config: Config,
     /// Connection pool to get connection to the test database
     pub connection_pool: Pool<ConnectionManager<SqliteConnection>>,
-    /// Flag to indicate if the test should start a matrix homeserver mock
-    pub with_matrix_homeserver_mock: bool,
     /// Routes that the homeserver mock can handle
     pub matrix_homeserver_mock_router: Option<Router>,
     /// The matrix homeserver mock listening server
@@ -90,18 +88,11 @@ impl Test {
         Test {
             config: config,
             connection_pool: connection_pool,
-            with_matrix_homeserver_mock: false,
             matrix_homeserver_mock_router: None,
             hs_listening: None,
             as_listening: None,
             temp_dir: temp_dir,
         }
-    }
-
-    /// Run the test with a matrix homeserver mock
-    pub fn with_matrix_homeserver_mock(mut self) -> Test {
-        self.with_matrix_homeserver_mock = true;
-        self
     }
 
     /// Use custom routes when running the matrix homeserver mock instead of the default ones.
@@ -112,9 +103,7 @@ impl Test {
 
     /// Run the application service so that a test can interact with it.
     pub fn run(mut self) -> Test {
-        if self.with_matrix_homeserver_mock {
-            self.run_matrix_homeserver_mock();
-        }
+        self.run_matrix_homeserver_mock();
 
         self.run_application_service();
 
@@ -132,6 +121,8 @@ impl Test {
         };
 
         router.get("/_matrix/client/versions", handlers::MatrixVersion {});
+        router.post("*", handlers::EmptyJson {});
+        router.put("*", handlers::EmptyJson {});
 
         thread::spawn(move || {
             let listening = Iron::new(router)
@@ -152,11 +143,21 @@ impl Test {
             let log = slog::Logger::root(slog_term::streamer().full().build().fuse(),
                                          o!("version" => env!("CARGO_PKG_VERSION"),
                                             "place" => file_line_logger_format));
-            let listening = Server::new(&server_config, log).run().expect("Could not start server");
-            as_tx.send(listening).unwrap();
+            debug!(DEFAULT_LOGGER, "config: {:?}", server_config);
+            let listening = match Server::new(&server_config, log).run() {
+                Ok(listening) => listening,
+                Err(err) => {
+                    error!(DEFAULT_LOGGER, "error: {}", err);
+                    for err in err.iter().skip(1) {
+                        error!(DEFAULT_LOGGER, "caused by: {}", err);
+                    }
+                    return;
+                }
+            };
+            as_tx.send(listening).expect("Could not send server listening handle");
         });
 
-        let as_listening = as_rx.recv_timeout(default_timeout()).unwrap();
+        let as_listening = as_rx.recv_timeout(default_timeout()).expect("Could not receive server listening handle");
         self.as_listening = Some(as_listening);
     }
 }
@@ -201,10 +202,10 @@ pub fn default_timeout() -> Duration {
     Duration::from_millis(800)
 }
 
-// We don't really need the listener, but with to to_socket_addrs the port stays at 0 so we
-// use the listener to get the actual port that we can use as part of the homeserver url.
-// This way we just get a random free port and can run the tests in parallel.
-fn get_free_socket_addr() -> SocketAddr {
+/// Returns a free socket address on localhost (by randomly choosing a free port).
+/// The listener is not really needed, but when using to_socket_addrs the port stays at 0
+/// until it is actually used.
+pub fn get_free_socket_addr() -> SocketAddr {
     let address = "127.0.0.1:0";
     let listener = TcpListener::bind(address).expect("Could not bind address");
     listener.local_addr().expect("Could not get local addr")

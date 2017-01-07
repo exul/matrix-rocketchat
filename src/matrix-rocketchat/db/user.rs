@@ -8,7 +8,7 @@ use i18n::*;
 use super::schema::users;
 
 /// A Matrix `User`.
-#[derive(Queryable)]
+#[derive(Debug, Queryable)]
 pub struct User {
     /// The users unique id on the Matrix server.
     pub matrix_user_id: UserId,
@@ -34,8 +34,6 @@ pub struct NewUser<'a> {
     pub language: &'a str,
     /// Flag to indicate if the user is only used to send messages from Rocket.Chat
     pub is_virtual_user: bool,
-    /// Time when the user sent the last message in seconds since UNIX_EPOCH
-    pub last_message_sent: i64,
 }
 
 impl User {
@@ -60,7 +58,6 @@ impl User {
                     matrix_user_id: matrix_user_id,
                     language: DEFAULT_LANGUAGE,
                     is_virtual_user: false,
-                    last_message_sent: 0,
                 };
                 User::insert(connection, &new_user)
             }

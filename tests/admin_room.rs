@@ -27,11 +27,11 @@ fn successfully_create_an_admin_room() {
     let two_room_members = handlers::TwoRoomMembers {
         room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
         members: [UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
-                  UserId::try_from("@spec_user:localhost").expect("Could not create user ID")],
+                  UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), two_room_members);
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
-    let test = Test::new().with_matrix_homeserver_mock().with_custom_matrix_routes(matrix_router).run();
+    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(test.config.as_url.to_string(),
                                RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
@@ -39,16 +39,16 @@ fn successfully_create_an_admin_room() {
                                UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.starts_with("Hi, I'm the Rocket.Chat application service"));
+    assert!(message_received_by_matrix.contains("Hi, I'm the Rocket.Chat application service"));
 
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
     assert!(room.is_admin_room);
 
     let members = room.users(&connection).unwrap();
+    assert_eq!(members.len(), 2);
     assert!(members.iter().any(|m| m.matrix_user_id == UserId::try_from("@rocketchat:localhost").unwrap()));
     assert!(members.iter().any(|m| m.matrix_user_id == UserId::try_from("@spec_user:localhost").unwrap()));
-    assert_eq!(members.len(), 2);
 }
 
 #[test]

@@ -53,9 +53,9 @@ error_chain!{
             display("Unsupported HTTP method {}", method)
         }
 
-        ApiCallFailed {
+        ApiCallFailed(url: String) {
             description("Call to REST API failed")
-            display("Call to REST API failed")
+            display("Call to REST API endpoint {} failed", url)
         }
 
         MatrixError(error_msg: String) {

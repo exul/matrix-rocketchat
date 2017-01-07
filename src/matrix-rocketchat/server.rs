@@ -10,8 +10,10 @@ use slog::Logger;
 use api::MatrixApi;
 use config::Config;
 use db::ConnectionPool;
+use db::user::{NewUser, User};
 use errors::*;
 use handlers::iron::{Transactions, Welcome};
+use i18n::*;
 use log::IronLogger;
 
 /// The application service server
@@ -35,8 +37,10 @@ impl<'a> Server<'a> {
     pub fn run(&self) -> Result<Listening> {
         self.prepare_database().chain_err(|| "Database setup failed")?;
         let connection_pool = ConnectionPool::new(&self.config.database_url);
+        let connection = connection_pool.get().chain_err(|| "Getting database connection failed")?;
 
         let matrix_api = MatrixApi::new(self.config, self.logger.clone())?;
+        self.setup_bot_user(&connection, &matrix_api)?;
 
         let router = self.setup_routes(matrix_api);
         let mut chain = Chain::new(router);
@@ -62,6 +66,29 @@ impl<'a> Server<'a> {
             SqliteConnection::establish(&self.config.database_url).chain_err(|| "Could not establish database connection")?;
         setup_database(&connection).chain_err(|| "Could not setup database")?;
         run_embedded_migrations(&connection).chain_err(|| "Running migrations failed")
+    }
 
+    fn setup_bot_user(&self, connection: &SqliteConnection, matrix_api: &Box<MatrixApi>) -> Result<()> {
+        let matrix_bot_user_id = self.config.matrix_bot_user_id().chain_err(|| "Could not setup matrix bot user")?;
+        debug!(self.logger, format!("Setting up bot user {}", matrix_bot_user_id));
+        match User::find_by_matrix_user_id(connection, &matrix_bot_user_id)? {
+            Some(user) => {
+                debug!(self.logger, format!("Bot user {} exists, skipping", user.matrix_user_id));
+            }
+            None => {
+                debug!(self.logger,
+                       format!("Bot user {} doesn't exists, starting registration", matrix_bot_user_id));
+
+                matrix_api.register(matrix_bot_user_id.to_string())?;
+                let new_user = NewUser {
+                    matrix_user_id: matrix_bot_user_id.clone(),
+                    language: DEFAULT_LANGUAGE,
+                    is_virtual_user: false,
+                };
+                User::insert(connection, &new_user)?;
+                info!(self.logger, format!("Bot user {} successfully registered", matrix_bot_user_id));
+            }
+        }
+        Ok(())
     }
 }

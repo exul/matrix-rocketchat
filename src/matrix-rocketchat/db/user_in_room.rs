@@ -8,7 +8,7 @@ use super::room::Room;
 use super::schema::users_in_rooms;
 
 /// Join table for users that participate in a room.
-#[derive(Associations, Identifiable, Queryable)]
+#[derive(Associations, Debug, Identifiable, Queryable)]
 #[belongs_to(Room, foreign_key = "matrix_room_id")]
 #[table_name="users_in_rooms"]
 #[primary_key(matrix_user_id, matrix_room_id)]

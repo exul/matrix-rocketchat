@@ -1,4 +1,6 @@
 en:
+  admin_room:
+    connection_instructions: "Hi, I'm the Rocket.Chat application service"
   defaults:
     admin_room_display_name: "Admin Room"
   handlers:

@@ -45,7 +45,7 @@ impl<'a> RoomHandler<'a> {
 
         match event.content.membership {
             MembershipState::Invite if addressed_to_matrix_bot => {
-                let msg = format!("Bot `{}` got invitation for room `{}`", event.user_id, matrix_bot_user_id);
+                let msg = format!("Bot `{}` got invitation for room `{}`", matrix_bot_user_id, event.room_id);
                 debug!(self.logger, msg);
 
                 self.handle_invite(event.room_id.clone(), matrix_bot_user_id, event.user_id.clone())?;
@@ -54,7 +54,7 @@ impl<'a> RoomHandler<'a> {
                 let msg = format!("Bot {} joined room {}", matrix_bot_user_id, event.room_id);
                 debug!(self.logger, msg);
 
-                self.handle_join(event.room_id.clone())?;
+                self.handle_join(event.room_id.clone(), matrix_bot_user_id)?;
             }
             _ => {
                 let msg = format!("Skipping event, don't know how to handle membership state `{}` with state key `{}`",
@@ -88,14 +88,23 @@ impl<'a> RoomHandler<'a> {
     }
 
     /// Process join events for the bot user.
-    pub fn handle_join(&self, matrix_room_id: RoomId) -> Result<()> {
+    pub fn handle_join(&self, matrix_room_id: RoomId, bot_user_id: UserId) -> Result<()> {
+        let room = Room::find(self.connection, &matrix_room_id)?;
+        let users_in_room = room.users(self.connection)?;
+        let invitation_submitter = users_in_room.first()
+            .expect("There is always a user in the room, because this user invited the bot");
+
         if !self.is_private_room(matrix_room_id.clone())? {
-            return self.handle_non_private_room(matrix_room_id);
+            return self.handle_non_private_room(&room, invitation_submitter, bot_user_id);
         }
 
-        // TODO: Add the bot user as member of the room
-
-        // TODO: Send instructions
+        let user_in_room = NewUserInRoom {
+            matrix_user_id: bot_user_id.clone(),
+            matrix_room_id: room.matrix_room_id,
+        };
+        UserInRoom::insert(self.connection, &user_in_room)?;
+        let body = t!(["admin_room", "connection_instructions"]).l(&invitation_submitter.language);
+        self.matrix_api.send_text_message_event(matrix_room_id.clone(), bot_user_id, body)?;
 
         Ok(())
     }
@@ -104,19 +113,14 @@ impl<'a> RoomHandler<'a> {
         Ok(self.matrix_api.get_room_members(matrix_room_id)?.len() <= 2)
     }
 
-    fn handle_non_private_room(&self, matrix_room_id: RoomId) -> Result<()> {
+    fn handle_non_private_room(&self, room: &Room, invitation_submitter: &User, bot_user_id: UserId) -> Result<()> {
         info!(self.logger,
               format!("Room {} has more then two members and cannot be used as admin room",
-                      matrix_room_id));
-        let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
-        let room = Room::find(self.connection, &matrix_room_id)?;
-        let users_in_room = room.users(self.connection)?;
-        let invitation_submitter = users_in_room.first()
-            .expect("There is always a user in the room, because this user invited the bot");
+                      room.matrix_room_id));
         let body = t!(["admin_room", "too_many_members_in_room"]).l(&invitation_submitter.language);
-        self.matrix_api.send_text_message_event(matrix_room_id.clone(), matrix_bot_user_id, body)?;
-        self.matrix_api.leave_room(matrix_room_id.clone())?;
-        self.matrix_api.forget_room(matrix_room_id)?;
+        self.matrix_api.send_text_message_event(room.matrix_room_id.clone(), bot_user_id, body)?;
+        self.matrix_api.leave_room(room.matrix_room_id.clone())?;
+        self.matrix_api.forget_room(room.matrix_room_id.clone())?;
         room.delete(self.connection)?;
         Ok(())
     }

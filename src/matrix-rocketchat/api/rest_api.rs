@@ -31,7 +31,7 @@ impl RestApi {
                     params: &mut HashMap<&str, &'a str>,
                     headers: Option<Headers>)
                     -> Result<(String, StatusCode)> {
-        let client = Client::new().chain_err(|| ErrorKind::ApiCallFailed)?;
+        let client = Client::new().chain_err(|| ErrorKind::ApiCallFailed(url.to_string()))?;
         let encoded_url = RestApi::encode_url(url.to_string(), params)?;
 
         let req = match method {
@@ -43,10 +43,10 @@ impl RestApi {
             }
         };
 
-        let mut resp = req.send().chain_err(|| ErrorKind::ApiCallFailed)?;
+        let mut resp = req.send().chain_err(|| ErrorKind::ApiCallFailed(url.to_string()))?;
         let mut body = String::new();
 
-        resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed)?;
+        resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed(url.to_string()))?;
 
         Ok((body, *resp.status()))
     }
@@ -56,7 +56,7 @@ impl RestApi {
             .fold("?".to_string(),
                   |init, (k, v)| [init, [k.to_string(), v.to_string()].join("=")].join("&"));
         let url_string = [base, query_string].join("");
-        let url = Url::parse(&url_string).chain_err(|| ErrorKind::ApiCallFailed)?;
+        let url = Url::parse(&url_string).chain_err(|| ErrorKind::ApiCallFailed(url_string))?;
         Ok(format!("{}", url))
     }
 }

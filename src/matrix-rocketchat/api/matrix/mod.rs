@@ -22,6 +22,8 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
     /// Leave a room.
     fn leave_room(&self, matrix_room_id: RoomId) -> Result<()>;
+    /// Register a user.
+    fn register(&self, user_id_local_part: String) -> Result<()>;
     /// Send a text message to a room.
     fn send_text_message_event(&self, matrix_room_id: RoomId, matrix_user_id: UserId, body: String) -> Result<()>;
 }
@@ -53,6 +55,7 @@ impl MatrixApi {
     pub fn new(config: &Config, logger: Logger) -> Result<Box<MatrixApi>> {
         let url = config.hs_url.clone() + &GetSupportedVersionsEndpoint::request_path(());
 
+        debug!(logger, format!("Querying homeserver {} for API versions", url));
         let (body, status_code) = RestApi::call_matrix(GetSupportedVersionsEndpoint::method(), &url, "")?;
         if !status_code.is_success() {
             let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
@@ -68,6 +71,8 @@ impl MatrixApi {
                                                 endpoint: `{}`",
                                                body))
             })?;
+        debug!(logger,
+               format!("Homeserver supports versions {:?}", supported_versions.versions));
         MatrixApi::get_max_supported_version_api(supported_versions.versions, config, logger)
     }
 

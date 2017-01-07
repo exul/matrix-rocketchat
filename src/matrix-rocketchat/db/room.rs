@@ -10,12 +10,12 @@ use super::user_in_room::UserInRoom;
 
 /// A room that is managed by the application service. This can be either a bridged room or an
 /// admin room.
-#[derive(Associations, Identifiable, Queryable)]
+#[derive(Associations, Debug, Identifiable, Queryable)]
 #[primary_key(matrix_room_id)]
 #[table_name="rooms"]
 pub struct Room {
     /// The rooms unique id on the matrix server.
-    pub matrix_room_id: String,
+    pub matrix_room_id: RoomId,
     /// The rooms display name.
     pub display_name: String,
     /// The rooms unique id on the rocketchat server.
@@ -65,8 +65,7 @@ impl Room {
     pub fn users(&self, connection: &SqliteConnection) -> Result<Vec<User>> {
         let users: Vec<User>=
             users::table.filter(users::matrix_user_id.eq_any(UserInRoom::belonging_to(self).select(users_in_rooms::matrix_user_id)))
-                .load(connection)
-                .unwrap();
+                .load(connection).chain_err(|| ErrorKind::DBSelectFailed)?;
         Ok(users)
     }
 

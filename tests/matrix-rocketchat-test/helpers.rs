@@ -10,14 +10,12 @@ use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json::to_string;
 use super::HS_TOKEN;
 
-pub fn create_admin_room(as_url: String, admin_room_id: RoomId, test_user_id: UserId, bot_user_id: UserId) {
-    invite(as_url.clone(), admin_room_id.clone(), test_user_id.clone(), bot_user_id.clone());
+pub fn create_admin_room(as_url: &str, admin_room_id: RoomId, test_user_id: UserId, bot_user_id: UserId) {
+    invite(as_url, admin_room_id.clone(), test_user_id.clone(), bot_user_id.clone());
     join(as_url, admin_room_id, bot_user_id);
 }
 
-pub fn invite(as_url: String, room_id: RoomId, sender_id: UserId, user_id: UserId) {
-    let url = format!("{}/transactions/{}", as_url, "specid");
-
+pub fn invite(as_url: &str, room_id: RoomId, sender_id: UserId, user_id: UserId) {
     let invite_event = MemberEvent {
         content: MemberEventContent {
             avatar_url: None,
@@ -39,12 +37,10 @@ pub fn invite(as_url: String, room_id: RoomId, sender_id: UserId, user_id: UserI
 
     let invite_payload = to_string(&events).unwrap();
 
-    simulate_message_from_matrix(Method::Put, &url, &invite_payload);
+    simulate_message_from_matrix(as_url, &invite_payload);
 }
 
-pub fn join(as_url: String, room_id: RoomId, user_id: UserId) {
-    let url = format!("{}/transactions/{}", as_url, "specid");
-
+pub fn join(as_url: &str, room_id: RoomId, user_id: UserId) {
     let join_event = MemberEvent {
         content: MemberEventContent {
             avatar_url: None,
@@ -66,12 +62,10 @@ pub fn join(as_url: String, room_id: RoomId, user_id: UserId) {
 
     let join_payload = to_string(&events).unwrap();
 
-    simulate_message_from_matrix(Method::Put, &url, &join_payload);
+    simulate_message_from_matrix(as_url, &join_payload);
 }
 
-pub fn leave_room(as_url: String, room_id: RoomId, user_id: UserId) {
-    let url = format!("{}/transactions/{}", as_url, "specid");
-
+pub fn leave_room(as_url: &str, room_id: RoomId, user_id: UserId) {
     let leave_event = MemberEvent {
         content: MemberEventContent {
             avatar_url: None,
@@ -92,11 +86,12 @@ pub fn leave_room(as_url: String, room_id: RoomId, user_id: UserId) {
     let events = Events { events: vec![Box::new(Event::RoomMember(leave_event))] };
     let leave_payload = to_string(&events).unwrap();
 
-    simulate_message_from_matrix(Method::Put, &url, &leave_payload);
+    simulate_message_from_matrix(as_url, &leave_payload);
 }
 
-pub fn simulate_message_from_matrix(method: Method, url: &str, payload: &str) -> (String, StatusCode) {
+pub fn simulate_message_from_matrix(as_url: &str, payload: &str) -> (String, StatusCode) {
+    let url = format!("{}/transactions/{}", as_url, "specid");
     let mut params = HashMap::new();
     params.insert("access_token", HS_TOKEN);
-    RestApi::call(method, url, payload, &mut params, None).unwrap()
+    RestApi::call(Method::Put, &url, payload, &mut params, None).unwrap()
 }

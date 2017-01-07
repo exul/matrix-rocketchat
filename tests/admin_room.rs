@@ -12,11 +12,8 @@ use std::convert::TryFrom;
 
 use diesel::result::Error as DieselError;
 use iron::status;
-use matrix_rocketchat::db::Room;
-use matrix_rocketchat::db::UserInRoom;
-use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout};
-use matrix_rocketchat_test::handlers;
-use matrix_rocketchat_test::helpers;
+use matrix_rocketchat::db::{Room, UserInRoom};
+use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout, handlers, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::membership::forget_room::Endpoint as ForgetRoomEndpoint;
@@ -40,7 +37,7 @@ fn successfully_create_an_admin_room() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
-    helpers::create_admin_room(test.config.as_url.to_string(),
+    helpers::create_admin_room(&test.config.as_url,
                                RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
                                UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
                                UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));
@@ -73,7 +70,7 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
-    helpers::create_admin_room(test.config.as_url.to_string(),
+    helpers::create_admin_room(&test.config.as_url,
                                RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
                                UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
                                UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));
@@ -118,7 +115,7 @@ fn bot_leaves_and_forgets_the_room_when_the_user_leaves_it() {
     let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
     assert!(room.is_admin_room);
 
-    helpers::leave_room(test.config.as_url.to_string(),
+    helpers::leave_room(&test.config.as_url,
                         RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
                         UserId::try_from("@spec_user:localhost").expect("Could not create user ID"));
 
@@ -163,13 +160,12 @@ fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
-    helpers::invite(test.config.as_url.to_string(),
+    helpers::invite(&test.config.as_url,
                     RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
                     UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
                     UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("MESSAGE: {}", message_received_by_matrix);
     assert!(message_received_by_matrix.contains("An internal error occurred (Matrix error: An error occurred)"));
 
     let connection = test.connection_pool.get().unwrap();

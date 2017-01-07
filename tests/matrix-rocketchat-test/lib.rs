@@ -191,7 +191,7 @@ impl Test {
     }
 
     fn create_admin_room(&self) {
-        helpers::create_admin_room(self.config.as_url.to_string(),
+        helpers::create_admin_room(&self.config.as_url,
                                    RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
                                    UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
                                    UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));

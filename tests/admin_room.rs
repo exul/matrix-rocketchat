@@ -6,13 +6,16 @@ extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
 extern crate router;
 extern crate ruma_client_api;
+extern crate ruma_events;
 extern crate ruma_identifiers;
+extern crate serde_json;
 
 use std::convert::TryFrom;
 
 use diesel::result::Error as DieselError;
 use iron::status;
 use matrix_rocketchat::db::{Room, UserInRoom};
+use matrix_rocketchat::models::Events;
 use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout, handlers, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
@@ -21,7 +24,11 @@ use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinEndpoint;
 use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
-use ruma_identifiers::{RoomId, UserId};
+use ruma_events::EventType;
+use ruma_events::collections::all::Event;
+use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
+use ruma_identifiers::{EventId, RoomId, UserId};
+use serde_json::to_string;
 
 #[test]
 fn successfully_create_an_admin_room() {
@@ -191,3 +198,38 @@ fn the_user_gets_a_message_when_forgetting_the_room_failes_for_the_bot_user() {}
 
 #[test]
 fn bot_leaves_when_a_third_user_joins_the_admin_room() {}
+
+#[test]
+fn unkown_event_types_are_skipped() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+
+    let unknown_event = MemberEvent {
+        content: MemberEventContent {
+            avatar_url: None,
+            displayname: None,
+            membership: MembershipState::Ban,
+            third_party_invite: None,
+        },
+        event_id: EventId::new("localhost").unwrap(),
+        event_type: EventType::RoomMember,
+        invite_room_state: None,
+        prev_content: None,
+        room_id: RoomId::new("localhost").unwrap(),
+        state_key: "@spec_user:localhost".to_string(),
+        unsigned: None,
+        user_id: UserId::new("localhost").unwrap(),
+    };
+
+    let events = Events { events: vec![Box::new(Event::RoomMember(unknown_event))] };
+
+    let payload = to_string(&events).unwrap();
+
+    helpers::simulate_message_from_matrix(&test.config.as_url, &payload);
+
+    // the user does not get a message, because the event is ignored
+    // so the receiver never gets a message and times out
+    receiver.recv_timeout(default_timeout()).is_err();
+}

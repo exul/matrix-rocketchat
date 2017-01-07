@@ -61,7 +61,6 @@ impl User {
                 };
                 User::insert(connection, &new_user)
             }
-
         }
     }
 

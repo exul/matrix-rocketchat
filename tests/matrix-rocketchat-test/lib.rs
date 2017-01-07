@@ -1,3 +1,5 @@
+#![feature(try_from)]
+
 #[macro_use]
 extern crate diesel;
 extern crate iron;
@@ -22,6 +24,7 @@ extern crate tempdir;
 pub mod handlers;
 pub mod helpers;
 
+use std::convert::TryFrom;
 use std::mem;
 use std::net::SocketAddr;
 use std::net::TcpListener;
@@ -37,6 +40,10 @@ use matrix_rocketchat::db::ConnectionPool;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 use router::Router;
+use ruma_identifiers::{RoomId, UserId};
+use ruma_client_api::Endpoint;
+use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinEndpoint;
+use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
 use slog::{DrainExt, Record};
 use tempdir::TempDir;
 
@@ -74,6 +81,8 @@ pub struct Test {
     pub hs_listening: Option<Listening>,
     /// The application service listening server
     pub as_listening: Option<Listening>,
+    /// Flag to indicate if the test should create an admin room
+    pub with_admin_room: bool,
     /// Temp directory to store data during the test, it has to be part of the struct so that it
     /// does not get dropped until the test is over
     pub temp_dir: TempDir,
@@ -91,6 +100,7 @@ impl Test {
             matrix_homeserver_mock_router: None,
             hs_listening: None,
             as_listening: None,
+            with_admin_room: false,
             temp_dir: temp_dir,
         }
     }
@@ -101,11 +111,21 @@ impl Test {
         self
     }
 
+    /// Create an admin room when starting the test.
+    pub fn with_admin_room(mut self) -> Test {
+        self.with_admin_room = true;
+        self
+    }
+
     /// Run the application service so that a test can interact with it.
     pub fn run(mut self) -> Test {
         self.run_matrix_homeserver_mock();
 
         self.run_application_service();
+
+        if self.with_admin_room {
+            self.create_admin_room();
+        }
 
         self
     }
@@ -123,6 +143,15 @@ impl Test {
         router.get("/_matrix/client/versions", handlers::MatrixVersion {});
         router.post("*", handlers::EmptyJson {});
         router.put("*", handlers::EmptyJson {});
+        if self.with_admin_room {
+            let room_members = handlers::RoomMembers {
+                room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
+                members: vec![UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
+                              UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
+            };
+            router.get(GetMemberEventsEndpoint::router_path(), room_members);
+            router.post(JoinEndpoint::router_path(), handlers::EmptyJson {});
+        }
 
         thread::spawn(move || {
             let listening = Iron::new(router)
@@ -159,6 +188,14 @@ impl Test {
 
         let as_listening = as_rx.recv_timeout(default_timeout()).expect("Could not receive server listening handle");
         self.as_listening = Some(as_listening);
+    }
+
+    fn create_admin_room(&self) {
+        helpers::create_admin_room(self.config.as_url.to_string(),
+                                   RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
+                                   UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
+                                   UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));
+
     }
 }
 

@@ -15,12 +15,12 @@ impl Handler for MatrixVersion {
     }
 }
 
-pub struct TwoRoomMembers {
-    pub members: [UserId; 2],
+pub struct RoomMembers {
+    pub members: Vec<UserId>,
     pub room_id: RoomId,
 }
 
-impl Handler for TwoRoomMembers {
+impl Handler for RoomMembers {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
         let mut member_events = Vec::with_capacity(2);
         for member in self.members.iter() {

@@ -24,12 +24,12 @@ fn successfully_create_an_admin_room() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {});
-    let two_room_members = handlers::TwoRoomMembers {
+    let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
-        members: [UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
-                  UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
+        members: vec![UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
+                      UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
     };
-    matrix_router.get(GetMemberEventsEndpoint::router_path(), two_room_members);
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 

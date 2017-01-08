@@ -35,7 +35,7 @@ error_chain!{
 
         InvalidJSON(msg: String) {
             description("The provided JSON is not valid: {}")
-            display("Could not process request, the submitted data is not valid json")
+            display("Could not process request, the submitted data is not valid JSON")
         }
 
         InvalidUserId(user_id: String) {

@@ -204,7 +204,6 @@ fn the_user_gets_a_message_when_getting_the_room_members_failes() {
                                UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("MSG: {}", message_received_by_matrix);
     assert!(message_received_by_matrix.contains("An internal error occurred (Matrix error: Could not get room members)"));
 
     let connection = test.connection_pool.get().unwrap();
@@ -231,7 +230,6 @@ fn the_user_gets_a_message_when_the_room_members_cannot_be_deserialized() {
                                UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("MSG: {}", message_received_by_matrix);
     assert!(message_received_by_matrix.contains("An internal error occurred"));
     assert!(message_received_by_matrix.contains("Could not process request, the submitted data is not valid JSON"));
 
@@ -308,7 +306,55 @@ fn the_user_gets_a_message_when_forgetting_the_room_failes_for_the_bot_user() {
 }
 
 #[test]
-fn bot_leaves_when_a_third_user_joins_the_admin_room() {}
+fn bot_leaves_when_a_third_user_joins_the_admin_room() {
+    let (message_forwarder, message_receiver) = MessageForwarder::new();
+    let (leave_forwarder, leave_receiver) = MessageForwarder::new();
+    let (forget_forwarder, forget_receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {});
+    let room_members = handlers::RoomMembers {
+        room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
+        members: vec![UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
+                      UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
+    };
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    matrix_router.post(LeaveRoomEndpoint::router_path(), leave_forwarder);
+    matrix_router.post(ForgetRoomEndpoint::router_path(), forget_forwarder);
+    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+
+    helpers::create_admin_room(&test.config.as_url,
+                               RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
+                               UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
+                               UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));
+
+    let connection = test.connection_pool.get().unwrap();
+    let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
+    assert!(room.is_admin_room);
+    let members = room.users(&connection).unwrap();
+    assert_eq!(members.len(), 2);
+
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
+                  UserId::try_from("@other_user:localhost").expect("Could not create user ID"));
+
+    // leave was called
+    leave_receiver.recv_timeout(default_timeout()).unwrap();
+
+    // forget was called
+    forget_receiver.recv_timeout(default_timeout()).unwrap();
+
+    // discard welcome message
+    message_receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = message_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("Another user join the admin room, leaving, please create a new admin room."));
+
+    // room got deleted
+    let room_error = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).err().unwrap();
+    let room_diesel_error = room_error.iter().nth(1).unwrap();
+    assert_eq!(format!("{}", room_diesel_error), format!("{}", DieselError::NotFound));
+}
 
 #[test]
 fn unkown_membership_states_are_skipped() {

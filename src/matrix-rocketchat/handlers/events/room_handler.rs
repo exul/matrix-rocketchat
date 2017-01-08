@@ -115,11 +115,12 @@ impl<'a> RoomHandler<'a> {
             matrix_room_id: room.matrix_room_id,
         };
         UserInRoom::insert(self.connection, &user_in_room)?;
-        let room_name = t!(["defaults", "admin_room_display_name"]).l(&invitation_submitter.language);
-        self.matrix_api.set_room_name(matrix_room_id.clone(), room_name)?;
 
         let body = t!(["admin_room", "connection_instructions"]).l(&invitation_submitter.language);
         self.matrix_api.send_text_message_event(matrix_room_id.clone(), matrix_bot_user_id, body)?;
+
+        let room_name = t!(["defaults", "admin_room_display_name"]).l(&invitation_submitter.language);
+        self.matrix_api.set_room_name(matrix_room_id.clone(), room_name)?;
 
         Ok(())
     }

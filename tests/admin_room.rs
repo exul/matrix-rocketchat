@@ -23,6 +23,7 @@ use ruma_client_api::r0::membership::forget_room::Endpoint as ForgetRoomEndpoint
 use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinEndpoint;
 use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
+use ruma_client_api::r0::send::send_state_event::Endpoint as SendStateEventEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
 use ruma_events::EventType;
 use ruma_events::collections::all::Event;
@@ -243,7 +244,43 @@ fn the_user_gets_a_message_when_the_room_members_cannot_be_deserialized() {
 }
 
 #[test]
-fn the_user_gets_a_message_when_setting_the_room_display_name_failes() {}
+fn the_user_gets_a_message_when_setting_the_room_display_name_fails() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    let error_responder = handlers::ErrorResponder {
+        status: status::InternalServerError,
+        message: "Could not set display name for room".to_string(),
+    };
+    matrix_router.put(SendStateEventEndpoint::router_path(), error_responder);
+    let room_members = handlers::RoomMembers {
+        room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
+        members: vec![UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
+                      UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
+    };
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+
+    helpers::create_admin_room(&test.config.as_url,
+                               RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
+                               UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
+                               UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred (Matrix error: Could not set display name for room)"));
+
+    let connection = test.connection_pool.get().unwrap();
+    let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
+    assert!(room.is_admin_room);
+
+    let members = room.users(&connection).unwrap();
+    assert_eq!(members.len(), 2);
+    assert!(members.iter().any(|m| m.matrix_user_id == UserId::try_from("@spec_user:localhost").unwrap()));
+    assert!(members.iter().any(|m| m.matrix_user_id == UserId::try_from("@rocketchat:localhost").unwrap()));
+}
 
 #[test]
 fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {

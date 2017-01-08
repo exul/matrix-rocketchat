@@ -384,6 +384,8 @@ dependencies = [
  "ruma-client-api 0.1.0 (git+https://github.com/ruma/ruma-client-api.git)",
  "ruma-events 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ruma-identifiers 0.6.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde 0.8.21 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_derive 0.8.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_json 0.8.4 (registry+https://github.com/rust-lang/crates.io-index)",
  "slog 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "slog-json 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",

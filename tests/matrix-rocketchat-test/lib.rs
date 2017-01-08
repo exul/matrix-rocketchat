@@ -1,4 +1,4 @@
-#![feature(try_from)]
+#![feature(try_from, proc_macro)]
 
 #[macro_use]
 extern crate diesel;
@@ -13,6 +13,9 @@ extern crate ruma_client_api;
 extern crate ruma_events;
 extern crate ruma_identifiers;
 extern crate router;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 extern crate serde_json;
 #[macro_use]
 extern crate slog;
@@ -59,9 +62,18 @@ pub const HS_TOKEN: &'static str = "ht";
 pub const IRON_THREADS: usize = 1;
 
 lazy_static! {
+    /// Default logger
     pub static ref DEFAULT_LOGGER: slog::Logger = {
         slog::Logger::root(slog_term::streamer().full().build().fuse(), o!("version" => env!("CARGO_PKG_VERSION"), "place" => file_line_logger_format))
     };
+}
+
+#[macro_export]
+macro_rules! assert_error_kind {
+    ($err:expr, $kind:pat) => (match *$err.kind() {
+        $kind => assert!(true, "{:?} is of kind {:?}", $err, stringify!($kind)),
+        _     => assert!(false, "{:?} is NOT of kind {:?}", $err, stringify!($kind))
+    });
 }
 
 /// Helpers to forward messages from iron handlers
@@ -140,7 +152,8 @@ impl Test {
             None => Router::new(),
         };
 
-        router.get("/_matrix/client/versions", handlers::MatrixVersion {});
+        router.get("/_matrix/client/versions",
+                   handlers::MatrixVersion { versions: default_matrix_api_versions() });
         router.post("*", handlers::EmptyJson {});
         router.put("*", handlers::EmptyJson {});
         if self.with_admin_room {
@@ -237,6 +250,10 @@ pub fn build_test_config(temp_dir: &TempDir) -> Config {
 /// The default timeout that is used when executing functions/methods with a timeout.
 pub fn default_timeout() -> Duration {
     Duration::from_millis(800)
+}
+
+pub fn default_matrix_api_versions() -> Vec<&'static str> {
+    vec!["r0.0.1", "r0.1.0", "r0.2.0"]
 }
 
 /// Returns a free socket address on localhost (by randomly choosing a free port).

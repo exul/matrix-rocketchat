@@ -7,11 +7,14 @@ use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState
 use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json;
 
-pub struct MatrixVersion {}
+#[derive(Serialize)]
+pub struct MatrixVersion {
+    pub versions: Vec<&'static str>,
+}
 
 impl Handler for MatrixVersion {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
-        let payload = r#"{"versions":["r0.0.1","r0.1.0","r0.2.0"]}"#;
+        let payload = serde_json::to_string(self).unwrap();
         Ok(Response::with((status::Ok, payload)))
     }
 }
@@ -70,5 +73,15 @@ impl Handler for ErrorResponse {
         };
         let payload = serde_json::to_string(&error_response).expect("Could not serialize error response");
         Ok(Response::with((self.status, payload)))
+    }
+}
+
+pub struct InvalidJsonResponse {
+    pub status: status::Status,
+}
+
+impl Handler for InvalidJsonResponse {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        Ok(Response::with((self.status, "invalid json")))
     }
 }

@@ -84,8 +84,6 @@ impl MatrixApi {
             }
         }
 
-        let homeserver_api_versions = versions.into_iter()
-            .fold("".to_string(), |acc, version| format!("{}, {}", &acc, version));
-        Err(Error::from(ErrorKind::UnsupportedMatrixApiVersion(homeserver_api_versions.to_string())))
+        Err(Error::from(ErrorKind::UnsupportedMatrixApiVersion(versions.join(", "))))
     }
 }

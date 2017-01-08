@@ -200,7 +200,7 @@ fn the_user_gets_a_message_when_forgetting_the_room_failes_for_the_bot_user() {}
 fn bot_leaves_when_a_third_user_joins_the_admin_room() {}
 
 #[test]
-fn unkown_event_types_are_skipped() {
+fn unkown_membership_states_are_skipped() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);

@@ -63,13 +63,14 @@ impl Handler for EmptyJson {
 
 pub struct ErrorResponse {
     pub status: status::Status,
+    pub message: String,
 }
 
 impl Handler for ErrorResponse {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
         let error_response = MatrixErrorResponse {
             errcode: "1234".to_string(),
-            error: "An error occurred".to_string(),
+            error: self.message.clone(),
         };
         let payload = serde_json::to_string(&error_response).expect("Could not serialize error response");
         Ok(Response::with((self.status, payload)))

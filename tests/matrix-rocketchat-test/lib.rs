@@ -186,7 +186,7 @@ impl Test {
             as_tx.send(listening).expect("Could not send server listening handle");
         });
 
-        let as_listening = as_rx.recv_timeout(default_timeout()).expect("Could not receive server listening handle");
+        let as_listening = as_rx.recv_timeout(default_timeout() * 2).expect("Could not receive server listening handle");
         self.as_listening = Some(as_listening);
     }
 

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use reqwest::StatusCode;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::{self, Endpoint as RegisterEndpoint};
 use ruma_client_api::r0::membership::forget_room::{self, Endpoint as ForgetRoomEndpoint};
@@ -52,12 +53,7 @@ impl super::MatrixApi for MatrixApi {
 
         let (body, status_code) = RestApi::call_matrix(ForgetRoomEndpoint::method(), &endpoint, "{}")?;
         if !status_code.is_success() {
-            let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
-                    ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix members API \
-                                                    endpoint: `{}`",
-                                                   body))
-                })?;
-            bail!(ErrorKind::MatrixError(matrix_error_resp.error));
+            return Err(build_error(&endpoint, &body, &status_code));
         }
         Ok(())
     }
@@ -69,12 +65,7 @@ impl super::MatrixApi for MatrixApi {
 
         let (body, status_code) = RestApi::call_matrix(GetMemberEventsEndpoint::method(), &endpoint, "{}")?;
         if !status_code.is_success() {
-            let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
-                    ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix members API \
-                                                    endpoint: `{}`",
-                                                   body))
-                })?;
-            bail!(ErrorKind::MatrixError(matrix_error_resp.error));
+            return Err(build_error(&endpoint, &body, &status_code));
         }
 
         debug!(self.logger,
@@ -96,12 +87,7 @@ impl super::MatrixApi for MatrixApi {
 
         let (body, status_code) = RestApi::call_matrix(JoinRoomByIdEndpoint::method(), &endpoint, "{}")?;
         if !status_code.is_success() {
-            let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
-                    ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix join API endpoint: \
-                                                    `{}`",
-                                                   body))
-                })?;
-            bail!(ErrorKind::MatrixError(matrix_error_resp.error));
+            return Err(build_error(&endpoint, &body, &status_code));
         }
 
         debug!(self.logger,
@@ -118,12 +104,7 @@ impl super::MatrixApi for MatrixApi {
 
         let (body, status_code) = RestApi::call_matrix(LeaveRoomEndpoint::method(), &endpoint, "{}")?;
         if !status_code.is_success() {
-            let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
-                    ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix members API \
-                                                    endpoint: `{}`",
-                                                   body))
-                })?;
-            bail!(ErrorKind::MatrixError(matrix_error_resp.error));
+            return Err(build_error(&endpoint, &body, &status_code));
         }
         Ok(())
     }
@@ -143,12 +124,7 @@ impl super::MatrixApi for MatrixApi {
 
         let (body, status_code) = RestApi::call_matrix(RegisterEndpoint::method(), &endpoint, &payload)?;
         if !status_code.is_success() {
-            let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
-                    ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix registration API \
-                                                    endpoint: `{}`",
-                                                   body))
-                })?;
-            bail!(ErrorKind::MatrixError(matrix_error_resp.error));
+            return Err(build_error(&endpoint, &body, &status_code));
         }
         Ok(())
     }
@@ -174,12 +150,7 @@ impl super::MatrixApi for MatrixApi {
         let (body, status_code) = RestApi::call_matrix(SendMessageEventEndpoint::method(), &endpoint, &payload)?;
 
         if !status_code.is_success() {
-            let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
-                    ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix join API endpoint: \
-                                                    `{}`",
-                                                   body))
-                })?;
-            bail!(ErrorKind::MatrixError(matrix_error_resp.error));
+            return Err(build_error(&endpoint, &body, &status_code));
         }
 
         debug!(self.logger,
@@ -188,4 +159,19 @@ impl super::MatrixApi for MatrixApi {
                matrix_room_id);
         Ok(())
     }
+}
+
+fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
+    let json_error_msg = format!("Could not deserialize error from Matrix API endpoint {} with status code {}: `{}`",
+                                 endpoint,
+                                 status_code,
+                                 body);
+    let json_error = ErrorKind::InvalidJSON(json_error_msg);
+    let matrix_error_resp: MatrixErrorResponse = match serde_json::from_str(body).chain_err(|| json_error) {
+        Ok(matrix_error_resp) => matrix_error_resp,
+        Err(err) => {
+            return err;
+        }
+    };
+    Error::from(ErrorKind::MatrixError(matrix_error_resp.error))
 }

@@ -1,4 +1,4 @@
-#![feature(try_from, proc_macro)]
+#![feature(try_from)]
 
 #[macro_use]
 extern crate diesel;

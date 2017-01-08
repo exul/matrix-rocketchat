@@ -1,6 +1,6 @@
 //! Application service to bridge Matrix <-> Rocket.Chat.
 
-#![feature(proc_macro, try_from)]
+#![feature(try_from)]
 
 #![deny(missing_docs)]
 

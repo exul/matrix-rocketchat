@@ -3,6 +3,7 @@ extern crate matrix_rocketchat;
 #[macro_use]
 extern crate matrix_rocketchat_test;
 extern crate router;
+extern crate ruma_client_api;
 #[macro_use]
 extern crate slog;
 extern crate slog_json;
@@ -19,6 +20,8 @@ use matrix_rocketchat::Server;
 use matrix_rocketchat::errors::*;
 use matrix_rocketchat_test::{DEFAULT_LOGGER, IRON_THREADS, TEMP_DIR_NAME, default_matrix_api_versions, handlers};
 use router::Router;
+use ruma_client_api::Endpoint;
+use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
 use tempdir::TempDir;
 
 #[test]
@@ -200,4 +203,44 @@ fn startup_failes_when_the_server_cannot_find_a_compatible_matrix_api_version() 
     let err = failed_server_result.unwrap_err();
     let _versions = String::new();
     assert_error_kind!(err, ErrorKind::UnsupportedMatrixApiVersion(ref _versions));
+}
+
+#[test]
+fn startup_failes_when_the_bot_user_registration_failes() {
+    let temp_dir = TempDir::new(TEMP_DIR_NAME).expect("Could not create temp dir");
+    let mut config = matrix_rocketchat_test::build_test_config(&temp_dir);
+    let log = DEFAULT_LOGGER.clone();
+
+    let (homeserver_mock_tx, homeserver_mock_rx) = channel::<Listening>();
+    let homeserver_mock_socket_addr = matrix_rocketchat_test::get_free_socket_addr();
+    config.hs_url = format!("http://{}:{}",
+                            homeserver_mock_socket_addr.ip(),
+                            homeserver_mock_socket_addr.port());
+
+    thread::spawn(move || {
+        let mut router = Router::new();
+        router.get("/_matrix/client/versions",
+                   handlers::MatrixVersion { versions: default_matrix_api_versions() });
+        let error_responder = handlers::ErrorResponder {
+            status: status::InternalServerError,
+            message: "Could not register user".to_string(),
+        };
+        router.post(RegisterEndpoint::router_path(), error_responder);
+
+        let listening = Iron::new(router).listen_with(homeserver_mock_socket_addr, IRON_THREADS, Http, None).unwrap();
+        homeserver_mock_tx.send(listening).unwrap();
+    });
+    let mut homeserver_mock_listen = homeserver_mock_rx.recv_timeout(matrix_rocketchat_test::default_timeout()).unwrap();
+
+    let (failed_server_tx, failed_server_rx) = channel::<Result<Listening>>();
+    thread::spawn(move || {
+        let failed_server_result = Server::new(&config, log).run();
+        failed_server_tx.send(failed_server_result).unwrap();
+    });
+    let failed_server_result = failed_server_rx.recv_timeout(matrix_rocketchat_test::default_timeout() * 2).unwrap();
+    homeserver_mock_listen.close().unwrap();
+
+    let err = failed_server_result.unwrap_err();
+    let _versions = String::new();
+    assert_error_kind!(err, ErrorKind::MatrixError(ref _versions));
 }

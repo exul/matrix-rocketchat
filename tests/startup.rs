@@ -78,11 +78,11 @@ fn startup_fails_when_querying_the_api_version_is_not_successful_and_returs_a_ma
 
     thread::spawn(move || {
         let mut router = Router::new();
-        let error_response = handlers::ErrorResponse {
+        let error_responder = handlers::ErrorResponder {
             status: status::InternalServerError,
             message: "Could not server API versions".to_string(),
         };
-        router.get("/_matrix/client/versions", error_response);
+        router.get("/_matrix/client/versions", error_responder);
         let listening = Iron::new(router).listen_with(homeserver_mock_socket_addr, IRON_THREADS, Http, None).unwrap();
         homeserver_mock_tx.send(listening).unwrap();
     });

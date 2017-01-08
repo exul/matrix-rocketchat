@@ -61,12 +61,12 @@ impl Handler for EmptyJson {
     }
 }
 
-pub struct ErrorResponse {
+pub struct ErrorResponder {
     pub status: status::Status,
     pub message: String,
 }
 
-impl Handler for ErrorResponse {
+impl Handler for ErrorResponder {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
         let error_response = MatrixErrorResponse {
             errcode: "1234".to_string(),

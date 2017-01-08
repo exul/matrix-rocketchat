@@ -155,11 +155,11 @@ fn bot_leaves_and_forgets_the_room_when_the_user_leaves_it() {
 fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
-    let error_response = handlers::ErrorResponse {
+    let error_responder = handlers::ErrorResponder {
         status: status::InternalServerError,
         message: "Could not join room".to_string(),
     };
-    matrix_router.post(JoinEndpoint::router_path(), error_response);
+    matrix_router.post(JoinEndpoint::router_path(), error_responder);
     let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
         members: vec![UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
@@ -190,11 +190,11 @@ fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
 fn the_user_gets_a_message_when_getting_the_room_members_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
-    let error_response = handlers::ErrorResponse {
+    let error_responder = handlers::ErrorResponder {
         status: status::InternalServerError,
         message: "Could not get room members".to_string(),
     };
-    matrix_router.get(GetMemberEventsEndpoint::router_path(), error_response);
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), error_responder);
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
@@ -259,11 +259,11 @@ fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
-    let error_response = handlers::ErrorResponse {
+    let error_responder = handlers::ErrorResponder {
         status: status::InternalServerError,
         message: "Could not leave room".to_string(),
     };
-    matrix_router.post(LeaveRoomEndpoint::router_path(), error_response);
+    matrix_router.post(LeaveRoomEndpoint::router_path(), error_responder);
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
@@ -289,11 +289,11 @@ fn the_user_gets_a_message_when_forgetting_the_room_failes_for_the_bot_user() {
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
-    let error_response = handlers::ErrorResponse {
+    let error_responder = handlers::ErrorResponder {
         status: status::InternalServerError,
         message: "Could not forget room".to_string(),
     };
-    matrix_router.post(ForgetRoomEndpoint::router_path(), error_response);
+    matrix_router.post(ForgetRoomEndpoint::router_path(), error_responder);
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,

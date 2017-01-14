@@ -36,7 +36,7 @@ impl<'a> Server<'a> {
     /// Runs the application service bridge.
     pub fn run(&self) -> Result<Listening> {
         self.prepare_database().chain_err(|| "Database setup failed")?;
-        let connection_pool = ConnectionPool::new(&self.config.database_url);
+        let connection_pool = ConnectionPool::create(&self.config.database_url);
         let connection = connection_pool.get().chain_err(|| "Getting database connection failed")?;
 
         let matrix_api = MatrixApi::new(self.config, self.logger.clone())?;

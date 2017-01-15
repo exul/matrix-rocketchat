@@ -153,6 +153,25 @@ fn bot_leaves_and_forgets_the_room_when_the_user_leaves_it() {
 }
 
 #[test]
+fn bot_ignoeres_when_a_user_leaves_a_room_that_is_not_in_the_database() {
+    let (leave_message_forwarder, leave_receiver) = MessageForwarder::new();
+    let (forget_message_forwarder, forget_receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.post(LeaveRoomEndpoint::router_path(), leave_message_forwarder, "leave_room");
+    matrix_router.post(ForgetRoomEndpoint::router_path(), forget_message_forwarder, "forget_room");
+    let test = Test::new().with_custom_matrix_routes(matrix_router).with_admin_room().run();
+
+    helpers::leave_room(&test.config.as_url,
+                        RoomId::try_from("!unknown:localhost").unwrap(),
+                        UserId::try_from("@spec_user:localhost").unwrap());
+
+    // no messages is received on the leave and forget endpoints, because the leave event is
+    // ignored
+    assert!(leave_receiver.recv_timeout(default_timeout()).is_err());
+    assert!(forget_receiver.recv_timeout(default_timeout()).is_err());
+}
+
+#[test]
 fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();

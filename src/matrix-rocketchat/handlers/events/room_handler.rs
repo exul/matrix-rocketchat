@@ -142,7 +142,11 @@ impl<'a> RoomHandler<'a> {
 
     /// Process leave events.
     pub fn handle_user_leave(&self, matrix_room_id: RoomId) -> Result<()> {
-        let room = Room::find(self.connection, &matrix_room_id)?;
+        let room = match Room::find_by_matrix_room_id(self.connection, &matrix_room_id)? {
+            Some(room) => room,
+            None => return Ok(()),
+        };
+
         if room.is_admin_room {
             self.leave_and_forget_room(&room)?;
         }

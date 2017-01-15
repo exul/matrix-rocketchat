@@ -61,6 +61,12 @@ impl Room {
         Ok(room)
     }
 
+    /// Find a `Room` by its matrix room ID. Returns `None`, if the room is not found.
+    pub fn find_by_matrix_room_id(connection: &SqliteConnection, matrix_room_id: &RoomId) -> Result<Option<Room>> {
+        let rooms = rooms::table.find(matrix_room_id).load(connection).chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(rooms.into_iter().next())
+    }
+
     /// Returns all `User`s in the room.
     pub fn users(&self, connection: &SqliteConnection) -> Result<Vec<User>> {
         let users: Vec<User>=

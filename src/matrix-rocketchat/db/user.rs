@@ -64,7 +64,7 @@ impl User {
         }
     }
 
-    /// Find a `User` by his matrix user ID.
+    /// Find a `User` by his matrix user ID. Returns `None`, if the user is not found.
     pub fn find_by_matrix_user_id(connection: &SqliteConnection, matrix_user_id: &UserId) -> Result<Option<User>> {
         let users = users::table.find(matrix_user_id).load(connection).chain_err(|| ErrorKind::DBSelectError)?;
         Ok(users.into_iter().next())

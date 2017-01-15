@@ -82,21 +82,27 @@ pub use message_forwarder::MessageForwarder;
 
 /// A helper struct when running the tests that manages test resources and offers some helper methods.
 pub struct Test {
+    /// The application service listening server
+    pub as_listening: Option<Listening>,
     /// Configuration that is used during the test
     pub config: Config,
     /// Connection pool to get connection to the test database
     pub connection_pool: Pool<ConnectionManager<SqliteConnection>>,
-    /// Routes that the homeserver mock can handle
-    pub matrix_homeserver_mock_router: Option<Router>,
     /// The matrix homeserver mock listening server
     pub hs_listening: Option<Listening>,
-    /// The application service listening server
-    pub as_listening: Option<Listening>,
-    /// Flag to indicate if the test should create an admin room
-    pub with_admin_room: bool,
+    /// Routes that the homeserver mock can handle
+    pub matrix_homeserver_mock_router: Option<Router>,
+    /// The Rocket.Chat mock listening server
+    pub rocketchat_listening: Option<Listening>,
+    /// The URL of the Rocket.Chat mock server
+    pub rocketchat_mock_url: Option<String>,
     /// Temp directory to store data during the test, it has to be part of the struct so that it
     /// does not get dropped until the test is over
     pub temp_dir: TempDir,
+    /// Flag to indicate if the test should create an admin room
+    pub with_admin_room: bool,
+    /// Flag to indicate if a Rocket.Chat mock server should be started
+    pub with_rocketchat_mock: bool,
 }
 
 impl Test {
@@ -106,13 +112,16 @@ impl Test {
         let config = build_test_config(&temp_dir);
         let connection_pool = ConnectionPool::create(&config.database_url).unwrap();
         Test {
+            as_listening: None,
             config: config,
             connection_pool: connection_pool,
-            matrix_homeserver_mock_router: None,
             hs_listening: None,
-            as_listening: None,
-            with_admin_room: false,
+            matrix_homeserver_mock_router: None,
+            rocketchat_listening: None,
+            rocketchat_mock_url: None,
             temp_dir: temp_dir,
+            with_admin_room: false,
+            with_rocketchat_mock: false,
         }
     }
 
@@ -128,9 +137,19 @@ impl Test {
         self
     }
 
+    /// Run a Rocket.Chat mock server.
+    pub fn with_rocketchat_mock(mut self) -> Test {
+        self.with_rocketchat_mock = true;
+        self
+    }
+
     /// Run the application service so that a test can interact with it.
     pub fn run(mut self) -> Test {
         self.run_matrix_homeserver_mock();
+
+        if self.with_rocketchat_mock {
+            self.run_rocketchat_server_mock()
+        }
 
         self.run_application_service();
 
@@ -177,6 +196,22 @@ impl Test {
         self.hs_listening = Some(hs_listening);
     }
 
+    fn run_rocketchat_server_mock(&mut self) {
+        let (tx, rx) = channel::<Listening>();
+        let socket_addr = get_free_socket_addr();
+        let router = Router::new();
+
+        thread::spawn(move || {
+            let mut server = Iron::new(router);
+            server.threads = IRON_THREADS;
+            let listening = server.http(&socket_addr).unwrap();
+            tx.send(listening).unwrap();
+        });
+        let listening = rx.recv_timeout(default_timeout() * 2).unwrap();
+        self.rocketchat_listening = Some(listening);
+        self.rocketchat_mock_url = Some(format!("http://{}", socket_addr));
+    }
+
     fn run_application_service(&mut self) {
         let server_config = self.config.clone();
         let (as_tx, as_rx) = channel::<Listening>();
@@ -215,6 +250,10 @@ impl Test {
 impl Drop for Test {
     fn drop(&mut self) {
         if let Some(ref mut listening) = self.hs_listening {
+            listening.close().unwrap()
+        };
+
+        if let Some(ref mut listening) = self.rocketchat_listening {
             listening.close().unwrap()
         };
 

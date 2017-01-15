@@ -34,7 +34,7 @@ impl MatrixApi {
     pub fn new(config: &Config, logger: Logger) -> MatrixApi {
         MatrixApi {
             base_url: config.hs_url.to_string(),
-            access_token: config.hs_token.to_string(),
+            access_token: config.as_token.to_string(),
             logger: logger,
         }
     }

@@ -16,6 +16,7 @@ extern crate iron;
 #[macro_use]
 extern crate lazy_static;
 extern crate persistent;
+extern crate pulldown_cmark;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate reqwest;

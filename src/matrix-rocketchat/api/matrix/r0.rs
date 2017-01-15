@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use pulldown_cmark::{Options, Parser, html};
 use reqwest::StatusCode;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::{self, Endpoint as RegisterEndpoint};
@@ -11,8 +12,9 @@ use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint a
 use ruma_client_api::r0::sync::get_member_events::{self, Endpoint as GetMemberEventsEndpoint};
 use ruma_events::EventType;
 use ruma_events::room::member::MemberEvent;
-use ruma_events::room::message::{MessageType, TextMessageEventContent};
+use ruma_events::room::message::MessageType;
 use ruma_identifiers::{EventId, RoomId, UserId};
+use serde_json::Map;
 use slog::Logger;
 use serde_json;
 
@@ -131,10 +133,13 @@ impl super::MatrixApi for MatrixApi {
     }
 
     fn send_text_message_event(&self, matrix_room_id: RoomId, matrix_user_id: UserId, body: String) -> Result<()> {
-        let message = TextMessageEventContent {
-            body: body,
-            msgtype: MessageType::Text,
-        };
+        let formatted_body = render_markdown(&body);
+        let mut message = Map::new();
+        message.insert("body", body);
+        message.insert("formatted_body", formatted_body);
+        message.insert("msgtype", MessageType::Text.to_string());
+        message.insert("format", "org.matrix.custom.html".to_string());
+
         let payload =
             serde_json::to_string(&message).chain_err(|| ErrorKind::InvalidJSON("Could not serialize message".to_string()))?;
         let txn_id = EventId::new(&self.base_url).chain_err(|| ErrorKind::EventIdGenerationFailed)?;
@@ -195,4 +200,13 @@ fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
         }
     };
     Error::from(ErrorKind::MatrixError(matrix_error_resp.error))
+}
+
+fn render_markdown(input: &str) -> String {
+    // The html will not have the same length as the msg, but it's a good starting point
+    let mut output = String::with_capacity(input.len());
+    let opts = Options::empty();
+    let parser = Parser::new_ext(input, opts);
+    html::push_html(&mut output, parser);
+    output
 }

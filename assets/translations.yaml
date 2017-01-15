@@ -1,7 +1,7 @@
 en:
   admin_room:
     connection_instructions: |
-      "Hi, I'm the Rocket.Chat application service
+      Hi, I'm the Rocket.Chat application service
 
       You have to connect this room to a Rocket.Chat server.
 
@@ -23,7 +23,7 @@ en:
 
       A sample message could look like this:
 
-      `connect https://chat.example.com z44cwkD86P5PmdkEv7nHX7KB`"
+      `connect https://chat.example.com z44cwkD86P5PmdkEv7nHX7KB`
     too_many_members_in_room: "Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."
     other_user_joined: "Another user join the admin room, leaving, please create a new admin room."
   defaults:

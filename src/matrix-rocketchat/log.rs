@@ -11,7 +11,7 @@ pub struct IronLogger;
 impl IronLogger {
     /// Gets the logger from the request.
     pub fn from_request(request: &mut Request) -> Result<Logger> {
-        let lock = request.get::<State<IronLogger>>().chain_err(|| "Could not get iron logger lock from request")?;
+        let lock = request.get::<State<IronLogger>>().chain_err(|| ErrorKind::LoggerExtractionError)?;
         let logger = match lock.read() {
             Ok(logger) => logger,
             // we can recover from a poisoned lock, because the thread that panicked will not be

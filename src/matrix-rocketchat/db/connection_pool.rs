@@ -15,12 +15,12 @@ impl ConnectionPool {
     pub fn create(database_url: &str) -> Result<Pool<ConnectionManager<SqliteConnection>>> {
         let config = Config::default();
         let manager = ConnectionManager::<SqliteConnection>::new(database_url);
-        Pool::new(config, manager).chain_err(|| "Failed to create pool.")
+        Pool::new(config, manager).chain_err(|| ErrorKind::ConnectionPoolCreationError)
     }
 
     /// Extract a database connection from the pool stored in the request.
     pub fn get_from_request(request: &mut Request) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {
-        let mutex = request.get::<Write<ConnectionPool>>().chain_err(|| ErrorKind::ConnectionPoolFromRequestFailed)?;
+        let mutex = request.get::<Write<ConnectionPool>>().chain_err(|| ErrorKind::ConnectionPoolExtractionError)?;
         let pool = match mutex.lock() {
             Ok(pool) => pool,
             // we can recover from a poisoned lock, because the thread that panicked will not be
@@ -28,7 +28,7 @@ impl ConnectionPool {
             // are OK.
             Err(poisoned_lock) => poisoned_lock.into_inner(),
         };
-        pool.get().chain_err(|| "foo") //ErrorKind::ConnectionPoolGetConnectionFailed)
+        pool.get().chain_err(|| ErrorKind::GetConnectionError)
     }
 }
 

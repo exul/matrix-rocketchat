@@ -68,27 +68,67 @@ error_chain!{
             display("No supported API version found for the Matrix homeserver, found versions: {}", versions)
         }
 
-        ConnectionPoolFromRequestFailed {
+        ReadFileError(path: String){
+            description("Reading file failed")
+            display("Reading file from {} failed", path)
+        }
+
+        ReadConfigError{
+            description("Could not read config content to string")
+            display("Could not read config content to string")
+        }
+
+        ServerStartupError{
+            description("Starting the application service failed")
+            display("Starting the application service failed")
+        }
+
+        DatabaseSetupError{
+            description("Setting up database failed")
+            display("Setting up database failed")
+        }
+
+        MigrationError{
+            description("Could not run migrations")
+            display("Could not run migrations")
+        }
+
+        DBConnectionError{
+            description("Could not establish database connection")
+            display("Could not establish database connection")
+        }
+
+        LoggerExtractionError{
+            description("Getting logger from iron request failed")
+            display("Getting logger from iron request failed")
+        }
+
+        ConnectionPoolExtractionError{
             description("Getting connection pool from iron request failed")
             display("Getting connection pool from iron request failed")
         }
 
-        ConnectionPoolGetConnectionFailed {
+        ConnectionPoolCreationError{
+            description("Could not create connection pool")
+            display("Could not create connection pool")
+        }
+
+        GetConnectionError{
             description("Getting connection from connection pool failed")
             display("Getting connection from connection pool failed")
         }
 
-        DBInsertFailed {
+        DBInsertError {
             description("Inserting record into the database failed")
             display("Inserting record into the database failed")
         }
 
-        DBSelectFailed{
+        DBSelectError{
             description("Select record from the database failed")
             display("Select record from the database failed")
         }
 
-        DBDeleteFailed{
+        DBDeleteError{
             description("Deleting record from the database failed")
             display("Deleting record from the database failed")
         }

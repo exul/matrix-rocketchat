@@ -38,7 +38,7 @@ impl UserInRoom {
     pub fn insert(connection: &SqliteConnection, user_in_room: &NewUserInRoom) -> Result<UserInRoom> {
         diesel::insert(user_in_room).into(users_in_rooms::table)
             .execute(connection)
-            .chain_err(|| ErrorKind::DBInsertFailed)?;
+            .chain_err(|| ErrorKind::DBInsertError)?;
         UserInRoom::find(connection, &user_in_room.matrix_user_id, &user_in_room.matrix_room_id)
     }
 
@@ -46,7 +46,7 @@ impl UserInRoom {
     pub fn find(connection: &SqliteConnection, matrix_user_id: &UserId, matrix_room_id: &RoomId) -> Result<UserInRoom> {
         let user_in_room = users_in_rooms::table.find((matrix_user_id, matrix_room_id))
             .first(connection)
-            .chain_err(|| "UserInRoom not found")?;
+            .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(user_in_room)
     }
 }

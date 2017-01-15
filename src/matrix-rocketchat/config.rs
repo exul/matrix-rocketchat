@@ -39,9 +39,10 @@ impl Config {
     /// Loads the configuration from a YAML File.
     pub fn read_from_file(path: &str) -> Result<Config> {
         let mut config_content = String::new();
-        let mut config_file = File::open(path).chain_err(|| "unable to open configuration file")?;
-        config_file.read_to_string(&mut config_content).chain_err(|| "unable to read configuration file")?;
-        let config: Config = serde_yaml::from_str(&config_content).chain_err(|| "unable to deserialize configuration")?;
+        let mut config_file = File::open(path).chain_err(|| ErrorKind::ReadFileError(path.to_string()))?;
+        config_file.read_to_string(&mut config_content).chain_err(|| ErrorKind::ReadConfigError)?;
+        let config: Config =
+            serde_yaml::from_str(&config_content).chain_err(|| ErrorKind::InvalidJSON("Could not serialize config".to_string()))?;
         Ok(config)
     }
 

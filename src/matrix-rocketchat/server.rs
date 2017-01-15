@@ -35,9 +35,9 @@ impl<'a> Server<'a> {
 
     /// Runs the application service bridge.
     pub fn run(&self) -> Result<Listening> {
-        self.prepare_database().chain_err(|| "Database setup failed")?;
+        self.prepare_database()?;
         let connection_pool = ConnectionPool::create(&self.config.database_url)?;
-        let connection = connection_pool.get().chain_err(|| "Getting database connection failed")?;
+        let connection = connection_pool.get().chain_err(|| ErrorKind::ConnectionPoolExtractionError)?;
 
         let matrix_api = MatrixApi::new(self.config, self.logger.clone())?;
         self.setup_bot_user(&connection, &matrix_api)?;
@@ -48,7 +48,7 @@ impl<'a> Server<'a> {
         chain.link_before(State::<IronLogger>::one::<Logger>(self.logger.clone()));
 
         info!(self.logger, "Starting server"; "address" => format!("{:?}", self.config.as_address));
-        Iron::new(chain).http(self.config.as_address).chain_err(|| "Unable to start server")
+        Iron::new(chain).http(self.config.as_address).chain_err(|| ErrorKind::ServerStartupError)
     }
 
     fn setup_routes(&self, matrix_api: Box<MatrixApi>) -> Router {
@@ -64,14 +64,13 @@ impl<'a> Server<'a> {
 
     fn prepare_database(&self) -> Result<()> {
         debug!(self.logger, format!("Setting up database {}", self.config.database_url));
-        let connection =
-            SqliteConnection::establish(&self.config.database_url).chain_err(|| "Could not establish database connection")?;
-        setup_database(&connection).chain_err(|| "Could not setup database")?;
-        run_embedded_migrations(&connection).chain_err(|| "Running migrations failed")
+        let connection = SqliteConnection::establish(&self.config.database_url).chain_err(|| ErrorKind::DBConnectionError)?;
+        setup_database(&connection).chain_err(|| ErrorKind::DatabaseSetupError)?;
+        run_embedded_migrations(&connection).chain_err(|| ErrorKind::MigrationError)
     }
 
     fn setup_bot_user(&self, connection: &SqliteConnection, matrix_api: &Box<MatrixApi>) -> Result<()> {
-        let matrix_bot_user_id = self.config.matrix_bot_user_id().chain_err(|| "Could not setup matrix bot user")?;
+        let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
         debug!(self.logger, format!("Setting up bot user {}", matrix_bot_user_id));
         match User::find_by_matrix_user_id(connection, &matrix_bot_user_id)? {
             Some(user) => {

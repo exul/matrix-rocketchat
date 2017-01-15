@@ -39,13 +39,13 @@ pub struct NewUser<'a> {
 impl User {
     /// Insert a new `User` into the database.
     pub fn insert(connection: &SqliteConnection, user: &NewUser) -> Result<User> {
-        diesel::insert(user).into(users::table).execute(connection).chain_err(|| ErrorKind::DBInsertFailed)?;
+        diesel::insert(user).into(users::table).execute(connection).chain_err(|| ErrorKind::DBInsertError)?;
         User::find(connection, &user.matrix_user_id)
     }
 
     /// Find a `User` by his matrix user ID, return an error if the user is not found
     pub fn find(connection: &SqliteConnection, matrix_user_id: &UserId) -> Result<User> {
-        let user = users::table.find(matrix_user_id).first(connection).chain_err(|| "User not found")?;
+        let user = users::table.find(matrix_user_id).first(connection).chain_err(|| ErrorKind::DBSelectError)?;
         Ok(user)
     }
 
@@ -66,7 +66,7 @@ impl User {
 
     /// Find a `User` by his matrix user ID.
     pub fn find_by_matrix_user_id(connection: &SqliteConnection, matrix_user_id: &UserId) -> Result<Option<User>> {
-        let users = users::table.find(matrix_user_id).load(connection).chain_err(|| ErrorKind::DBSelectFailed)?;
+        let users = users::table.find(matrix_user_id).load(connection).chain_err(|| ErrorKind::DBSelectError)?;
         Ok(users.into_iter().next())
     }
 }

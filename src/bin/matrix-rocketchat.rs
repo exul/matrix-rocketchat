@@ -35,9 +35,10 @@ fn run() -> Result<Listening> {
     let cli_yaml = load_yaml!("../../assets/cli.yaml");
     let matches = App::from_yaml(cli_yaml).get_matches();
 
-    let config_path = matches.value_of("config").expect("Could not find config path").to_string();
-    let config = Config::read_from_file(&config_path).chain_err(|| "Reading config file failed")?;
-    let log_file_path = matches.value_of("log_file").expect("Could not find log file path").to_string();
+    let config_path = matches.value_of("config").expect("Config is always present (default value is set)").to_string();
+    let config = Config::read_from_file(&config_path).chain_err(|| ErrorKind::ReadFileError(config_path))?;
+    let log_file_path =
+        matches.value_of("log_file").expect("Log file path is always present (default value is set)").to_string();
     let log = build_logger(&log_file_path);
     Server::new(&config, log).run()
 }

@@ -51,13 +51,13 @@ pub struct NewRoom {
 impl Room {
     /// Insert a new `Room` into the database.
     pub fn insert(connection: &SqliteConnection, room: &NewRoom) -> Result<Room> {
-        diesel::insert(room).into(rooms::table).execute(connection).chain_err(|| ErrorKind::DBInsertFailed)?;
+        diesel::insert(room).into(rooms::table).execute(connection).chain_err(|| ErrorKind::DBInsertError)?;
         Room::find(connection, &room.matrix_room_id)
     }
 
     /// Find a `Room` by its matrix room ID. Returns an error if the room is not found.
     pub fn find(connection: &SqliteConnection, matrix_room_id: &RoomId) -> Result<Room> {
-        let room = rooms::table.find(matrix_room_id).first(connection).chain_err(|| ErrorKind::DBSelectFailed)?;
+        let room = rooms::table.find(matrix_room_id).first(connection).chain_err(|| ErrorKind::DBSelectError)?;
         Ok(room)
     }
 
@@ -65,15 +65,15 @@ impl Room {
     pub fn users(&self, connection: &SqliteConnection) -> Result<Vec<User>> {
         let users: Vec<User>=
             users::table.filter(users::matrix_user_id.eq_any(UserInRoom::belonging_to(self).select(users_in_rooms::matrix_user_id)))
-                .load(connection).chain_err(|| ErrorKind::DBSelectFailed)?;
+                .load(connection).chain_err(|| ErrorKind::DBSelectError)?;
         Ok(users)
     }
 
     /// Delete a room, this also deletes any users_in_rooms relations for that room.
     pub fn delete(&self, connection: &SqliteConnection) -> Result<()> {
-        diesel::delete(UserInRoom::belonging_to(self)).execute(connection).chain_err(|| ErrorKind::DBDeleteFailed)?;
+        diesel::delete(UserInRoom::belonging_to(self)).execute(connection).chain_err(|| ErrorKind::DBDeleteError)?;
         diesel::delete(rooms::table.filter(rooms::matrix_room_id.eq(self.matrix_room_id.clone()))).execute(connection)
-            .chain_err(|| ErrorKind::DBDeleteFailed)?;
+            .chain_err(|| ErrorKind::DBDeleteError)?;
         Ok(())
     }
 }

@@ -4,6 +4,8 @@
 
 #![deny(missing_docs)]
 
+#![recursion_limit = "128"]
+
 #[macro_use]
 extern crate diesel;
 #[macro_use]

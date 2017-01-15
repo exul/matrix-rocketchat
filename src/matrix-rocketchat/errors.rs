@@ -68,6 +68,16 @@ error_chain!{
             display("No supported API version found for the Matrix homeserver, found versions: {}", versions)
         }
 
+        ConnectionPoolFromRequestFailed {
+            description("Getting connection pool from iron request failed")
+            display("Getting connection pool from iron request failed")
+        }
+
+        ConnectionPoolGetConnectionFailed {
+            description("Getting connection from connection pool failed")
+            display("Getting connection from connection pool failed")
+        }
+
         DBInsertFailed {
             description("Inserting record into the database failed")
             display("Inserting record into the database failed")

@@ -30,7 +30,7 @@ fn homeserver_sends_mal_formatted_json() {
     let url = format!("{}/transactions/{}", &test.config.as_url, "specid");
     let mut params = HashMap::new();
     params.insert("access_token", HS_TOKEN);
-    let (_, status_code) = RestApi::call(Method::Put, &url, payload, &mut params, None).unwrap();
+    let (_, status_code) = RestApi::call(Method::Put, &url, payload, &params, None).unwrap();
     assert_eq!(status_code, StatusCode::UnprocessableEntity)
 }
 

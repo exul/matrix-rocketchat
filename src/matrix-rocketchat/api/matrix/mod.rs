@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ruma_client_api::Endpoint;
 use ruma_client_api::unversioned::get_supported_versions::{Endpoint as GetSupportedVersionsEndpoint,
                                                            Response as GetSupportedVersionsResponse};
@@ -56,9 +58,10 @@ impl MatrixApi {
     /// It returns a `MatrixApi` trait, because for each version a different API is created.
     pub fn new(config: &Config, logger: Logger) -> Result<Box<MatrixApi>> {
         let url = config.hs_url.clone() + &GetSupportedVersionsEndpoint::request_path(());
+        let params = HashMap::new();
 
         debug!(logger, format!("Querying homeserver {} for API versions", url));
-        let (body, status_code) = RestApi::call_matrix(GetSupportedVersionsEndpoint::method(), &url, "")?;
+        let (body, status_code) = RestApi::call_matrix(GetSupportedVersionsEndpoint::method(), &url, "", &params)?;
         if !status_code.is_success() {
             let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
                     ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix supported versions \

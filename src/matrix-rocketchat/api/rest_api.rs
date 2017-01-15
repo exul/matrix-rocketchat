@@ -12,23 +12,26 @@ pub struct RestApi {}
 
 impl RestApi {
     /// Call a matrix REST API endpoint
-    pub fn call_matrix(method: RumaHttpMethod, url: &str, payload: &str) -> Result<(String, StatusCode)> {
+    pub fn call_matrix<'a>(method: RumaHttpMethod,
+                           url: &str,
+                           payload: &str,
+                           params: &HashMap<&str, &'a str>)
+                           -> Result<(String, StatusCode)> {
         let method = match method {
             RumaHttpMethod::Delete => Method::Delete,
             RumaHttpMethod::Get => Method::Get,
             RumaHttpMethod::Post => Method::Post,
             RumaHttpMethod::Put => Method::Put,
         };
-        let mut params = HashMap::new();
 
-        RestApi::call(method, url, payload, &mut params, None)
+        RestApi::call(method, url, payload, params, None)
     }
 
     /// Call a REST API endpoint
     pub fn call<'a>(method: Method,
                     url: &str,
                     payload: &str,
-                    params: &mut HashMap<&str, &'a str>,
+                    params: &HashMap<&str, &'a str>,
                     headers: Option<Headers>)
                     -> Result<(String, StatusCode)> {
         let client = Client::new().chain_err(|| ErrorKind::ApiCallFailed(url.to_string()))?;

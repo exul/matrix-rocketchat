@@ -39,10 +39,10 @@ impl MatrixApi {
         }
     }
 
-    fn parameter_hash(&self) -> HashMap<&str, &str> {
-        let mut parameters: HashMap<&str, &str> = HashMap::new();
-        parameters.insert("access_token", &self.access_token);
-        parameters
+    fn params_hash(&self) -> HashMap<&str, &str> {
+        let mut params: HashMap<&str, &str> = HashMap::new();
+        params.insert("access_token", &self.access_token);
+        params
     }
 }
 
@@ -50,9 +50,9 @@ impl super::MatrixApi for MatrixApi {
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()> {
         let path_params = forget_room::PathParams { room_id: matrix_room_id };
         let endpoint = self.base_url.clone() + &ForgetRoomEndpoint::request_path(path_params);
-        let parameters = self.parameter_hash();
+        let params = self.params_hash();
 
-        let (body, status_code) = RestApi::call_matrix(ForgetRoomEndpoint::method(), &endpoint, "{}")?;
+        let (body, status_code) = RestApi::call_matrix(ForgetRoomEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -62,9 +62,9 @@ impl super::MatrixApi for MatrixApi {
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>> {
         let path_params = get_member_events::PathParams { room_id: matrix_room_id.clone() };
         let endpoint = self.base_url.clone() + &GetMemberEventsEndpoint::request_path(path_params);
-        let parameters = self.parameter_hash();
+        let params = self.params_hash();
 
-        let (body, status_code) = RestApi::call_matrix(GetMemberEventsEndpoint::method(), &endpoint, "{}")?;
+        let (body, status_code) = RestApi::call_matrix(GetMemberEventsEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -83,10 +83,10 @@ impl super::MatrixApi for MatrixApi {
         let path_params = join_room_by_id::PathParams { room_id: matrix_room_id.clone() };
         let endpoint = self.base_url.clone() + &JoinRoomByIdEndpoint::request_path(path_params);
         let user_id = matrix_user_id.to_string();
-        let mut parameters = self.parameter_hash();
-        parameters.insert("user_id", &user_id);
+        let mut params = self.params_hash();
+        params.insert("user_id", &user_id);
 
-        let (body, status_code) = RestApi::call_matrix(JoinRoomByIdEndpoint::method(), &endpoint, "{}")?;
+        let (body, status_code) = RestApi::call_matrix(JoinRoomByIdEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -101,9 +101,9 @@ impl super::MatrixApi for MatrixApi {
     fn leave_room(&self, matrix_room_id: RoomId) -> Result<()> {
         let path_params = leave_room::PathParams { room_id: matrix_room_id };
         let endpoint = self.base_url.clone() + &LeaveRoomEndpoint::request_path(path_params);
-        let parameters = self.parameter_hash();
+        let params = self.params_hash();
 
-        let (body, status_code) = RestApi::call_matrix(LeaveRoomEndpoint::method(), &endpoint, "{}")?;
+        let (body, status_code) = RestApi::call_matrix(LeaveRoomEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -112,7 +112,7 @@ impl super::MatrixApi for MatrixApi {
 
     fn register(&self, user_id_local_part: String) -> Result<()> {
         let endpoint = self.base_url.clone() + &RegisterEndpoint::request_path(());
-        let parameters = self.parameter_hash();
+        let params = self.params_hash();
         let body_params = register::BodyParams {
             bind_email: None,
             password: None,
@@ -123,7 +123,7 @@ impl super::MatrixApi for MatrixApi {
         };
         let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize account body params".to_string()))?;
 
-        let (body, status_code) = RestApi::call_matrix(RegisterEndpoint::method(), &endpoint, &payload)?;
+        let (body, status_code) = RestApi::call_matrix(RegisterEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -145,10 +145,10 @@ impl super::MatrixApi for MatrixApi {
         };
         let endpoint = self.base_url.clone() + &SendMessageEventEndpoint::request_path(path_params);
         let user_id = matrix_user_id.to_string();
-        let mut parameters = self.parameter_hash();
-        parameters.insert("user_id", &user_id);
+        let mut params = self.params_hash();
+        params.insert("user_id", &user_id);
 
-        let (body, status_code) = RestApi::call_matrix(SendMessageEventEndpoint::method(), &endpoint, &payload)?;
+        let (body, status_code) = RestApi::call_matrix(SendMessageEventEndpoint::method(), &endpoint, &payload, &params)?;
 
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
@@ -167,13 +167,14 @@ impl super::MatrixApi for MatrixApi {
             event_type: EventType::RoomName,
         };
         let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
-        let parameters = self.parameter_hash();
+        let params = self.params_hash();
         let mut body_params = serde_json::Map::new();
         body_params.insert("name", name);
 
         let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize account body params".to_string()))?;
 
-        let (body, status_code) = RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload)?;
+        let (body, status_code) =
+            RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }

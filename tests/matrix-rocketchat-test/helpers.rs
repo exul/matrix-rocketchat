@@ -93,5 +93,5 @@ pub fn simulate_message_from_matrix(as_url: &str, payload: &str) -> (String, Sta
     let url = format!("{}/transactions/{}", as_url, "specid");
     let mut params = HashMap::new();
     params.insert("access_token", HS_TOKEN);
-    RestApi::call(Method::Put, &url, payload, &mut params, None).unwrap()
+    RestApi::call(Method::Put, &url, payload, &params, None).unwrap()
 }

@@ -1,6 +1,29 @@
 en:
   admin_room:
-    connection_instructions: "Hi, I'm the Rocket.Chat application service"
+    connection_instructions: |
+      "Hi, I'm the Rocket.Chat application service
+
+      You have to connect this room to a Rocket.Chat server.
+
+      **Connect to a new server**
+
+      Open the Administration section of your Rocket.Chat server, select Integrations --> New Integration --> Outgoing WebHook with the following settings:
+
+      * Enabled: true
+      * URLs: ${as_url}/rocketchat
+
+      There is a Token which we will need for the connection, copy it and press Save Changes to create a webhook.
+
+      Now you can connect the server by sending a message in this room:
+
+      `connect rocketchaturl token`
+
+      The `rocketchaturl` is the URL where your Rocket.Chat server is running and `token` is the token from the webhook you just created.
+      *It is highly recommended that you use https to connect to your Rocket.Chat server.*
+
+      A sample message could look like this:
+
+      `connect https://chat.example.com z44cwkD86P5PmdkEv7nHX7KB`"
     too_many_members_in_room: "Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."
     other_user_joined: "Another user join the admin room, leaving, please create a new admin room."
   defaults:

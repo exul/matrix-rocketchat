@@ -64,7 +64,7 @@ impl<'a> EventDispatcher<'a> {
             Some(user) => user.language,
             None => DEFAULT_LANGUAGE.to_string(),
         };
-        let user_msg = t!(["defaults", "internal_error"]).l(&language) + " (" + &msg + ")";
+        let user_msg = t!(["defaults", "internal_error"]).l(&language, None) + " (" + &msg + ")";
         self.matrix_api.send_text_message_event(room_id, self.config.matrix_bot_user_id()?, user_msg)?;
         Err(err)
     }

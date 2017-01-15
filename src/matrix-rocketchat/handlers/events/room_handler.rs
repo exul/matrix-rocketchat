@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
+use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::member::{MemberEvent, MembershipState};
 use ruma_identifiers::{RoomId, UserId};
@@ -82,21 +83,25 @@ impl<'a> RoomHandler<'a> {
 
     /// Process join invite for the bot user.
     pub fn handle_bot_invite(&self, matrix_room_id: RoomId, invited_user_id: UserId, sender_id: UserId) -> Result<()> {
-        let user = User::find_or_create_by_matrix_user_id(self.connection, sender_id)?;
-        let display_name = t!(["defaults", "admin_room_display_name"]).l(&user.language, None);
-        let room = NewRoom {
-            matrix_room_id: matrix_room_id.clone(),
-            display_name: display_name,
-            rocketchat_room_id: None,
-            is_admin_room: true,
-            is_bridged: false,
-        };
-        Room::insert(self.connection, &room)?;
-        let user_in_room = NewUserInRoom {
-            matrix_user_id: user.matrix_user_id,
-            matrix_room_id: room.matrix_room_id,
-        };
-        UserInRoom::insert(self.connection, &user_in_room)?;
+        self.connection
+            .transaction(|| {
+                let user = User::find_or_create_by_matrix_user_id(self.connection, sender_id)?;
+                let display_name = t!(["defaults", "admin_room_display_name"]).l(&user.language, None);
+                let room = NewRoom {
+                    matrix_room_id: matrix_room_id.clone(),
+                    display_name: display_name,
+                    rocketchat_room_id: None,
+                    is_admin_room: true,
+                    is_bridged: false,
+                };
+                Room::insert(self.connection, &room)?;
+                let user_in_room = NewUserInRoom {
+                    matrix_user_id: user.matrix_user_id,
+                    matrix_room_id: room.matrix_room_id,
+                };
+                UserInRoom::insert(self.connection, &user_in_room)
+            })
+            .chain_err(|| ErrorKind::DBInsertError)?;
         self.matrix_api.join(matrix_room_id, invited_user_id)
     }
 

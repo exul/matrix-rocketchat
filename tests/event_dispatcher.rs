@@ -1,25 +1,17 @@
 #![feature(try_from)]
 
-extern crate iron;
-extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
-extern crate reqwest;
 extern crate router;
 extern crate ruma_client_api;
 extern crate ruma_identifiers;
 
-use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use iron::status;
-use matrix_rocketchat::api::RestApi;
-use matrix_rocketchat_test::{HS_TOKEN, MessageForwarder, Test, default_timeout, handlers, helpers};
-use reqwest::Method;
+use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
-use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
-use ruma_identifiers::{EventId, RoomId, UserId};
+use ruma_identifiers::{RoomId, UserId};
 
 #[test]
 fn error_message_language_falls_back_to_the_default_language_if_the_sender_is_not_a_bridge_user() {

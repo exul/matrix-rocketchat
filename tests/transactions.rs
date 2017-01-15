@@ -38,7 +38,7 @@ fn homeserver_sends_mal_formatted_json() {
 fn unknown_event_types_are_skipped() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     let unknown_event = HangupEvent {

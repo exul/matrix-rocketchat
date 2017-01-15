@@ -23,7 +23,7 @@ use ruma_client_api::r0::membership::forget_room::Endpoint as ForgetRoomEndpoint
 use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinEndpoint;
 use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
-use ruma_client_api::r0::send::send_state_event::Endpoint as SendStateEventEndpoint;
+use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint as SendStateEventForEmptyKeyEndpoint};
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
 use ruma_events::EventType;
 use ruma_events::collections::all::Event;
@@ -35,14 +35,14 @@ use serde_json::to_string;
 fn successfully_create_an_admin_room() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
-    matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {});
+    matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {}, "join");
     let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
         members: vec![UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
                       UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
     };
-    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
@@ -73,8 +73,8 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
                       UserId::try_from("@other_user:localhost").expect("Could not create user ID"),
                       UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
     };
-    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
@@ -114,8 +114,8 @@ fn bot_leaves_and_forgets_the_room_when_the_user_leaves_it() {
     let (leave_message_forwarder, leave_receiver) = MessageForwarder::new();
     let (forget_message_forwarder, forget_receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
-    matrix_router.post(LeaveRoomEndpoint::router_path(), leave_message_forwarder);
-    matrix_router.post(ForgetRoomEndpoint::router_path(), forget_message_forwarder);
+    matrix_router.post(LeaveRoomEndpoint::router_path(), leave_message_forwarder, "leave_room");
+    matrix_router.post(ForgetRoomEndpoint::router_path(), forget_message_forwarder, "forget_room");
     let test = Test::new().with_custom_matrix_routes(matrix_router).with_admin_room().run();
 
     let connection = test.connection_pool.get().unwrap();
@@ -160,14 +160,14 @@ fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
         status: status::InternalServerError,
         message: "Could not join room".to_string(),
     };
-    matrix_router.post(JoinEndpoint::router_path(), error_responder);
+    matrix_router.post(JoinEndpoint::router_path(), error_responder, "join");
     let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
         members: vec![UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
                       UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
     };
-    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     helpers::invite(&test.config.as_url,
@@ -195,8 +195,8 @@ fn the_user_gets_a_message_when_getting_the_room_members_failes() {
         status: status::InternalServerError,
         message: "Could not get room members".to_string(),
     };
-    matrix_router.get(GetMemberEventsEndpoint::router_path(), error_responder);
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), error_responder, "get_member_events");
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
@@ -221,8 +221,9 @@ fn the_user_gets_a_message_when_the_room_members_cannot_be_deserialized() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.get(GetMemberEventsEndpoint::router_path(),
-                      handlers::InvalidJsonResponse { status: status::Ok });
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+                      handlers::InvalidJsonResponse { status: status::Ok },
+                      "get_member");
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
@@ -251,14 +252,16 @@ fn the_user_gets_a_message_when_setting_the_room_display_name_fails() {
         status: status::InternalServerError,
         message: "Could not set display name for room".to_string(),
     };
-    matrix_router.put(SendStateEventEndpoint::router_path(), error_responder);
+    matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(),
+                      error_responder,
+                      "send_state_event_for_empty_key");
     let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
         members: vec![UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
                       UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
     };
-    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
@@ -292,13 +295,13 @@ fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
                       UserId::try_from("@other_user:localhost").expect("Could not create user ID"),
                       UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
     };
-    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let error_responder = handlers::ErrorResponder {
         status: status::InternalServerError,
         message: "Could not leave room".to_string(),
     };
-    matrix_router.post(LeaveRoomEndpoint::router_path(), error_responder);
+    matrix_router.post(LeaveRoomEndpoint::router_path(), error_responder, "leave_room");
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
@@ -322,13 +325,13 @@ fn the_user_gets_a_message_when_forgetting_the_room_failes_for_the_bot_user() {
                       UserId::try_from("@other_user:localhost").expect("Could not create user ID"),
                       UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
     };
-    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let error_responder = handlers::ErrorResponder {
         status: status::InternalServerError,
         message: "Could not forget room".to_string(),
     };
-    matrix_router.post(ForgetRoomEndpoint::router_path(), error_responder);
+    matrix_router.post(ForgetRoomEndpoint::router_path(), error_responder, "forget_room");
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
@@ -348,16 +351,16 @@ fn bot_leaves_when_a_third_user_joins_the_admin_room() {
     let (leave_forwarder, leave_receiver) = MessageForwarder::new();
     let (forget_forwarder, forget_receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
-    matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {});
+    matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {}, "join");
     let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
         members: vec![UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
                       UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
     };
-    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members);
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
-    matrix_router.post(LeaveRoomEndpoint::router_path(), leave_forwarder);
-    matrix_router.post(ForgetRoomEndpoint::router_path(), forget_forwarder);
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(LeaveRoomEndpoint::router_path(), leave_forwarder, "leave");
+    matrix_router.post(ForgetRoomEndpoint::router_path(), forget_forwarder, "forget");
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
@@ -397,7 +400,7 @@ fn bot_leaves_when_a_third_user_joins_the_admin_room() {
 fn unkown_membership_states_are_skipped() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder);
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     let unknown_event = MemberEvent {

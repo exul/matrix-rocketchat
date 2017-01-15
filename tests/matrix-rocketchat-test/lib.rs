@@ -37,7 +37,6 @@ use std::time::Duration;
 
 use diesel::sqlite::SqliteConnection;
 use iron::{Iron, Listening};
-use iron::Protocol::Http;
 use matrix_rocketchat::{Config, Server};
 use matrix_rocketchat::db::ConnectionPool;
 use r2d2::Pool;
@@ -153,23 +152,24 @@ impl Test {
         };
 
         router.get("/_matrix/client/versions",
-                   handlers::MatrixVersion { versions: default_matrix_api_versions() });
-        router.post("*", handlers::EmptyJson {});
-        router.put("*", handlers::EmptyJson {});
+                   handlers::MatrixVersion { versions: default_matrix_api_versions() },
+                   "versions");
+        router.post("*", handlers::EmptyJson {}, "default_post");
+        router.put("*", handlers::EmptyJson {}, "default_put");
         if self.with_admin_room {
             let room_members = handlers::RoomMembers {
                 room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
                 members: vec![UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
                               UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
             };
-            router.get(GetMemberEventsEndpoint::router_path(), room_members);
-            router.post(JoinEndpoint::router_path(), handlers::EmptyJson {});
+            router.get(GetMemberEventsEndpoint::router_path(), room_members, "room_members");
+            router.post(JoinEndpoint::router_path(), handlers::EmptyJson {}, "join");
         }
 
         thread::spawn(move || {
-            let listening = Iron::new(router)
-                .listen_with(&hs_socket_addr, IRON_THREADS, Http, None)
-                .unwrap();
+            let mut server = Iron::new(router);
+            server.threads = IRON_THREADS;
+            let listening = server.http(&hs_socket_addr).unwrap();
             hs_tx.send(listening).unwrap();
         });
 

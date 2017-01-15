@@ -54,8 +54,10 @@ impl<'a> Server<'a> {
     fn setup_routes(&self, matrix_api: Box<MatrixApi>) -> Router {
         debug!(self.logger, "Setting up routes");
         let mut router = Router::new();
-        router.get("/", Welcome {});
-        router.put("/transactions/:txn_id", Transactions::chain(self.config.clone(), matrix_api));
+        router.get("/", Welcome {}, "welcome");
+        router.put("/transactions/:txn_id",
+                   Transactions::chain(self.config.clone(), matrix_api),
+                   "transactions");
 
         router
     }

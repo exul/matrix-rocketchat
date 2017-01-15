@@ -7,7 +7,7 @@ use ruma_client_api::r0::membership::forget_room::{self, Endpoint as ForgetRoomE
 use ruma_client_api::r0::membership::join_room_by_id::{self, Endpoint as JoinRoomByIdEndpoint};
 use ruma_client_api::r0::membership::leave_room::{self, Endpoint as LeaveRoomEndpoint};
 use ruma_client_api::r0::send::send_message_event::{self, Endpoint as SendMessageEventEndpoint};
-use ruma_client_api::r0::send::send_state_event::{self, Endpoint as SendStateEventEndpoint};
+use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint as SendStateEventForEmptyKeyEndpoint};
 use ruma_client_api::r0::sync::get_member_events::{self, Endpoint as GetMemberEventsEndpoint};
 use ruma_events::EventType;
 use ruma_events::room::member::MemberEvent;
@@ -162,18 +162,18 @@ impl super::MatrixApi for MatrixApi {
     }
 
     fn set_room_name(&self, matrix_room_id: RoomId, name: String) -> Result<()> {
-        let path_params = send_state_event::PathParams {
+        let path_params = send_state_event_for_empty_key::PathParams {
             room_id: matrix_room_id,
             event_type: EventType::RoomName,
         };
-        let endpoint = self.base_url.clone() + &SendStateEventEndpoint::request_path(path_params);
+        let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
         let parameters = self.parameter_hash();
         let mut body_params = serde_json::Map::new();
         body_params.insert("name", name);
 
         let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize account body params".to_string()))?;
 
-        let (body, status_code) = RestApi::call_matrix(SendStateEventEndpoint::method(), &endpoint, &payload)?;
+        let (body, status_code) = RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }

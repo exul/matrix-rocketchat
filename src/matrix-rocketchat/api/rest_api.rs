@@ -37,7 +37,7 @@ impl RestApi {
         let client = Client::new().chain_err(|| ErrorKind::ApiCallFailed(url.to_string()))?;
         let encoded_url = RestApi::encode_url(url.to_string(), params)?;
 
-        let req = match method {
+        let mut req = match method {
             Method::Get => client.get(&encoded_url),
             Method::Put => client.request(Method::Put, &encoded_url).body(payload),
             Method::Post => client.post(&encoded_url).body(payload),
@@ -45,6 +45,10 @@ impl RestApi {
                 return Err(Error::from(ErrorKind::UnsupportedHttpMethod(method.to_string())));
             }
         };
+
+        if let Some(headers) = headers {
+            req = req.headers(headers);
+        }
 
         let mut resp = req.send().chain_err(|| ErrorKind::ApiCallFailed(url.to_string()))?;
         let mut body = String::new();

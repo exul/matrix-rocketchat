@@ -48,7 +48,7 @@ impl Handler for RoomMembers {
         }
 
         let response = get_member_events::Response { chunks: member_events };
-        let payload = serde_json::to_string(&response).expect("Could not serialize members response");
+        let payload = serde_json::to_string(&response).unwrap();
         Ok(Response::with((status::Ok, payload)))
     }
 }
@@ -72,7 +72,7 @@ impl Handler for ErrorResponder {
             errcode: "1234".to_string(),
             error: self.message.clone(),
         };
-        let payload = serde_json::to_string(&error_response).expect("Could not serialize error response");
+        let payload = serde_json::to_string(&error_response).unwrap();
         Ok(Response::with((self.status, payload)))
     }
 }

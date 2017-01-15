@@ -102,7 +102,7 @@ pub struct Test {
 impl Test {
     /// Create a new Test struct with helper methods that can be used for testing.
     pub fn new() -> Test {
-        let temp_dir = TempDir::new(TEMP_DIR_NAME).expect("Could not create temp dir");
+        let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
         let config = build_test_config(&temp_dir);
         let connection_pool = ConnectionPool::create(&config.database_url);
         Test {
@@ -158,9 +158,9 @@ impl Test {
         router.put("*", handlers::EmptyJson {}, "default_put");
         if self.with_admin_room {
             let room_members = handlers::RoomMembers {
-                room_id: RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
-                members: vec![UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
-                              UserId::try_from("@rocketchat:localhost").expect("Could not create user ID")],
+                room_id: RoomId::try_from("!admin:localhost").unwrap(),
+                members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
+                              UserId::try_from("@rocketchat:localhost").unwrap()],
             };
             router.get(GetMemberEventsEndpoint::router_path(), room_members, "room_members");
             router.post(JoinEndpoint::router_path(), handlers::EmptyJson {}, "join");
@@ -196,18 +196,18 @@ impl Test {
                     return;
                 }
             };
-            as_tx.send(listening).expect("Could not send server listening handle");
+            as_tx.send(listening).unwrap()
         });
 
-        let as_listening = as_rx.recv_timeout(default_timeout() * 2).expect("Could not receive server listening handle");
+        let as_listening = as_rx.recv_timeout(default_timeout() * 2).unwrap();
         self.as_listening = Some(as_listening);
     }
 
     fn create_admin_room(&self) {
         helpers::create_admin_room(&self.config.as_url,
-                                   RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
-                                   UserId::try_from("@spec_user:localhost").expect("Could not create user ID"),
-                                   UserId::try_from("@rocketchat:localhost").expect("Could not create user ID"));
+                                   RoomId::try_from("!admin:localhost").unwrap(),
+                                   UserId::try_from("@spec_user:localhost").unwrap(),
+                                   UserId::try_from("@rocketchat:localhost").unwrap())
 
     }
 }
@@ -215,11 +215,11 @@ impl Test {
 impl Drop for Test {
     fn drop(&mut self) {
         if let Some(ref mut listening) = self.hs_listening {
-            listening.close().expect("Could not shutdown matrix homeserver server mock")
+            listening.close().unwrap()
         };
 
         if let Some(ref mut listening) = self.as_listening {
-            listening.close().expect("Could not shutdown application server");
+            listening.close().unwrap()
         };
     }
 }
@@ -228,7 +228,7 @@ pub fn build_test_config(temp_dir: &TempDir) -> Config {
     let as_socket_addr = get_free_socket_addr();
     let as_url = format!("http://{}:{}", as_socket_addr.ip(), as_socket_addr.port());
     let database_path = temp_dir.path().join(DATABASE_NAME);
-    let database_url = database_path.to_str().expect("could not build database url");
+    let database_url = database_path.to_str().unwrap();
     debug!(DEFAULT_LOGGER, format!("Database URL is: {}", database_url));
 
     Config {
@@ -261,8 +261,8 @@ pub fn default_matrix_api_versions() -> Vec<&'static str> {
 /// until it is actually used.
 pub fn get_free_socket_addr() -> SocketAddr {
     let address = "127.0.0.1:0";
-    let listener = TcpListener::bind(address).expect("Could not bind address");
-    listener.local_addr().expect("Could not get local addr")
+    let listener = TcpListener::bind(address).unwrap();
+    listener.local_addr().unwrap()
 }
 
 fn file_line_logger_format(info: &Record) -> String {

@@ -21,8 +21,8 @@ fn error_message_language_falls_back_to_the_default_language_if_the_sender_is_no
     let test = Test::new().with_custom_matrix_routes(matrix_router).run();
 
     helpers::join(&test.config.as_url,
-                  RoomId::try_from("!admin:localhost").expect("Could not create room ID"),
-                  UserId::try_from("@unkown_user:localhost").expect("Could not create user ID"));
+                  RoomId::try_from("!admin:localhost").unwrap(),
+                  UserId::try_from("@unkown_user:localhost").unwrap());
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("An internal error occurred"));

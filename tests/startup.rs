@@ -25,7 +25,7 @@ use tempdir::TempDir;
 
 #[test]
 fn starup_fails_when_server_cannot_bind_to_address() {
-    let temp_dir = TempDir::new(TEMP_DIR_NAME).expect("Could not create temp dir");
+    let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
     let mut config = matrix_rocketchat_test::build_test_config(&temp_dir);
     let log = DEFAULT_LOGGER.clone();
 
@@ -176,7 +176,7 @@ fn start_servers(matrix_router: Router) -> Result<Listening> {
 
     let (server_tx, server_rx) = channel::<Result<Listening>>();
     thread::spawn(move || {
-        let temp_dir = TempDir::new(TEMP_DIR_NAME).expect("Could not create temp dir");
+        let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
         let mut config = matrix_rocketchat_test::build_test_config(&temp_dir);
         config.hs_url = format!("http://{}:{}",
                             homeserver_mock_socket_addr.ip(),

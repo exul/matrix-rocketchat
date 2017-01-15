@@ -12,10 +12,10 @@ pub struct ConnectionPool;
 
 impl ConnectionPool {
     /// Create connection pool for the sqlite database
-    pub fn create(database_url: &str) -> Pool<ConnectionManager<SqliteConnection>> {
+    pub fn create(database_url: &str) -> Result<Pool<ConnectionManager<SqliteConnection>>> {
         let config = Config::default();
         let manager = ConnectionManager::<SqliteConnection>::new(database_url);
-        Pool::new(config, manager).expect("Failed to create pool.")
+        Pool::new(config, manager).chain_err(|| "Failed to create pool.")
     }
 
     /// Extract a database connection from the pool stored in the request.

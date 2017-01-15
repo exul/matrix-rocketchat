@@ -104,7 +104,7 @@ impl Test {
     pub fn new() -> Test {
         let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
         let config = build_test_config(&temp_dir);
-        let connection_pool = ConnectionPool::create(&config.database_url);
+        let connection_pool = ConnectionPool::create(&config.database_url).unwrap();
         Test {
             config: config,
             connection_pool: connection_pool,

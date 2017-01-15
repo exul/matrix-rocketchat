@@ -2,6 +2,7 @@ use iron::{BeforeMiddleware, IronResult, Request};
 
 use config::Config;
 use errors::*;
+use iron::url::Url;
 use log::*;
 
 /// Compares the supplied access token to the one that is in the config
@@ -12,7 +13,7 @@ pub struct AccessToken {
 
 impl BeforeMiddleware for AccessToken {
     fn before(&self, request: &mut Request) -> IronResult<()> {
-        let url = request.url.clone().into_generic_url();
+        let url: Url = request.url.clone().into();
         let mut query_pairs = url.query_pairs();
         let logger = IronLogger::from_request(request)?;
 

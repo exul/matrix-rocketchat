@@ -47,7 +47,7 @@ impl Handler for RoomMembers {
             member_events.push(member_event);
         }
 
-        let response = get_member_events::Response { chunks: member_events };
+        let response = get_member_events::Response { chunk: member_events };
         let payload = serde_json::to_string(&response).unwrap();
         Ok(Response::with((status::Ok, payload)))
     }

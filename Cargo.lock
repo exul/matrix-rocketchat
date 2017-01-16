@@ -627,7 +627,7 @@ dependencies = [
 [[package]]
 name = "ruma-client-api"
 version = "0.1.0"
-source = "git+https://github.com/ruma/ruma-client-api.git#edeb14fb2952fd1e4fc8c65ef0917812f403b9a5"
+source = "git+https://github.com/ruma/ruma-client-api.git#52f027d6555b8cea77ea052485531ea311fdd825"
 dependencies = [
  "ruma-api 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ruma-events 0.3.0 (registry+https://github.com/rust-lang/crates.io-index)",

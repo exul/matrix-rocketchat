@@ -78,7 +78,7 @@ impl super::MatrixApi for MatrixApi {
                 ErrorKind::InvalidJSON(format!("Could not deserialize reseponse from Matrix members API endpoint: `{}`",
                                                body))
             })?;
-        Ok(room_member_events.chunks)
+        Ok(room_member_events.chunk)
     }
 
     fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {

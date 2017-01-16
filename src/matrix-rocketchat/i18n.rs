@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use yaml_rust::{Yaml, YamlLoader};
 
 lazy_static! {
@@ -20,11 +22,20 @@ macro_rules! build_i18n_struct {
 
         impl I18n {
             /// Return the translation for a language
-            pub fn l(&self, language: &str) -> String {
-                match language{
+            pub fn l(&self, language: &str, vars: Option<HashMap<&str, &str>>) -> String {
+                let mut translation = match language{
                     $(stringify!($f) => self.$f.clone(),)*
                         _ => "Unsupported language".to_string()
+                };
+
+                if let Some(vars) = vars{
+                    for (key, val) in vars {
+                        let placeholder = format!("${{{}}}", key);
+                        translation = translation.replace(&placeholder, val);
+                    }
                 }
+
+                translation
             }
         }
     }

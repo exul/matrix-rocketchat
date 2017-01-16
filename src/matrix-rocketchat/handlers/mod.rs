@@ -1,6 +1,6 @@
-//! Iron handlers
+//! Iron and Event handlers
 
-/// Sends a welcome message to the caller
-pub mod welcome;
-
-pub use self::welcome::Welcome;
+/// Iron handlers
+pub mod iron;
+/// Event handlers
+pub mod events;

@@ -1,14 +1,20 @@
 extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
+extern crate reqwest;
 
-use matrix_rocketchat_test::{Test, call_url};
+use std::collections::HashMap;
+
+use matrix_rocketchat::api::RestApi;
+use matrix_rocketchat_test::Test;
+use reqwest::{Method, StatusCode};
 
 #[test]
 fn root_url_returns_a_welcome_message() {
     let test = Test::new().run();
     let url = test.config.as_url.clone();
+    let params = HashMap::new();
 
-    let (body, status) = call_url(&url);
+    let (body, status) = RestApi::call(Method::Get, &url, "", &params, None).unwrap();
     assert_eq!(body, "Your Rocket.Chat <-> Matrix application service is running");
-    assert!(status.is_success());
+    assert_eq!(status, StatusCode::Ok);
 }

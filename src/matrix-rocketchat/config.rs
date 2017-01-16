@@ -1,7 +1,9 @@
+use std::convert::TryFrom;
 use std::fs::File;
 use std::io::Read;
 use std::net::SocketAddr;
 
+use ruma_identifiers::UserId;
 use serde_yaml;
 
 use errors::*;
@@ -37,9 +39,16 @@ impl Config {
     /// Loads the configuration from a YAML File.
     pub fn read_from_file(path: &str) -> Result<Config> {
         let mut config_content = String::new();
-        let mut config_file = File::open(path).chain_err(|| "unable to open configuration file")?;
-        config_file.read_to_string(&mut config_content).chain_err(|| "unable to read configuration file")?;
-        let config: Config = serde_yaml::from_str(&config_content).chain_err(|| "unable to deserialize configuration")?;
+        let mut config_file = File::open(path).chain_err(|| ErrorKind::ReadFileError(path.to_string()))?;
+        config_file.read_to_string(&mut config_content).chain_err(|| ErrorKind::ReadConfigError)?;
+        let config: Config =
+            serde_yaml::from_str(&config_content).chain_err(|| ErrorKind::InvalidJSON("Could not serialize config".to_string()))?;
         Ok(config)
+    }
+
+    /// Matrix id of the bot user.
+    pub fn matrix_bot_user_id(&self) -> Result<UserId> {
+        let user_id = format!("@{}:{}", &self.sender_localpart, &self.hs_domain);
+        UserId::try_from(&user_id).chain_err(|| ErrorKind::InvalidUserId(user_id))
     }
 }

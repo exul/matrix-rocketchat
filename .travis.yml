@@ -1,37 +1,16 @@
-sudo: false
-
-language: rust
-
-addons:
-  apt:
-    packages:
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - binutils-dev
-
-rust:
-  - nightly
-
+sudo: required
+services:
+  - docker
 before_script:
-  - |
-      pip install 'travis-cargo<0.2' --user &&
-      export PATH=$HOME/.local/bin:$PATH
+  - docker pull exul/matrix-rocketchat-dev
 
 script:
-  - |
-      travis-cargo build &&
-      travis-cargo test
+  - docker run -v "$(pwd):/source" exul/matrix-rocketchat-dev /bin/sh -c "cd /source && cargo clean && cargo test"
 
 after_success:
-  # upload the result to coveralls (upload via travis-cargo is currently broken -> https://github.com/huonw/travis-cargo/issues/58)
-  - |
-    wget https://github.com/SimonKagstrom/kcov/archive/master.zip &&
-    unzip master.zip && mv kcov-master kcov && mkdir kcov/build && cd kcov/build &&
-    cmake .. && make && make install DESTDIR=../built && cd ../.. &&
-    find ./target/debug -maxdepth 1 -regex '.*-.*[0-9]+.*' | while read file; do ./kcov/built/usr/local/bin/kcov --verify --exclude-pattern=/.cargo,$PWD/target/debug/build,$PWD/tests ./target/kcov ${file}; done &&
-    ./kcov/built/usr/local/bin/kcov --coveralls-id=${TRAVIS_JOB_ID} --merge ./target/kcov-merge ./target/kcov
-
-env:
-  global:
-    - TRAVIS_CARGO_NIGHTLY_FEATURE=""
+  - docker run -v "$(pwd):/source" -e TRAVIS_JOB_ID=${TRAVIS_JOB_ID} --security-opt seccomp=unconfined exul/matrix-rocketchat-dev /bin/bash -c
+    "cd /source &&
+    cargo clean &&
+    cargo test --no-run &&
+    find ./target/debug -maxdepth 1 -regex '.*-.*[0-9]+.*'  -print0 | xargs -0 -n 1 kcov --verify --exclude-pattern=/.cargo,/source/target/debug/build,/source/tests /source/target/kcov &&
+    kcov --coveralls-id=${TRAVIS_JOB_ID} --merge ./target/kcov-merge ./target/kcov"

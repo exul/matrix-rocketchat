@@ -249,7 +249,7 @@ pub fn build_test_config(temp_dir: &TempDir) -> Config {
 
 /// The default timeout that is used when executing functions/methods with a timeout.
 pub fn default_timeout() -> Duration {
-    Duration::from_millis(800)
+    Duration::from_millis(2000)
 }
 
 pub fn default_matrix_api_versions() -> Vec<&'static str> {

@@ -1,4 +1,6 @@
 en:
+  admin_command:
+    successfully_connected: You are connected to ${rocketchat_url}.
   admin_room:
     connection_instructions: |
       Hi, I'm the Rocket.Chat application service

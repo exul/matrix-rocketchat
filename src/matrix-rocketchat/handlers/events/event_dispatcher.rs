@@ -5,9 +5,10 @@ use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
-use db::user::User;
+use db::User;
 use errors::*;
 use super::room_handler::RoomHandler;
+use super::command_handler::CommandHandler;
 use i18n::*;
 
 /// Dispatches events to the corresponding handler.
@@ -47,6 +48,15 @@ impl<'a> EventDispatcher<'a> {
                         return self.handle_error(err, member_event.room_id, &member_event.user_id);
                     }
                 }
+                Event::RoomMessage(message_event) => {
+                    if let Err(err) = CommandHandler::new(self.config,
+                                                          self.connection,
+                                                          self.logger.clone(),
+                                                          self.matrix_api.clone())
+                        .process(&message_event) {
+                        return self.handle_error(err, message_event.room_id, &message_event.user_id);
+                    }
+                }
                 _ => debug!(self.logger, "Skipping event, because the event type is not known"),
             }
         }
@@ -56,9 +66,8 @@ impl<'a> EventDispatcher<'a> {
     fn handle_error(&self, err: Error, room_id: RoomId, user_id: &UserId) -> Result<()> {
         let mut msg = format!("{}", err);
         for err in err.iter().skip(1) {
-            msg = msg + "\n" + &format!("{}", err);
+            msg = msg + " caused by: " + &format!("{}", err);
         }
-        error!(self.logger, msg);
 
         let language = match User::find_by_matrix_user_id(self.connection, user_id)? {
             Some(user) => user.language,

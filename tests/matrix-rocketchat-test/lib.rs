@@ -59,6 +59,8 @@ const AS_TOKEN: &'static str = "at";
 pub const HS_TOKEN: &'static str = "ht";
 /// Number of threads that iron uses when running tests
 pub const IRON_THREADS: usize = 1;
+/// The version the mock Rocket.Chat server announces
+pub const DEFAULT_ROCKETCHAT_VERSION: &'static str = "0.49.0";
 
 lazy_static! {
     /// Default logger
@@ -199,7 +201,10 @@ impl Test {
     fn run_rocketchat_server_mock(&mut self) {
         let (tx, rx) = channel::<Listening>();
         let socket_addr = get_free_socket_addr();
-        let router = Router::new();
+        let mut router = Router::new();
+        router.get("/api/info",
+                   handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION },
+                   "info");
 
         thread::spawn(move || {
             let mut server = Iron::new(router);

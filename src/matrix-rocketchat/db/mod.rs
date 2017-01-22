@@ -2,6 +2,8 @@
 
 /// Database connection pool
 pub mod connection_pool;
+/// `RocketchatServer` entry
+pub mod rocketchat_server;
 /// `Room` entry
 pub mod room;
 /// The database schema
@@ -10,8 +12,12 @@ pub mod schema;
 pub mod user;
 /// `UserInRoom` entry
 pub mod user_in_room;
+/// `UserOnRocketchatServer` entry
+pub mod user_on_rocketchat_server;
 
 pub use self::connection_pool::ConnectionPool;
-pub use self::room::Room;
-pub use self::user::User;
-pub use self::user_in_room::UserInRoom;
+pub use self::rocketchat_server::{NewRocketchatServer, RocketchatServer};
+pub use self::room::{NewRoom, Room};
+pub use self::user::{NewUser, User};
+pub use self::user_in_room::{NewUserInRoom, UserInRoom};
+pub use self::user_on_rocketchat_server::{NewUserOnRocketchatServer, UserOnRocketchatServer};

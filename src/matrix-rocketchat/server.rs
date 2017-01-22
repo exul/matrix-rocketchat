@@ -9,8 +9,7 @@ use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
-use db::ConnectionPool;
-use db::user::{NewUser, User};
+use db::{ConnectionPool, NewUser, User};
 use errors::*;
 use handlers::iron::{Transactions, Welcome};
 use i18n::*;
@@ -83,6 +82,8 @@ impl<'a> Server<'a> {
                 matrix_api.register(self.config.sender_localpart.clone())?;
                 let new_user = NewUser {
                     matrix_user_id: matrix_bot_user_id.clone(),
+                    rocketchat_user_id: None,
+                    display_name: matrix_bot_user_id.to_string(),
                     language: DEFAULT_LANGUAGE,
                     is_virtual_user: false,
                 };

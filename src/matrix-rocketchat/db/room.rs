@@ -18,7 +18,9 @@ pub struct Room {
     pub matrix_room_id: RoomId,
     /// The rooms display name.
     pub display_name: String,
-    /// The rooms unique id on the rocketchat server.
+    /// The Rocket.Chat server the room is connected to.
+    pub rocketchat_server_id: Option<i32>,
+    /// The rooms unique id on the Rocket.Chat server.
     pub rocketchat_room_id: Option<String>,
     /// A flag that indicates if the rooms is used as a admin room for the
     /// Rocket.Chat application service
@@ -57,14 +59,18 @@ impl Room {
 
     /// Find a `Room` by its matrix room ID. Returns an error if the room is not found.
     pub fn find(connection: &SqliteConnection, matrix_room_id: &RoomId) -> Result<Room> {
-        let room = rooms::table.find(matrix_room_id).first(connection).chain_err(|| ErrorKind::DBSelectError)?;
-        Ok(room)
+        rooms::table.find(matrix_room_id).first(connection).chain_err(|| ErrorKind::DBSelectError)
     }
 
     /// Find a `Room` by its matrix room ID. Returns `None`, if the room is not found.
     pub fn find_by_matrix_room_id(connection: &SqliteConnection, matrix_room_id: &RoomId) -> Result<Option<Room>> {
         let rooms = rooms::table.find(matrix_room_id).load(connection).chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rooms.into_iter().next())
+    }
+
+    /// Indicate if the room is connected to a Rocket.Chat server
+    pub fn is_connected(&self) -> bool {
+        self.rocketchat_server_id.is_some()
     }
 
     /// Returns all `User`s in the room.

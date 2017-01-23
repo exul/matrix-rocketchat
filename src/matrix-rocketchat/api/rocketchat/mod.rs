@@ -11,7 +11,7 @@ use errors::*;
 mod v1;
 
 /// Rocket.Chat REST API
-pub trait RocketchatApi: Send + Sync + RocketchatApiClone {}
+pub trait RocketchatApi {}
 
 /// Response format when querying the Rocket.Chat info endpoint
 #[derive(Deserialize, Serialize)]
@@ -25,27 +25,6 @@ pub struct InfoContent {
     version: String,
 }
 
-/// Helper trait because Clone cannot be part of the `RocketchatApi` trait since that would cause the
-/// `RocketchatApi` trait to not be object safe.
-pub trait RocketchatApiClone {
-    /// Clone the object inside the trait and return it in box.
-    fn clone_box(&self) -> Box<RocketchatApi>;
-}
-
-impl<T> RocketchatApiClone for T
-    where T: 'static + RocketchatApi + Clone
-{
-    fn clone_box(&self) -> Box<RocketchatApi> {
-        Box::new(self.clone())
-    }
-}
-
-impl Clone for Box<RocketchatApi> {
-    fn clone(&self) -> Box<RocketchatApi> {
-        self.clone_box()
-    }
-}
-
 impl RocketchatApi {
     /// Creates a new Rocket.Chat API depending on the version of the API.
     /// It returns a `RocketchatApi` trait, because for each version a different API is created.
@@ -55,21 +34,19 @@ impl RocketchatApi {
 
         debug!(logger, format!("Querying Rocket.Chat server {} for API versions", url));
 
-        let (body, status_code) = RestApi::call(Method::Get, &url, "", &params, None)?;
+        let (body, status_code) = match RestApi::call(Method::Get, &url, "", &params, None) {
+            Ok((body, status_code)) => (body, status_code),
+            Err(err) => {
+                bail!(ErrorKind::RocketchatServerUnreachable(url));
+            }
+        };
+
         if !status_code.is_success() {
-            let rocketchat_error_resp: RocketchatErrorResponse = serde_json::from_str(&body).chain_err(|| {
-                    ErrorKind::InvalidJSON(format!("Could not deserialize error response from Rocket.Chat info API \
-                                                    endpoint: `{}` ",
-                                                   body))
-                })?;
-            bail!(ErrorKind::RocketchatError(rocketchat_error_resp.message));
+            bail!(ErrorKind::NoRocketchatServer(url));
         }
 
-        let rocketchat_info: GetInfoResponse = serde_json::from_str(&body).chain_err(|| {
-                ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat info API \
-                                                endpoint: `{}`",
-                                               body))
-            })?;
+        let rocketchat_info: GetInfoResponse =
+            serde_json::from_str(&body).chain_err(|| ErrorKind::NoRocketchatServer(url))?;
 
         debug!(logger, format!("Rocket.Chat version {:?}", rocketchat_info.info.version));
 

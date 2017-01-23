@@ -94,6 +94,8 @@ pub struct Test {
     pub hs_listening: Option<Listening>,
     /// Routes that the homeserver mock can handle
     pub matrix_homeserver_mock_router: Option<Router>,
+    /// Router that the Rocket.Chat mock can handle
+    pub rocketchat_mock_router: Option<Router>,
     /// The Rocket.Chat mock listening server
     pub rocketchat_listening: Option<Listening>,
     /// The URL of the Rocket.Chat mock server
@@ -119,6 +121,7 @@ impl Test {
             connection_pool: connection_pool,
             hs_listening: None,
             matrix_homeserver_mock_router: None,
+            rocketchat_mock_router: None,
             rocketchat_listening: None,
             rocketchat_mock_url: None,
             temp_dir: temp_dir,
@@ -142,6 +145,12 @@ impl Test {
     /// Run a Rocket.Chat mock server.
     pub fn with_rocketchat_mock(mut self) -> Test {
         self.with_rocketchat_mock = true;
+        self
+    }
+
+    /// Use custom routes when running the Rocket.Chat mock server instead of the default ones.
+    pub fn with_custom_rocketchat_routes(mut self, router: Router) -> Test {
+        self.rocketchat_mock_router = Some(router);
         self
     }
 
@@ -201,7 +210,12 @@ impl Test {
     fn run_rocketchat_server_mock(&mut self) {
         let (tx, rx) = channel::<Listening>();
         let socket_addr = get_free_socket_addr();
-        let mut router = Router::new();
+
+        let mut router = match mem::replace(&mut self.rocketchat_mock_router, None) {
+            Some(router) => router,
+            None => Router::new(),
+        };
+
         router.get("/api/info",
                    handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION },
                    "info");

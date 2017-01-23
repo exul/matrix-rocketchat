@@ -82,104 +82,114 @@ error_chain!{
             display("Rocket.Chat error: {}", error_msg)
         }
 
+        NoRocketchatServer(url: String){
+            description("No Rockat.Chat server found.")
+            display("No Rocket.Chat server found when querying {}", url)
+        }
+
+        RocketchatServerUnreachable(url: String) {
+            description("Rocket.Chat server unreachable")
+            display("Could not reach Rocket.Chat server {}", url)
+        }
+
         UnsupportedRocketchatApiVersion(versions: String) {
             description("None of the Rocket.Chat API versions are supported")
-                display("No supported API version found for the Rocket.Chat REST API, found versions: {}", versions)
+            display("No supported API version found for the Rocket.Chat REST API, found versions: {}", versions)
         }
 
         ReadFileError(path: String) {
             description("Reading file failed")
-                display("Reading file from {} failed", path)
+            display("Reading file from {} failed", path)
         }
 
         RoomAlreadyConnected(matrix_room_id: String) {
             description("The Room is already connected to a Rocket.Chat server")
-                display("Room {} is already connected", matrix_room_id)
+            display("Room {} is already connected", matrix_room_id)
         }
 
         RocketchatTokenMissing{
             description("A token is needed to connect new Rocket.Chat servers")
-                display("A token is needed to connect new Rocket.Chat servers")
+            display("A token is needed to connect new Rocket.Chat servers")
         }
 
         RocketchatServerAlreadyConnected{
             description("The Rocket.Chat server is already connected")
-                display("The Rocket.Chat server is already connected")
+            display("The Rocket.Chat server is already connected")
         }
 
         RocketchatTokenAlreadyInUse(token: String){
             description("The token is already in use, please use a different token to connect your server")
-                display("The token {} is already in use.", token)
+            display("The token {} is already in use.", token)
         }
 
         ReadConfigError{
             description("Could not read config content to string")
-                display("Could not read config content to string")
+            display("Could not read config content to string")
         }
 
         ServerStartupError{
             description("Starting the application service failed")
-                display("Starting the application service failed")
+            display("Starting the application service failed")
         }
 
         DatabaseSetupError{
             description("Setting up database failed")
-                display("Setting up database failed")
+            display("Setting up database failed")
         }
 
         MigrationError{
             description("Could not run migrations")
-                display("Could not run migrations")
+            display("Could not run migrations")
         }
 
         DBConnectionError{
             description("Could not establish database connection")
-                display("Could not establish database connection")
+            display("Could not establish database connection")
         }
 
         LoggerExtractionError{
             description("Getting logger from iron request failed")
-                display("Getting logger from iron request failed")
+            display("Getting logger from iron request failed")
         }
 
         ConnectionPoolExtractionError{
             description("Getting connection pool from iron request failed")
-                display("Getting connection pool from iron request failed")
+            display("Getting connection pool from iron request failed")
         }
 
         ConnectionPoolCreationError{
             description("Could not create connection pool")
-                display("Could not create connection pool")
+            display("Could not create connection pool")
         }
 
         GetConnectionError{
             description("Getting connection from connection pool failed")
-                display("Getting connection from connection pool failed")
+            display("Getting connection from connection pool failed")
         }
 
         DBInsertError {
             description("Inserting record into the database failed")
-                display("Inserting record into the database failed")
+            display("Inserting record into the database failed")
         }
 
         DBUpdateError{
             description("Editing record in database failed")
-                display("Editing record in the database failed")
+            display("Editing record in the database failed")
         }
 
         DBSelectError{
             description("Select record from the database failed")
-                display("Select record from the database failed")
+            display("Select record from the database failed")
         }
 
         DBDeleteError{
             description("Deleting record from the database failed")
-                display("Deleting record from the database failed")
+            display("Deleting record from the database failed")
         }
 
         InternalServerError {
             description("An internal error occurred")
-                display("An internal error occurred")
+            display("An internal error occurred")
         }
     }
 }

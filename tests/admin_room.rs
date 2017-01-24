@@ -43,7 +43,7 @@ fn successfully_create_an_admin_room() {
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+    let test = Test::new().with_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
                                RoomId::try_from("!admin:localhost").unwrap(),
@@ -75,7 +75,7 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+    let test = Test::new().with_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
                                RoomId::try_from("!admin:localhost").unwrap(),
@@ -116,7 +116,7 @@ fn bot_leaves_and_forgets_the_room_when_the_user_leaves_it() {
     let mut matrix_router = Router::new();
     matrix_router.post(LeaveRoomEndpoint::router_path(), leave_message_forwarder, "leave_room");
     matrix_router.post(ForgetRoomEndpoint::router_path(), forget_message_forwarder, "forget_room");
-    let test = Test::new().with_custom_matrix_routes(matrix_router).with_admin_room().run();
+    let test = Test::new().with_matrix_routes(matrix_router).with_admin_room().run();
 
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
@@ -159,7 +159,7 @@ fn bot_ignoeres_when_a_user_leaves_a_room_that_is_not_in_the_database() {
     let mut matrix_router = Router::new();
     matrix_router.post(LeaveRoomEndpoint::router_path(), leave_message_forwarder, "leave_room");
     matrix_router.post(ForgetRoomEndpoint::router_path(), forget_message_forwarder, "forget_room");
-    let test = Test::new().with_custom_matrix_routes(matrix_router).with_admin_room().run();
+    let test = Test::new().with_matrix_routes(matrix_router).with_admin_room().run();
 
     helpers::leave_room(&test.config.as_url,
                         RoomId::try_from("!unknown:localhost").unwrap(),
@@ -187,7 +187,7 @@ fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+    let test = Test::new().with_matrix_routes(matrix_router).run();
 
     helpers::invite(&test.config.as_url,
                     RoomId::try_from("!admin:localhost").unwrap(),
@@ -216,7 +216,7 @@ fn the_user_gets_a_message_when_getting_the_room_members_failes() {
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), error_responder, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+    let test = Test::new().with_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
                                RoomId::try_from("!admin:localhost").unwrap(),
@@ -243,7 +243,7 @@ fn the_user_gets_a_message_when_the_room_members_cannot_be_deserialized() {
                       handlers::InvalidJsonResponse { status: status::Ok },
                       "get_member");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+    let test = Test::new().with_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
                                RoomId::try_from("!admin:localhost").unwrap(),
@@ -281,7 +281,7 @@ fn the_user_gets_a_message_when_setting_the_room_display_name_fails() {
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+    let test = Test::new().with_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
                                RoomId::try_from("!admin:localhost").unwrap(),
@@ -321,7 +321,7 @@ fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
         message: "Could not leave room".to_string(),
     };
     matrix_router.post(LeaveRoomEndpoint::router_path(), error_responder, "leave_room");
-    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+    let test = Test::new().with_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
                                RoomId::try_from("!admin:localhost").unwrap(),
@@ -351,7 +351,7 @@ fn the_user_gets_a_message_when_forgetting_the_room_failes_for_the_bot_user() {
         message: "Could not forget room".to_string(),
     };
     matrix_router.post(ForgetRoomEndpoint::router_path(), error_responder, "forget_room");
-    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+    let test = Test::new().with_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
                                RoomId::try_from("!admin:localhost").unwrap(),
@@ -380,7 +380,7 @@ fn bot_leaves_when_a_third_user_joins_the_admin_room() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(LeaveRoomEndpoint::router_path(), leave_forwarder, "leave");
     matrix_router.post(ForgetRoomEndpoint::router_path(), forget_forwarder, "forget");
-    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+    let test = Test::new().with_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
                                RoomId::try_from("!admin:localhost").unwrap(),
@@ -420,7 +420,7 @@ fn unkown_membership_states_are_skipped() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new().with_custom_matrix_routes(matrix_router).run();
+    let test = Test::new().with_matrix_routes(matrix_router).run();
 
     let unknown_event = MemberEvent {
         content: MemberEventContent {

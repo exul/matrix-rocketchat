@@ -105,6 +105,8 @@ pub struct Test {
     pub temp_dir: TempDir,
     /// Flag to indicate if the test should create an admin room
     pub with_admin_room: bool,
+    /// Flag to indicate if a connected admin room should be created
+    pub with_connected_admin_room: bool,
     /// Flag to indicate if a Rocket.Chat mock server should be started
     pub with_rocketchat_mock: bool,
 }
@@ -126,12 +128,13 @@ impl Test {
             rocketchat_mock_url: None,
             temp_dir: temp_dir,
             with_admin_room: false,
+            with_connected_admin_room: false,
             with_rocketchat_mock: false,
         }
     }
 
     /// Use custom routes when running the matrix homeserver mock instead of the default ones.
-    pub fn with_custom_matrix_routes(mut self, router: Router) -> Test {
+    pub fn with_matrix_routes(mut self, router: Router) -> Test {
         self.matrix_homeserver_mock_router = Some(router);
         self
     }
@@ -139,6 +142,12 @@ impl Test {
     /// Create an admin room when starting the test.
     pub fn with_admin_room(mut self) -> Test {
         self.with_admin_room = true;
+        self
+    }
+
+    /// Creates an admin room that is connected to the Rocket.Chat mock
+    pub fn with_connected_admin_room(mut self) -> Test {
+        self.with_connected_admin_room = true;
         self
     }
 
@@ -166,6 +175,10 @@ impl Test {
 
         if self.with_admin_room {
             self.create_admin_room();
+        }
+
+        if self.with_connected_admin_room {
+            self.create_connected_admin_room();
         }
 
         self
@@ -261,8 +274,20 @@ impl Test {
         helpers::create_admin_room(&self.config.as_url,
                                    RoomId::try_from("!admin:localhost").unwrap(),
                                    UserId::try_from("@spec_user:localhost").unwrap(),
-                                   UserId::try_from("@rocketchat:localhost").unwrap())
+                                   UserId::try_from("@rocketchat:localhost").unwrap());
+    }
 
+    fn create_connected_admin_room(&self) {
+        self.create_admin_room();
+        match self.rocketchat_mock_url {
+            Some(ref rocketchat_mock_url) => {
+                helpers::send_room_message_from_matrix(&self.config.as_url,
+                                                       RoomId::try_from("!admin:localhost").unwrap(),
+                                                       UserId::try_from("@spec_user:localhost").unwrap(),
+                                                       format!("connect {} spec_token", rocketchat_mock_url));
+            }
+            None => panic!("No Rocket.Chat mock present to connect to"),
+        }
     }
 }
 

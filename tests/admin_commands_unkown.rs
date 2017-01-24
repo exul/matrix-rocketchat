@@ -7,7 +7,7 @@ extern crate ruma_identifiers;
 
 use std::convert::TryFrom;
 
-use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout, get_free_socket_addr, helpers};
+use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -21,7 +21,7 @@ fn unknown_commands_from_the_admin_room_are_ignored() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
 
     let test = Test::new()
-        .with_custom_matrix_routes(matrix_router)
+        .with_matrix_routes(matrix_router)
         .with_admin_room()
         .run();
 
@@ -41,7 +41,7 @@ fn unknown_content_types_from_the_admin_room_are_ignored() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
 
     let test = Test::new()
-        .with_custom_matrix_routes(matrix_router)
+        .with_matrix_routes(matrix_router)
         .with_admin_room()
         .run();
 

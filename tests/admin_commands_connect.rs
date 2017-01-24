@@ -25,12 +25,7 @@ fn successfully_connect_rocketchat_server() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new().with_custom_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
-
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           format!("connect {} spec_token", test.rocketchat_mock_url.clone().unwrap()));
+    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -70,7 +65,7 @@ fn attempt_to_connect_to_an_incompatible_rocketchat_server_version() {
     let rocketchat_mock_url = format!("http://{}", socket_addr);
 
     let test = Test::new()
-        .with_custom_matrix_routes(matrix_router)
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_admin_room()
         .run();
@@ -109,7 +104,7 @@ fn attempt_to_connect_to_a_non_rocketchat_server() {
     let rocketchat_mock_url = format!("http://{}", socket_addr);
 
     let test = Test::new()
-        .with_custom_matrix_routes(matrix_router)
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_admin_room()
         .run();
@@ -149,7 +144,7 @@ fn attempt_to_connect_to_a_server_with_the_correct_endpoint_but_an_incompatible_
     let rocketchat_mock_url = format!("http://{}", socket_addr);
 
     let test = Test::new()
-        .with_custom_matrix_routes(matrix_router)
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_admin_room()
         .run();
@@ -179,7 +174,7 @@ fn attempt_to_connect_to_non_existing_server() {
     let rocketchat_mock_url = format!("http://{}", socket_addr);
 
     let test = Test::new()
-        .with_custom_matrix_routes(matrix_router)
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_admin_room()
         .run();

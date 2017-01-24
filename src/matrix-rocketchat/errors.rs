@@ -119,7 +119,7 @@ error_chain!{
 
         RocketchatTokenAlreadyInUse(token: String){
             description("The token is already in use, please use a different token to connect your server")
-            display("The token {} is already in use.", token)
+            display("The token {} is already in use, please use another token.", token)
         }
 
         ReadConfigError{

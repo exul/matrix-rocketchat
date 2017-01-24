@@ -201,4 +201,26 @@ fn attempt_to_connect_to_an_existing_server_with_a_token() {}
 fn attempt_to_connect_an_already_connected_room() {}
 
 #[test]
-fn attempt_to_connect_a_server_with_a_token_that_is_already_in_use() {}
+fn attempt_to_connect_a_server_with_a_token_that_is_already_in_use() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+
+    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().run();
+
+    let socket_addr = get_free_socket_addr();
+    let other_rocketchat_url = format!("http://{}", socket_addr);
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           format!("connect {} spec_token", other_rocketchat_url.clone()));
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard first connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("The token spec_token is already in use, please use another token"));
+}

@@ -193,6 +193,17 @@ fn attempt_to_connect_to_non_existing_server() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("MMM: {}", message_received_by_matrix);
     assert!(message_received_by_matrix.contains(&format!("Could not reach Rocket.Chat server {}", rocketchat_mock_url)));
 }
+
+#[test]
+fn connect_an_existing_server() {}
+
+#[test]
+fn attempt_to_connect_to_an_existing_server_with_a_token() {}
+
+#[test]
+fn attempt_to_connect_an_already_connected_room() {}
+
+#[test]
+fn attempt_to_connect_a_server_with_a_token_that_is_already_in_use() {}

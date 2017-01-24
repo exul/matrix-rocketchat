@@ -71,7 +71,7 @@ impl<'a> CommandHandler<'a> {
 
         debug!(self.logger, "Attempting to connect to Rocket.Chat server {}", rocketchat_url);
 
-        let rocketchat_server = match command.by_ref().next() {
+        match command.by_ref().next() {
             Some(token) => self.connect_new_server(rocketchat_url.to_string(), token.to_string(), &event.user_id)?,
             None => self.connect_existing_server(rocketchat_url.to_string(), &event.user_id)?,
         };
@@ -86,11 +86,7 @@ impl<'a> CommandHandler<'a> {
         Ok(())
     }
 
-    fn connect_new_server(&self,
-                          rocketchat_url: String,
-                          token: String,
-                          matrix_user_id: &UserId)
-                          -> Result<RocketchatServer> {
+    fn connect_new_server(&self, rocketchat_url: String, token: String, matrix_user_id: &UserId) -> Result<()> {
         if let Some(rocketchat_server) = RocketchatServer::find_by_url(self.connection, rocketchat_url.clone())? {
             if rocketchat_server.rocketchat_token.is_some() {
                 bail!(ErrorKind::RocketchatServerAlreadyConnected);
@@ -119,12 +115,12 @@ impl<'a> CommandHandler<'a> {
 
         UserOnRocketchatServer::insert(self.connection, &new_user_on_rocketchat_server)?;
 
-        Ok(rocketchat_server)
+        Ok(())
     }
 
-    fn connect_existing_server(&self, rocketchat_url: String, user_id: &UserId) -> Result<RocketchatServer> {
-        let rocketchat_server = match RocketchatServer::find_by_url(self.connection, rocketchat_url)? {
-            Some(rocketchat_server) => Ok(rocketchat_server),
+    fn connect_existing_server(&self, rocketchat_url: String, user_id: &UserId) -> Result<()> {
+        let rocketchat_server: RocketchatServer = match RocketchatServer::find_by_url(self.connection, rocketchat_url)? {
+            Some(rocketchat_server) => rocketchat_server,
             None => {
                 bail!(ErrorKind::RocketchatTokenMissing);
             }
@@ -132,6 +128,6 @@ impl<'a> CommandHandler<'a> {
 
         // TODO: Add UserOnRocketchatServer with the connecting user
 
-        rocketchat_server
+        Ok(())
     }
 }

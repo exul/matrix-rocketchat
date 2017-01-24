@@ -5,7 +5,6 @@ use serde_json;
 use slog::Logger;
 
 use api::RestApi;
-use config::Config;
 use errors::*;
 
 mod v1;
@@ -58,9 +57,6 @@ impl RocketchatApi {
                                      access_token: Option<String>,
                                      logger: Logger)
                                      -> Result<Box<RocketchatApi>> {
-        let major = 0;
-        let minor = 0;
-
         let version_string = version.clone();
         let mut versions = version_string.split(".").into_iter();
         let major: i32 = versions.next().unwrap_or("0").parse().unwrap_or(0);

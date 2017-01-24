@@ -1,10 +1,4 @@
-use serde_json::Map;
 use slog::Logger;
-use serde_json;
-
-use api::RestApi;
-use config::Config;
-use errors::*;
 
 #[derive(Clone)]
 pub struct RocketchatApi {

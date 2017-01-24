@@ -33,3 +33,23 @@ fn unknown_commands_from_the_admin_room_are_ignored() {
     // we don't get a message, because the command is ignored and no error occurs
     receiver.recv_timeout(default_timeout()).is_err();
 }
+
+#[test]
+fn unknown_content_types_from_the_admin_room_are_ignored() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+
+    let test = Test::new()
+        .with_custom_matrix_routes(matrix_router)
+        .with_admin_room()
+        .run();
+
+    helpers::send_emote_message_from_matrix(&test.config.as_url,
+                                            RoomId::try_from("!admin:localhost").unwrap(),
+                                            UserId::try_from("@spec_user:localhost").unwrap(),
+                                            "emote message".to_string());
+
+    // we don't get a message, because unkown content types are ignored and no error occurs
+    receiver.recv_timeout(default_timeout()).is_err();
+}

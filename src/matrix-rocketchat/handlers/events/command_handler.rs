@@ -40,8 +40,7 @@ impl<'a> CommandHandler<'a> {
         let message = match event.content {
             MessageEventContent::Text(ref text_content) => text_content.body.clone(),
             _ => {
-                let msg = format!("Unknown event content type, message type is {}, skipping", event.event_type);
-                debug!(self.logger, msg);
+                debug!(self.logger, "Unknown event content type, skipping");
                 return Ok(());
             }
         };

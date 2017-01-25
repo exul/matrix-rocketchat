@@ -199,7 +199,7 @@ impl Test {
                    "versions");
         router.post("*", handlers::EmptyJson {}, "default_post");
         router.put("*", handlers::EmptyJson {}, "default_put");
-        if self.with_admin_room {
+        if self.with_admin_room || self.with_connected_admin_room {
             let room_members = handlers::RoomMembers {
                 room_id: RoomId::try_from("!admin:localhost").unwrap(),
                 members: vec![UserId::try_from("@spec_user:localhost").unwrap(),

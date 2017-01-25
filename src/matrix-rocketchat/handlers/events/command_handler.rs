@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::message::MessageEvent;
 use ruma_events::room::message::MessageEventContent;
-use ruma_identifiers::UserId;
 use slog::Logger;
 
 use api::{MatrixApi, RocketchatApi};
@@ -70,11 +69,19 @@ impl<'a> CommandHandler<'a> {
         debug!(self.logger, "Attempting to connect to Rocket.Chat server {}", rocketchat_url);
 
         let rocketchat_server = match command.by_ref().next() {
-            Some(token) => self.connect_new_server(rocketchat_url.to_string(), token.to_string(), &event.user_id)?,
-            None => self.connect_existing_server(rocketchat_url.to_string(), &event.user_id)?,
+            Some(token) => self.connect_new_rocktechat_server(rocketchat_url.to_string(), token.to_string())?,
+            None => self.get_existing_rocketchat_server(rocketchat_url.to_string())?,
         };
 
         room.set_rocketchat_server_id(self.connection, rocketchat_server.id)?;
+
+        let new_user_on_rocketchat_server = NewUserOnRocketchatServer {
+            matrix_user_id: event.user_id.clone(),
+            rocketchat_server_id: rocketchat_server.id,
+            rocketchat_auth_token: None,
+        };
+
+        UserOnRocketchatServer::insert(self.connection, &new_user_on_rocketchat_server)?;
 
         let user = User::find(self.connection, &event.user_id)?;
         let mut vars = HashMap::new();
@@ -85,14 +92,10 @@ impl<'a> CommandHandler<'a> {
         Ok(())
     }
 
-    fn connect_new_server(&self,
-                          rocketchat_url: String,
-                          token: String,
-                          matrix_user_id: &UserId)
-                          -> Result<RocketchatServer> {
+    fn connect_new_rocktechat_server(&self, rocketchat_url: String, token: String) -> Result<RocketchatServer> {
         if let Some(rocketchat_server) = RocketchatServer::find_by_url(self.connection, rocketchat_url.clone())? {
             if rocketchat_server.rocketchat_token.is_some() {
-                bail!(ErrorKind::RocketchatServerAlreadyConnected);
+                bail!(ErrorKind::RocketchatServerAlreadyConnected(rocketchat_url));
             }
         }
 
@@ -108,28 +111,16 @@ impl<'a> CommandHandler<'a> {
             rocketchat_token: Some(token),
         };
 
-        let rocketchat_server = RocketchatServer::upsert(self.connection, &new_rocketchat_server)?;
-
-        let new_user_on_rocketchat_server = NewUserOnRocketchatServer {
-            matrix_user_id: matrix_user_id.clone(),
-            rocketchat_server_id: rocketchat_server.id,
-            rocketchat_auth_token: None,
-        };
-
-        UserOnRocketchatServer::insert(self.connection, &new_user_on_rocketchat_server)?;
-
-        Ok(rocketchat_server)
+        RocketchatServer::upsert(self.connection, &new_rocketchat_server)
     }
 
-    fn connect_existing_server(&self, rocketchat_url: String, user_id: &UserId) -> Result<RocketchatServer> {
+    fn get_existing_rocketchat_server(&self, rocketchat_url: String) -> Result<RocketchatServer> {
         let rocketchat_server: RocketchatServer = match RocketchatServer::find_by_url(self.connection, rocketchat_url)? {
             Some(rocketchat_server) => rocketchat_server,
             None => {
                 bail!(ErrorKind::RocketchatTokenMissing);
             }
         };
-
-        // TODO: Add UserOnRocketchatServer with the connecting user
 
         Ok(rocketchat_server)
     }

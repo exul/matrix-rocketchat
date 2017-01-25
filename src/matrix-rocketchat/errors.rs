@@ -112,9 +112,9 @@ error_chain!{
             display("A token is needed to connect new Rocket.Chat servers")
         }
 
-        RocketchatServerAlreadyConnected{
-            description("The Rocket.Chat server is already connected")
-            display("The Rocket.Chat server is already connected")
+        RocketchatServerAlreadyConnected(rocketchat_url: String){
+            description("This Rocket.Chat server is already connected")
+            display("The Rocket.Chat server {} is already connected, connect without a token if you want to connect to the server", rocketchat_url)
         }
 
         RocketchatTokenAlreadyInUse(token: String){

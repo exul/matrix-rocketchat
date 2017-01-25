@@ -68,6 +68,14 @@ impl Room {
         Ok(rooms.into_iter().next())
     }
 
+    /// Set the Rocket.Chat id for a room.
+    pub fn set_rocketchat_server_id(&self, connection: &SqliteConnection, rocketchat_server_id: i32) -> Result<()> {
+        diesel::update(rooms::table.find(&self.matrix_room_id)).set(rooms::rocketchat_server_id.eq(rocketchat_server_id))
+            .execute(connection)
+            .chain_err(|| ErrorKind::DBUpdateError)?;
+        Ok(())
+    }
+
     /// Indicate if the room is connected to a Rocket.Chat server
     pub fn is_connected(&self) -> bool {
         self.rocketchat_server_id.is_some()

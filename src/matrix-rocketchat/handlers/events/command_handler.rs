@@ -59,10 +59,9 @@ impl<'a> CommandHandler<'a> {
     }
 
     fn handle_connect(&self, event: &MessageEvent, message: &str) -> Result<()> {
-        if let Some(room) = Room::find_by_matrix_room_id(self.connection, &event.room_id)? {
-            if room.is_connected() {
-                bail!(ErrorKind::RoomAlreadyConnected(event.room_id.to_string()));
-            }
+        let room = Room::find(self.connection, &event.room_id)?;
+        if room.is_connected() {
+            bail!(ErrorKind::RoomAlreadyConnected(event.room_id.to_string()));
         }
 
         let mut command = message.split_whitespace().collect::<Vec<&str>>().into_iter();
@@ -70,12 +69,13 @@ impl<'a> CommandHandler<'a> {
 
         debug!(self.logger, "Attempting to connect to Rocket.Chat server {}", rocketchat_url);
 
-        match command.by_ref().next() {
+        let rocketchat_server = match command.by_ref().next() {
             Some(token) => self.connect_new_server(rocketchat_url.to_string(), token.to_string(), &event.user_id)?,
             None => self.connect_existing_server(rocketchat_url.to_string(), &event.user_id)?,
         };
 
-        debug!(self.logger, "User is: {}", event.user_id);
+        room.set_rocketchat_server_id(self.connection, rocketchat_server.id)?;
+
         let user = User::find(self.connection, &event.user_id)?;
         let mut vars = HashMap::new();
         vars.insert("rocketchat_url", rocketchat_url.as_ref());
@@ -85,7 +85,11 @@ impl<'a> CommandHandler<'a> {
         Ok(())
     }
 
-    fn connect_new_server(&self, rocketchat_url: String, token: String, matrix_user_id: &UserId) -> Result<()> {
+    fn connect_new_server(&self,
+                          rocketchat_url: String,
+                          token: String,
+                          matrix_user_id: &UserId)
+                          -> Result<RocketchatServer> {
         if let Some(rocketchat_server) = RocketchatServer::find_by_url(self.connection, rocketchat_url.clone())? {
             if rocketchat_server.rocketchat_token.is_some() {
                 bail!(ErrorKind::RocketchatServerAlreadyConnected);
@@ -114,10 +118,10 @@ impl<'a> CommandHandler<'a> {
 
         UserOnRocketchatServer::insert(self.connection, &new_user_on_rocketchat_server)?;
 
-        Ok(())
+        Ok(rocketchat_server)
     }
 
-    fn connect_existing_server(&self, rocketchat_url: String, user_id: &UserId) -> Result<()> {
+    fn connect_existing_server(&self, rocketchat_url: String, user_id: &UserId) -> Result<RocketchatServer> {
         let rocketchat_server: RocketchatServer = match RocketchatServer::find_by_url(self.connection, rocketchat_url)? {
             Some(rocketchat_server) => rocketchat_server,
             None => {
@@ -127,6 +131,6 @@ impl<'a> CommandHandler<'a> {
 
         // TODO: Add UserOnRocketchatServer with the connecting user
 
-        Ok(())
+        Ok(rocketchat_server)
     }
 }

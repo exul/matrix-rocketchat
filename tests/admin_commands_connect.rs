@@ -198,7 +198,44 @@ fn connect_an_existing_server() {}
 fn attempt_to_connect_to_an_existing_server_with_a_token() {}
 
 #[test]
-fn attempt_to_connect_an_already_connected_room() {}
+fn attempt_to_connect_an_already_connected_room() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+
+    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().run();
+
+    let (tx, rx) = channel::<Listening>();
+    let socket_addr = get_free_socket_addr();
+
+    thread::spawn(move || {
+        let mut rocketchat_router = Router::new();
+        rocketchat_router.get("/api/info", handlers::RocketchatInfo { version: "0.49.0" }, "info");
+        let mut server = Iron::new(rocketchat_router);
+        server.threads = IRON_THREADS;
+        let listening = server.http(&socket_addr).unwrap();
+        tx.send(listening).unwrap();
+    });
+
+    let mut listening = rx.recv_timeout(default_timeout() * 2).unwrap();
+    let other_rocketchat_url = format!("http://{}", socket_addr);
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           format!("connect {} other_token", other_rocketchat_url.clone()));
+
+    listening.close().unwrap();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard first connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    println!("MSG: {}", message_received_by_matrix);
+    assert!(message_received_by_matrix.contains("Room !admin:localhost is already connected"));
+}
 
 #[test]
 fn attempt_to_connect_a_server_with_a_token_that_is_already_in_use() {

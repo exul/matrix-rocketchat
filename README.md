@@ -28,6 +28,18 @@ cargo build --release
 ./target/release/matrix-rocketchat
 ```
 
+## Dependencies
+
+If you are using the application service on linux, you'll have to install OpenSSL:
+
+```
+# On Ubuntu
+sudo apt-get install libssl-dev
+
+# On Arch Linux
+sudo pacman -S openssl
+```
+
 ## Acknowledgement
 
 I learned a lot by reading the code of the following projects:

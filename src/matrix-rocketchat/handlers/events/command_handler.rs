@@ -111,7 +111,7 @@ impl<'a> CommandHandler<'a> {
             rocketchat_token: Some(token),
         };
 
-        RocketchatServer::upsert(self.connection, &new_rocketchat_server)
+        RocketchatServer::insert(self.connection, &new_rocketchat_server)
     }
 
     fn get_existing_rocketchat_server(&self, rocketchat_url: String) -> Result<RocketchatServer> {

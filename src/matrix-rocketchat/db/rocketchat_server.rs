@@ -32,18 +32,11 @@ pub struct NewRocketchatServer {
 }
 
 impl RocketchatServer {
-    /// Insert or update a `RocketchatServer`.
-    pub fn upsert(connection: &SqliteConnection, new_rocketchat_server: &NewRocketchatServer) -> Result<RocketchatServer> {
-        match RocketchatServer::find_by_url(connection, new_rocketchat_server.rocketchat_url.clone())? {
-            Some(rocketchat_server) => {
-                diesel::update(rocketchat_servers::table.find(rocketchat_server.id)).set(rocketchat_servers::rocketchat_token.eq::<Option<String>>(new_rocketchat_server.rocketchat_token.clone())).execute(connection).chain_err(|| ErrorKind::DBUpdateError)?;
-            }
-            None => {
-                diesel::insert(new_rocketchat_server).into(rocketchat_servers::table)
-                    .execute(connection)
-                    .chain_err(|| ErrorKind::DBInsertError)?;
-            }
-        }
+    /// Insert a `RocketchatServer`.
+    pub fn insert(connection: &SqliteConnection, new_rocketchat_server: &NewRocketchatServer) -> Result<RocketchatServer> {
+        diesel::insert(new_rocketchat_server).into(rocketchat_servers::table)
+            .execute(connection)
+            .chain_err(|| ErrorKind::DBInsertError)?;
 
         let rocketchat_server = RocketchatServer::find_by_url(connection, new_rocketchat_server.rocketchat_url.clone())
             ?

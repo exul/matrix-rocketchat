@@ -6,6 +6,7 @@ use reqwest::{Method, StatusCode};
 use ruma_events::EventType;
 use ruma_events::collections::all::Event;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
+use ruma_events::room::message::{MessageEvent, MessageEventContent, MessageType, TextMessageEventContent};
 use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json::to_string;
 use super::HS_TOKEN;
@@ -87,6 +88,44 @@ pub fn leave_room(as_url: &str, room_id: RoomId, user_id: UserId) {
     let leave_payload = to_string(&events).unwrap();
 
     simulate_message_from_matrix(as_url, &leave_payload);
+}
+
+pub fn send_room_message_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId, body: String) {
+    let message_event = MessageEvent {
+        content: MessageEventContent::Text(TextMessageEventContent {
+            body: body,
+            msgtype: MessageType::Text,
+        }),
+        event_id: EventId::new("localhost").unwrap(),
+        event_type: EventType::RoomMessage,
+        room_id: room_id,
+        unsigned: None,
+        user_id: user_id,
+    };
+
+    let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
+    let payload = to_string(&events).unwrap();
+
+    simulate_message_from_matrix(as_url, &payload);
+}
+
+pub fn send_emote_message_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId, body: String) {
+    let message_event = MessageEvent {
+        content: MessageEventContent::Text(TextMessageEventContent {
+            body: body,
+            msgtype: MessageType::Emote,
+        }),
+        event_id: EventId::new("localhost").unwrap(),
+        event_type: EventType::RoomMessage,
+        room_id: room_id,
+        unsigned: None,
+        user_id: user_id,
+    };
+
+    let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
+    let payload = to_string(&events).unwrap();
+
+    simulate_message_from_matrix(as_url, &payload);
 }
 
 pub fn simulate_message_from_matrix(as_url: &str, payload: &str) -> (String, StatusCode) {

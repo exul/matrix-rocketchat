@@ -9,9 +9,7 @@ use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
-use db::room::{NewRoom, Room};
-use db::user::User;
-use db::user_in_room::{NewUserInRoom, UserInRoom};
+use db::{NewRoom, NewUserInRoom, Room, User, UserInRoom};
 use errors::*;
 use i18n::*;
 
@@ -24,7 +22,7 @@ pub struct RoomHandler<'a> {
 }
 
 impl<'a> RoomHandler<'a> {
-    /// Create a new `RoomHandler` with an SQLite connection
+    /// Create a new `RoomHandler`.
     pub fn new(config: &'a Config,
                connection: &'a SqliteConnection,
                logger: Logger,
@@ -81,8 +79,7 @@ impl<'a> RoomHandler<'a> {
         Ok(())
     }
 
-    /// Process join invite for the bot user.
-    pub fn handle_bot_invite(&self, matrix_room_id: RoomId, invited_user_id: UserId, sender_id: UserId) -> Result<()> {
+    fn handle_bot_invite(&self, matrix_room_id: RoomId, invited_user_id: UserId, sender_id: UserId) -> Result<()> {
         self.connection
             .transaction(|| {
                 let user = User::find_or_create_by_matrix_user_id(self.connection, sender_id)?;
@@ -105,8 +102,7 @@ impl<'a> RoomHandler<'a> {
         self.matrix_api.join(matrix_room_id, invited_user_id)
     }
 
-    /// Process join events for the bot user.
-    pub fn handle_bot_join(&self, matrix_room_id: RoomId, matrix_bot_user_id: UserId) -> Result<()> {
+    fn handle_bot_join(&self, matrix_room_id: RoomId, matrix_bot_user_id: UserId) -> Result<()> {
         let room = Room::find(self.connection, &matrix_room_id)?;
         let users_in_room = room.users(self.connection)?;
         let invitation_submitter = users_in_room.first()
@@ -133,8 +129,7 @@ impl<'a> RoomHandler<'a> {
         Ok(())
     }
 
-    /// Process join events for the user.
-    pub fn handle_user_join(&self, matrix_room_id: RoomId) -> Result<()> {
+    fn handle_user_join(&self, matrix_room_id: RoomId) -> Result<()> {
         let room = Room::find(self.connection, &matrix_room_id)?;
         if room.is_admin_room {
             info!(self.logger,
@@ -148,8 +143,7 @@ impl<'a> RoomHandler<'a> {
         Ok(())
     }
 
-    /// Process leave events.
-    pub fn handle_user_leave(&self, matrix_room_id: RoomId) -> Result<()> {
+    fn handle_user_leave(&self, matrix_room_id: RoomId) -> Result<()> {
         let room = match Room::find_by_matrix_room_id(self.connection, &matrix_room_id)? {
             Some(room) => room,
             None => return Ok(()),

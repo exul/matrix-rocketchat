@@ -4,6 +4,7 @@ use iron::{Handler, status};
 use iron::prelude::*;
 use iron::request::Body;
 use serde_json;
+use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
@@ -42,11 +43,7 @@ impl Handler for Transactions {
         let events_batch = match deserialize_events(&mut request.body) {
             Ok(events_batch) => events_batch,
             Err(err) => {
-                let mut msg = format!("{}", err);
-                for err in err.iter().skip(1) {
-                    msg = msg + "\n" + &format!("{}", err);
-                }
-                error!(logger, msg);
+                log_error(logger, &err);
                 return Err(err.into());
             }
         };
@@ -55,7 +52,7 @@ impl Handler for Transactions {
 
         if let Err(err) = EventDispatcher::new(&self.config, &connection, logger.clone(), self.matrix_api.clone())
             .process(events_batch.events) {
-            error!(logger, err)
+            log_error(logger, &err);
         }
 
         Ok(Response::with((status::Ok, "{}".to_string())))
@@ -70,4 +67,12 @@ fn deserialize_events(body: &mut Body) -> Result<Events> {
                                         endpoint: `{}`",
                                        payload))
     })
+}
+
+fn log_error(logger: Logger, err: &Error) {
+    let mut msg = format!("{}", err);
+    for err in err.iter().skip(1) {
+        msg = msg + " caused by: " + &format!("{}", err);
+    }
+    error!(logger, msg);
 }

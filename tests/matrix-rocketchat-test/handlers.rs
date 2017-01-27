@@ -8,6 +8,22 @@ use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json;
 
 #[derive(Serialize)]
+pub struct RocketchatInfo {
+    pub version: &'static str,
+}
+
+impl Handler for RocketchatInfo {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let payload = r#"{
+            "version": "VERSION"
+        }"#
+            .replace("VERSION", self.version);
+
+        Ok(Response::with((status::Ok, payload)))
+    }
+}
+
+#[derive(Serialize)]
 pub struct MatrixVersion {
     pub versions: Vec<&'static str>,
 }

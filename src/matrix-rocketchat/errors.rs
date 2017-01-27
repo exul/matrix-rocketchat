@@ -21,6 +21,15 @@ pub struct MatrixErrorResponse {
     pub error: String,
 }
 
+/// Response from the Rocket.Chat server when an error occurred
+#[derive(Deserialize, Serialize)]
+pub struct RocketchatErrorResponse {
+    /// Status returned by the Rocket.Chat API
+    pub status: String,
+    /// Error message returned by the Rocket.Chat API
+    pub message: String,
+}
+
 error_chain!{
     errors {
         InvalidAccessToken(token: String) {
@@ -68,9 +77,49 @@ error_chain!{
             display("No supported API version found for the Matrix homeserver, found versions: {}", versions)
         }
 
-        ReadFileError(path: String){
+        RocketchatError(error_msg: String) {
+            description("An error occurred when calling the Rocket.Chat API")
+            display("Rocket.Chat error: {}", error_msg)
+        }
+
+        NoRocketchatServer(url: String){
+            description("No Rockat.Chat server found.")
+            display("No Rocket.Chat server found when querying {} (version information is missing from the response)", url)
+        }
+
+        RocketchatServerUnreachable(url: String) {
+            description("Rocket.Chat server unreachable")
+            display("Could not reach Rocket.Chat server {}", url)
+        }
+
+        UnsupportedRocketchatApiVersion(min_version: String, versions: String) {
+            description("None of the Rocket.Chat API versions are supported")
+            display("No supported API version (>= {}) found for the Rocket.Chat server, found version: {}", min_version, versions)
+        }
+
+        ReadFileError(path: String) {
             description("Reading file failed")
             display("Reading file from {} failed", path)
+        }
+
+        RoomAlreadyConnected(matrix_room_id: String) {
+            description("The Room is already connected to a Rocket.Chat server")
+            display("Room {} is already connected", matrix_room_id)
+        }
+
+        RocketchatTokenMissing{
+            description("A token is needed to connect new Rocket.Chat servers")
+            display("A token is needed to connect new Rocket.Chat servers")
+        }
+
+        RocketchatServerAlreadyConnected(rocketchat_url: String){
+            description("This Rocket.Chat server is already connected")
+            display("The Rocket.Chat server {} is already connected, connect without a token if you want to connect to the server", rocketchat_url)
+        }
+
+        RocketchatTokenAlreadyInUse(token: String){
+            description("The token is already in use, please use a different token to connect your server")
+            display("The token {} is already in use, please use another token.", token)
         }
 
         ReadConfigError{
@@ -121,6 +170,11 @@ error_chain!{
         DBInsertError {
             description("Inserting record into the database failed")
             display("Inserting record into the database failed")
+        }
+
+        DBUpdateError{
+            description("Editing record in database failed")
+            display("Editing record in the database failed")
         }
 
         DBSelectError{

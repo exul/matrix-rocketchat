@@ -59,6 +59,8 @@ const AS_TOKEN: &'static str = "at";
 pub const HS_TOKEN: &'static str = "ht";
 /// Number of threads that iron uses when running tests
 pub const IRON_THREADS: usize = 1;
+/// The version the mock Rocket.Chat server announces
+pub const DEFAULT_ROCKETCHAT_VERSION: &'static str = "0.49.0";
 
 lazy_static! {
     /// Default logger
@@ -82,21 +84,31 @@ pub use message_forwarder::MessageForwarder;
 
 /// A helper struct when running the tests that manages test resources and offers some helper methods.
 pub struct Test {
+    /// The application service listening server
+    pub as_listening: Option<Listening>,
     /// Configuration that is used during the test
     pub config: Config,
     /// Connection pool to get connection to the test database
     pub connection_pool: Pool<ConnectionManager<SqliteConnection>>,
-    /// Routes that the homeserver mock can handle
-    pub matrix_homeserver_mock_router: Option<Router>,
     /// The matrix homeserver mock listening server
     pub hs_listening: Option<Listening>,
-    /// The application service listening server
-    pub as_listening: Option<Listening>,
-    /// Flag to indicate if the test should create an admin room
-    pub with_admin_room: bool,
+    /// Routes that the homeserver mock can handle
+    pub matrix_homeserver_mock_router: Option<Router>,
+    /// Router that the Rocket.Chat mock can handle
+    pub rocketchat_mock_router: Option<Router>,
+    /// The Rocket.Chat mock listening server
+    pub rocketchat_listening: Option<Listening>,
+    /// The URL of the Rocket.Chat mock server
+    pub rocketchat_mock_url: Option<String>,
     /// Temp directory to store data during the test, it has to be part of the struct so that it
     /// does not get dropped until the test is over
     pub temp_dir: TempDir,
+    /// Flag to indicate if the test should create an admin room
+    pub with_admin_room: bool,
+    /// Flag to indicate if a connected admin room should be created
+    pub with_connected_admin_room: bool,
+    /// Flag to indicate if a Rocket.Chat mock server should be started
+    pub with_rocketchat_mock: bool,
 }
 
 impl Test {
@@ -106,18 +118,23 @@ impl Test {
         let config = build_test_config(&temp_dir);
         let connection_pool = ConnectionPool::create(&config.database_url).unwrap();
         Test {
+            as_listening: None,
             config: config,
             connection_pool: connection_pool,
-            matrix_homeserver_mock_router: None,
             hs_listening: None,
-            as_listening: None,
-            with_admin_room: false,
+            matrix_homeserver_mock_router: None,
+            rocketchat_mock_router: None,
+            rocketchat_listening: None,
+            rocketchat_mock_url: None,
             temp_dir: temp_dir,
+            with_admin_room: false,
+            with_connected_admin_room: false,
+            with_rocketchat_mock: false,
         }
     }
 
     /// Use custom routes when running the matrix homeserver mock instead of the default ones.
-    pub fn with_custom_matrix_routes(mut self, router: Router) -> Test {
+    pub fn with_matrix_routes(mut self, router: Router) -> Test {
         self.matrix_homeserver_mock_router = Some(router);
         self
     }
@@ -128,14 +145,40 @@ impl Test {
         self
     }
 
+    /// Creates an admin room that is connected to the Rocket.Chat mock
+    pub fn with_connected_admin_room(mut self) -> Test {
+        self.with_connected_admin_room = true;
+        self
+    }
+
+    /// Run a Rocket.Chat mock server.
+    pub fn with_rocketchat_mock(mut self) -> Test {
+        self.with_rocketchat_mock = true;
+        self
+    }
+
+    /// Use custom routes when running the Rocket.Chat mock server instead of the default ones.
+    pub fn with_custom_rocketchat_routes(mut self, router: Router) -> Test {
+        self.rocketchat_mock_router = Some(router);
+        self
+    }
+
     /// Run the application service so that a test can interact with it.
     pub fn run(mut self) -> Test {
         self.run_matrix_homeserver_mock();
+
+        if self.with_rocketchat_mock {
+            self.run_rocketchat_server_mock()
+        }
 
         self.run_application_service();
 
         if self.with_admin_room {
             self.create_admin_room();
+        }
+
+        if self.with_connected_admin_room {
+            self.create_connected_admin_room();
         }
 
         self
@@ -156,7 +199,7 @@ impl Test {
                    "versions");
         router.post("*", handlers::EmptyJson {}, "default_post");
         router.put("*", handlers::EmptyJson {}, "default_put");
-        if self.with_admin_room {
+        if self.with_admin_room || self.with_connected_admin_room {
             let room_members = handlers::RoomMembers {
                 room_id: RoomId::try_from("!admin:localhost").unwrap(),
                 members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
@@ -175,6 +218,30 @@ impl Test {
 
         let hs_listening = hs_rx.recv_timeout(default_timeout()).unwrap();
         self.hs_listening = Some(hs_listening);
+    }
+
+    fn run_rocketchat_server_mock(&mut self) {
+        let (tx, rx) = channel::<Listening>();
+        let socket_addr = get_free_socket_addr();
+
+        let mut router = match mem::replace(&mut self.rocketchat_mock_router, None) {
+            Some(router) => router,
+            None => Router::new(),
+        };
+
+        router.get("/api/info",
+                   handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION },
+                   "info");
+
+        thread::spawn(move || {
+            let mut server = Iron::new(router);
+            server.threads = IRON_THREADS;
+            let listening = server.http(&socket_addr).unwrap();
+            tx.send(listening).unwrap();
+        });
+        let listening = rx.recv_timeout(default_timeout() * 2).unwrap();
+        self.rocketchat_listening = Some(listening);
+        self.rocketchat_mock_url = Some(format!("http://{}", socket_addr));
     }
 
     fn run_application_service(&mut self) {
@@ -207,14 +274,30 @@ impl Test {
         helpers::create_admin_room(&self.config.as_url,
                                    RoomId::try_from("!admin:localhost").unwrap(),
                                    UserId::try_from("@spec_user:localhost").unwrap(),
-                                   UserId::try_from("@rocketchat:localhost").unwrap())
+                                   UserId::try_from("@rocketchat:localhost").unwrap());
+    }
 
+    fn create_connected_admin_room(&self) {
+        self.create_admin_room();
+        match self.rocketchat_mock_url {
+            Some(ref rocketchat_mock_url) => {
+                helpers::send_room_message_from_matrix(&self.config.as_url,
+                                                       RoomId::try_from("!admin:localhost").unwrap(),
+                                                       UserId::try_from("@spec_user:localhost").unwrap(),
+                                                       format!("connect {} spec_token", rocketchat_mock_url));
+            }
+            None => panic!("No Rocket.Chat mock present to connect to"),
+        }
     }
 }
 
 impl Drop for Test {
     fn drop(&mut self) {
         if let Some(ref mut listening) = self.hs_listening {
+            listening.close().unwrap()
+        };
+
+        if let Some(ref mut listening) = self.rocketchat_listening {
             listening.close().unwrap()
         };
 

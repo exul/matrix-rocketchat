@@ -15,9 +15,7 @@ pub struct RocketchatInfo {
 impl Handler for RocketchatInfo {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
         let payload = r#"{
-            "info": {
-                "version": "VERSION"
-            }
+            "version": "VERSION"
         }"#
             .replace("VERSION", self.version);
 

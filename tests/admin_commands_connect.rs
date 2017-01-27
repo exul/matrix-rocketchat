@@ -81,7 +81,7 @@ fn attempt_to_connect_to_an_incompatible_rocketchat_server_version() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("No supported API version found for the Rocket.Chat REST API, found versions: 0.1.0"));
+    assert!(message_received_by_matrix.contains("No supported API version (>= 0.49) found for the Rocket.Chat server, found version: 0.1.0"));
 }
 
 #[test]
@@ -160,7 +160,7 @@ fn attempt_to_connect_to_a_server_with_the_correct_endpoint_but_an_incompatible_
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains(&format!("No Rocket.Chat server found when querying {}", rocketchat_mock_url)));
+    assert!(message_received_by_matrix.contains(&format!("No Rocket.Chat server found when querying {}/api/info (version information is missing from the response)", rocketchat_mock_url)));
 }
 
 

@@ -15,12 +15,6 @@ pub trait RocketchatApi {}
 /// Response format when querying the Rocket.Chat info endpoint
 #[derive(Deserialize, Serialize)]
 pub struct GetInfoResponse {
-    info: InfoContent,
-}
-
-/// The content of the Rocket.Chat info response
-#[derive(Deserialize, Serialize)]
-pub struct InfoContent {
     version: String,
 }
 
@@ -48,9 +42,9 @@ impl RocketchatApi {
         let rocketchat_info: GetInfoResponse =
             serde_json::from_str(&body).chain_err(|| ErrorKind::NoRocketchatServer(url))?;
 
-        debug!(logger, format!("Rocket.Chat version {:?}", rocketchat_info.info.version));
+        debug!(logger, format!("Rocket.Chat version {:?}", rocketchat_info.version));
 
-        RocketchatApi::get_max_supported_version_api(rocketchat_info.info.version, base_url, access_token, logger)
+        RocketchatApi::get_max_supported_version_api(rocketchat_info.version, base_url, access_token, logger)
     }
 
     fn get_max_supported_version_api(version: String,
@@ -68,6 +62,6 @@ impl RocketchatApi {
             return Ok(Box::new(rocketchat_api));
         }
 
-        Err(Error::from(ErrorKind::UnsupportedRocketchatApiVersion(version)))
+        Err(Error::from(ErrorKind::UnsupportedRocketchatApiVersion("0.49".to_string(), version)))
     }
 }

@@ -84,7 +84,7 @@ error_chain!{
 
         NoRocketchatServer(url: String){
             description("No Rockat.Chat server found.")
-            display("No Rocket.Chat server found when querying {}", url)
+            display("No Rocket.Chat server found when querying {} (version information is missing from the response)", url)
         }
 
         RocketchatServerUnreachable(url: String) {
@@ -92,9 +92,9 @@ error_chain!{
             display("Could not reach Rocket.Chat server {}", url)
         }
 
-        UnsupportedRocketchatApiVersion(versions: String) {
+        UnsupportedRocketchatApiVersion(min_version: String, versions: String) {
             description("None of the Rocket.Chat API versions are supported")
-            display("No supported API version found for the Rocket.Chat REST API, found versions: {}", versions)
+            display("No supported API version (>= {}) found for the Rocket.Chat server, found version: {}", min_version, versions)
         }
 
         ReadFileError(path: String) {

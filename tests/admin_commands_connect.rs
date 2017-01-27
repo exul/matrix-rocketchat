@@ -324,3 +324,23 @@ fn attempt_to_connect_a_server_with_a_token_that_is_already_in_use() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("The token spec_token is already in use, please use another token"));
 }
+
+#[test]
+fn attempt_to_connect_to_a_new_server_without_a_token() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+
+    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           format!("connect {}", test.rocketchat_mock_url.clone().unwrap()));
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("A token is needed to connect new Rocket.Chat servers"));
+}

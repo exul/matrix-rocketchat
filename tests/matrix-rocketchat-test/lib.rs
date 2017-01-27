@@ -1,6 +1,5 @@
 #![feature(try_from)]
 
-#[macro_use]
 extern crate diesel;
 extern crate iron;
 #[macro_use]

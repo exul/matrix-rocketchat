@@ -4,7 +4,6 @@ extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
 extern crate router;
 extern crate ruma_client_api;
-#[macro_use]
 extern crate slog;
 extern crate slog_json;
 extern crate slog_stream;

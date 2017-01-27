@@ -30,7 +30,17 @@ cargo build --release
 
 ## Dependencies
 
-If you are using the application service on linux, you'll have to install OpenSSL:
+SQLite is used to store the data:
+
+```
+# On Ubuntu
+sudo apt-get install libsqlite3-dev
+
+# On Arch Linux
+sudo pacman -S sqlite
+```
+
+If you are using the application service on Linux, you'll have to install OpenSSL:
 
 ```
 # On Ubuntu

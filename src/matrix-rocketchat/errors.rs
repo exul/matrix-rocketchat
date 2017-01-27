@@ -122,49 +122,54 @@ error_chain!{
             display("The token {} is already in use, please use another token.", token)
         }
 
-        ReadConfigError{
+        ReadConfigError {
             description("Could not read config content to string")
             display("Could not read config content to string")
         }
 
-        ServerStartupError{
+        ServerStartupError {
             description("Starting the application service failed")
             display("Starting the application service failed")
         }
 
-        DatabaseSetupError{
+        DatabaseSetupError {
             description("Setting up database failed")
             display("Setting up database failed")
         }
 
-        MigrationError{
+        MigrationError {
             description("Could not run migrations")
             display("Could not run migrations")
         }
 
-        DBConnectionError{
+        DBConnectionError {
             description("Could not establish database connection")
             display("Could not establish database connection")
         }
 
-        LoggerExtractionError{
+        LoggerExtractionError {
             description("Getting logger from iron request failed")
             display("Getting logger from iron request failed")
         }
 
-        ConnectionPoolExtractionError{
+        ConnectionPoolExtractionError {
             description("Getting connection pool from iron request failed")
             display("Getting connection pool from iron request failed")
         }
 
-        ConnectionPoolCreationError{
+        ConnectionPoolCreationError {
             description("Could not create connection pool")
             display("Could not create connection pool")
         }
 
-        GetConnectionError{
+        GetConnectionError {
             description("Getting connection from connection pool failed")
             display("Getting connection from connection pool failed")
+        }
+
+        DBTransactionError {
+            description("An error occurred when running the transaction")
+            display("An error occurred when running the transaction")
         }
 
         DBInsertError {
@@ -172,17 +177,17 @@ error_chain!{
             display("Inserting record into the database failed")
         }
 
-        DBUpdateError{
+        DBUpdateError {
             description("Editing record in database failed")
             display("Editing record in the database failed")
         }
 
-        DBSelectError{
+        DBSelectError {
             description("Select record from the database failed")
             display("Select record from the database failed")
         }
 
-        DBDeleteError{
+        DBDeleteError {
             description("Deleting record from the database failed")
             display("Deleting record from the database failed")
         }

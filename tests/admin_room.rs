@@ -195,15 +195,11 @@ fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
                     UserId::try_from("@rocketchat:localhost").unwrap());
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("An internal error occurred (Matrix error: Could not join room)"));
+    assert!(message_received_by_matrix.contains("Matrix error: Could not join room)"));
 
     let connection = test.connection_pool.get().unwrap();
-    let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
-    assert!(room.is_admin_room);
-
-    let members = room.users(&connection).unwrap();
-    assert_eq!(members.len(), 1);
-    assert!(members.iter().any(|m| m.matrix_user_id == UserId::try_from("@spec_user:localhost").unwrap()));
+    let room_option = Room::find_by_matrix_room_id(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
+    assert!(room_option.is_none());
 }
 
 #[test]

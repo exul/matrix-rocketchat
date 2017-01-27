@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::message::MessageEvent;
 use ruma_events::room::message::MessageEventContent;
@@ -58,38 +59,40 @@ impl<'a> CommandHandler<'a> {
     }
 
     fn handle_connect(&self, event: &MessageEvent, message: &str) -> Result<()> {
-        let room = Room::find(self.connection, &event.room_id)?;
-        if room.is_connected() {
-            bail!(ErrorKind::RoomAlreadyConnected(event.room_id.to_string()));
-        }
+        self.connection
+            .transaction(|| {
+                let room = Room::find(self.connection, &event.room_id)?;
+                if room.is_connected() {
+                    bail!(ErrorKind::RoomAlreadyConnected(event.room_id.to_string()));
+                }
 
-        let mut command = message.split_whitespace().collect::<Vec<&str>>().into_iter();
-        let rocketchat_url = command.by_ref().skip(1).next().unwrap_or_default();
+                let mut command = message.split_whitespace().collect::<Vec<&str>>().into_iter();
+                let rocketchat_url = command.by_ref().skip(1).next().unwrap_or_default();
 
-        debug!(self.logger, "Attempting to connect to Rocket.Chat server {}", rocketchat_url);
+                debug!(self.logger, "Attempting to connect to Rocket.Chat server {}", rocketchat_url);
 
-        let rocketchat_server = match command.by_ref().next() {
-            Some(token) => self.connect_new_rocktechat_server(rocketchat_url.to_string(), token.to_string())?,
-            None => self.get_existing_rocketchat_server(rocketchat_url.to_string())?,
-        };
+                let rocketchat_server = match command.by_ref().next() {
+                    Some(token) => self.connect_new_rocktechat_server(rocketchat_url.to_string(), token.to_string())?,
+                    None => self.get_existing_rocketchat_server(rocketchat_url.to_string())?,
+                };
 
-        room.set_rocketchat_server_id(self.connection, rocketchat_server.id)?;
+                room.set_rocketchat_server_id(self.connection, rocketchat_server.id)?;
 
-        let new_user_on_rocketchat_server = NewUserOnRocketchatServer {
-            matrix_user_id: event.user_id.clone(),
-            rocketchat_server_id: rocketchat_server.id,
-            rocketchat_auth_token: None,
-        };
+                let new_user_on_rocketchat_server = NewUserOnRocketchatServer {
+                    matrix_user_id: event.user_id.clone(),
+                    rocketchat_server_id: rocketchat_server.id,
+                    rocketchat_auth_token: None,
+                };
 
-        UserOnRocketchatServer::insert(self.connection, &new_user_on_rocketchat_server)?;
+                UserOnRocketchatServer::insert(self.connection, &new_user_on_rocketchat_server)?;
 
-        let user = User::find(self.connection, &event.user_id)?;
-        let mut vars = HashMap::new();
-        vars.insert("rocketchat_url", rocketchat_url.as_ref());
-        let body = t!(["admin_command", "successfully_connected"]).l(&user.language, Some(vars));
-        self.matrix_api.send_text_message_event(event.room_id.clone(), self.config.matrix_bot_user_id()?, body)?;
-
-        Ok(())
+                let user = User::find(self.connection, &event.user_id)?;
+                let mut vars = HashMap::new();
+                vars.insert("rocketchat_url", rocketchat_url.as_ref());
+                let body = t!(["admin_command", "successfully_connected"]).l(&user.language, Some(vars));
+                self.matrix_api.send_text_message_event(event.room_id.clone(), self.config.matrix_bot_user_id()?, body)
+            })
+            .chain_err(|| ErrorKind::DBTransactionError)
     }
 
     fn connect_new_rocktechat_server(&self, rocketchat_url: String, token: String) -> Result<RocketchatServer> {

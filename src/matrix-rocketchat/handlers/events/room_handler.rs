@@ -96,10 +96,10 @@ impl<'a> RoomHandler<'a> {
                     matrix_user_id: user.matrix_user_id,
                     matrix_room_id: room.matrix_room_id,
                 };
-                UserInRoom::insert(self.connection, &user_in_room)
+                UserInRoom::insert(self.connection, &user_in_room)?;
+                self.matrix_api.join(matrix_room_id, invited_user_id)
             })
-            .chain_err(|| ErrorKind::DBInsertError)?;
-        self.matrix_api.join(matrix_room_id, invited_user_id)
+            .chain_err(|| ErrorKind::DBTransactionError)
     }
 
     fn handle_bot_join(&self, matrix_room_id: RoomId, matrix_bot_user_id: UserId) -> Result<()> {

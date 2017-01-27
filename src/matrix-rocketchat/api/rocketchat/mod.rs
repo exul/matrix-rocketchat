@@ -53,7 +53,7 @@ impl RocketchatApi {
                                      logger: Logger)
                                      -> Result<Box<RocketchatApi>> {
         let version_string = version.clone();
-        let mut versions = version_string.split(".").into_iter();
+        let mut versions = version_string.split('.').into_iter();
         let major: i32 = versions.next().unwrap_or("0").parse().unwrap_or(0);
         let minor: i32 = versions.next().unwrap_or("0").parse().unwrap_or(0);
 

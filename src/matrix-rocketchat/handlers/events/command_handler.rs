@@ -49,7 +49,7 @@ impl<'a> CommandHandler<'a> {
             let msg = format!("Received connect command: {}", message);
             debug!(self.logger, msg);
 
-            self.handle_connect(&event, &message)?;
+            self.handle_connect(event, &message)?;
         } else {
             let msg = format!("Skipping event, don't know how to handle command `{}`", message);
             debug!(self.logger, msg);
@@ -67,7 +67,7 @@ impl<'a> CommandHandler<'a> {
                 }
 
                 let mut command = message.split_whitespace().collect::<Vec<&str>>().into_iter();
-                let rocketchat_url = command.by_ref().skip(1).next().unwrap_or_default();
+                let rocketchat_url = command.by_ref().nth(1).unwrap_or_default();
 
                 debug!(self.logger, "Attempting to connect to Rocket.Chat server {}", rocketchat_url);
 

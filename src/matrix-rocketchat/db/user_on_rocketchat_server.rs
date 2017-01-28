@@ -55,5 +55,6 @@ impl UserOnRocketchatServer {
         users_on_rocketchat_servers::table.find((matrix_user_id, rocketchat_server_id))
             .first(connection)
             .chain_err(|| ErrorKind::DBSelectError)
+            .map_err(Error::from)
     }
 }

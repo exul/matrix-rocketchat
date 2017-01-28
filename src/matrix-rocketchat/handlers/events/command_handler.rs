@@ -93,6 +93,7 @@ impl<'a> CommandHandler<'a> {
                 self.matrix_api.send_text_message_event(event.room_id.clone(), self.config.matrix_bot_user_id()?, body)
             })
             .chain_err(|| ErrorKind::DBTransactionError)
+            .map_err(Error::from)
     }
 
     fn connect_new_rocktechat_server(&self, rocketchat_url: String, token: String) -> Result<RocketchatServer> {

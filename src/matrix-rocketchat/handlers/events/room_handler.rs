@@ -100,6 +100,7 @@ impl<'a> RoomHandler<'a> {
                 self.matrix_api.join(matrix_room_id, invited_user_id)
             })
             .chain_err(|| ErrorKind::DBTransactionError)
+            .map_err(Error::from)
     }
 
     fn handle_bot_join(&self, matrix_room_id: RoomId, matrix_bot_user_id: UserId) -> Result<()> {

@@ -65,7 +65,7 @@ impl<'a> EventDispatcher<'a> {
 
     fn handle_error(&self, err: Error, room_id: RoomId, user_id: &UserId) -> Result<()> {
         let mut msg = format!("{}", err);
-        for err in err.iter().skip(1) {
+        for err in err.error_chain.iter().skip(1) {
             msg = msg + " caused by: " + &format!("{}", err);
         }
 

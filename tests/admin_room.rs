@@ -87,7 +87,7 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
 
     let connection = test.connection_pool.get().unwrap();
     let room_error = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).err().unwrap();
-    let room_diesel_error = room_error.iter().nth(1).unwrap();
+    let room_diesel_error = room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", room_diesel_error), format!("{}", DieselError::NotFound));
 
     let spec_user_in_room_error = UserInRoom::find(&connection,
@@ -95,7 +95,7 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
                                                    &RoomId::try_from("!admin:localhost").unwrap())
         .err()
         .unwrap();
-    let spec_user_in_room_diesel_error = spec_user_in_room_error.iter().nth(1).unwrap();
+    let spec_user_in_room_diesel_error = spec_user_in_room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", spec_user_in_room_diesel_error),
                format!("{}", DieselError::NotFound));
 
@@ -104,7 +104,7 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
                                                   &RoomId::try_from("!admin:localhost").unwrap())
         .err()
         .unwrap();
-    let bot_user_in_room_diesel_error = bot_user_in_room_error.iter().nth(1).unwrap();
+    let bot_user_in_room_diesel_error = bot_user_in_room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", bot_user_in_room_diesel_error),
                format!("{}", DieselError::NotFound));
 }
@@ -130,7 +130,7 @@ fn bot_leaves_and_forgets_the_room_when_the_user_leaves_it() {
     forget_receiver.recv_timeout(default_timeout()).unwrap();
 
     let room_error = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).err().unwrap();
-    let room_diesel_error = room_error.iter().nth(1).unwrap();
+    let room_diesel_error = room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", room_diesel_error), format!("{}", DieselError::NotFound));
 
     let spec_user_in_room_error = UserInRoom::find(&connection,
@@ -138,7 +138,7 @@ fn bot_leaves_and_forgets_the_room_when_the_user_leaves_it() {
                                                    &RoomId::try_from("!admin:localhost").unwrap())
         .err()
         .unwrap();
-    let spec_user_in_room_diesel_error = spec_user_in_room_error.iter().nth(1).unwrap();
+    let spec_user_in_room_diesel_error = spec_user_in_room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", spec_user_in_room_diesel_error),
                format!("{}", DieselError::NotFound));
 
@@ -147,7 +147,7 @@ fn bot_leaves_and_forgets_the_room_when_the_user_leaves_it() {
                                                   &RoomId::try_from("!admin:localhost").unwrap())
         .err()
         .unwrap();
-    let bot_user_in_room_diesel_error = bot_user_in_room_error.iter().nth(1).unwrap();
+    let bot_user_in_room_diesel_error = bot_user_in_room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", bot_user_in_room_diesel_error),
                format!("{}", DieselError::NotFound));
 }
@@ -407,7 +407,7 @@ fn bot_leaves_when_a_third_user_joins_the_admin_room() {
 
     // room got deleted
     let room_error = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).err().unwrap();
-    let room_diesel_error = room_error.iter().nth(1).unwrap();
+    let room_diesel_error = room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", room_diesel_error), format!("{}", DieselError::NotFound));
 }
 

@@ -62,16 +62,18 @@ impl Handler for Transactions {
 fn deserialize_events(body: &mut Body) -> Result<Events> {
     let mut payload = String::new();
     body.read_to_string(&mut payload).chain_err(|| ErrorKind::InternalServerError)?;
-    serde_json::from_str(&payload).chain_err(|| {
-        ErrorKind::InvalidJSON(format!("Could not deserialize events that were sent to the transactions \
-                                        endpoint: `{}`",
-                                       payload))
-    })
+    serde_json::from_str(&payload)
+        .chain_err(|| {
+            ErrorKind::InvalidJSON(format!("Could not deserialize events that were sent to the transactions endpoint: \
+                                            `{}`",
+                                           payload))
+        })
+        .map_err(Error::from)
 }
 
 fn log_error(logger: Logger, err: &Error) {
     let mut msg = format!("{}", err);
-    for err in err.iter().skip(1) {
+    for err in err.error_chain.iter().skip(1) {
         msg = msg + " caused by: " + &format!("{}", err);
     }
     error!(logger, msg);

@@ -1,9 +1,23 @@
 #![allow(missing_docs)]
 
+use std::error::Error as StdError;
+use std::fmt::{Display, Formatter};
+use std::fmt::Error as FmtError;
+use std::result::Result as StdResult;
+
 use iron::{IronError, Response};
 use iron::modifier::Modifier;
 use iron::status::Status;
 use serde_json;
+
+macro_rules! simple_error {
+    ($e:expr) => {
+        Error{
+            user_message: None,
+            error_chain: $e.into(),
+        }
+    };
+}
 
 /// `ErrorResponse` defines the format that is used to send an error response as JSON.
 #[derive(Serialize)]
@@ -30,7 +44,21 @@ pub struct RocketchatErrorResponse {
     pub message: String,
 }
 
+#[derive(Debug)]
+pub struct Error {
+    /// The chained errors
+    pub error_chain: ErrorChain,
+    /// An optional message that is shown to the user
+    pub user_message: Option<String>,
+}
+
+pub type Result<T> = StdResult<T, Error>;
+
 error_chain!{
+    types {
+        ErrorChain, ErrorKind, ResultExt;
+    }
+
     errors {
         InvalidAccessToken(token: String) {
             description("The provided access token is not valid")
@@ -199,14 +227,39 @@ error_chain!{
     }
 }
 
-impl ErrorKind {
+impl Error {
     pub fn status_code(&self) -> Status {
-        match *self {
+        match *self.error_chain {
             ErrorKind::InvalidAccessToken(_) => Status::Forbidden,
             ErrorKind::MissingAccessToken => Status::Unauthorized,
             ErrorKind::InvalidJSON(_) => Status::UnprocessableEntity,
             _ => Status::InternalServerError,
         }
+    }
+}
+
+
+impl StdError for Error {
+    fn description(&self) -> &str {
+        self.error_chain.description()
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter) -> StdResult<(), FmtError> {
+        write!(f, "{}", self.error_chain)
+    }
+}
+
+impl From<ErrorChain> for Error {
+    fn from(error: ErrorChain) -> Error {
+        simple_error!(error)
+    }
+}
+
+impl From<ErrorKind> for Error {
+    fn from(error: ErrorKind) -> Error {
+        simple_error!(error)
     }
 }
 
@@ -222,8 +275,8 @@ impl From<Error> for IronError {
 
 impl<'a> Modifier<Response> for &'a Error {
     fn modify(self, response: &mut Response) {
-        let mut causes = Vec::with_capacity(self.iter().count() - 1);
-        for err in self.iter().skip(1) {
+        let mut causes = Vec::with_capacity(self.error_chain.iter().count() - 1);
+        for err in self.error_chain.iter().skip(1) {
             causes.push(format!("{}", err));
         }
 

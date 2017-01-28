@@ -62,6 +62,6 @@ impl RocketchatApi {
             return Ok(Box::new(rocketchat_api));
         }
 
-        Err(Error::from(ErrorKind::UnsupportedRocketchatApiVersion("0.49".to_string(), version)))
+        Err(simple_error!(ErrorKind::UnsupportedRocketchatApiVersion("0.49".to_string(), version)))
     }
 }

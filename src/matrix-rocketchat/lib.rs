@@ -39,14 +39,16 @@ embed_migrations!();
 /// Translations
 #[macro_use]
 pub mod i18n;
+/// Application service errors
+#[macro_use]
+pub mod errors;
+
 /// REST APIs
 pub mod api;
 /// Helpers to interact with the application service configuration.
 pub mod config;
 /// Helpers to interact with the database.
 pub mod db;
-/// Application service errors
-pub mod errors;
 /// Iron handlers
 pub mod handlers;
 /// Logging helpers

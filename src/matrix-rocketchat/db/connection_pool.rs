@@ -15,7 +15,7 @@ impl ConnectionPool {
     pub fn create(database_url: &str) -> Result<Pool<ConnectionManager<SqliteConnection>>> {
         let config = Config::default();
         let manager = ConnectionManager::<SqliteConnection>::new(database_url);
-        Pool::new(config, manager).chain_err(|| ErrorKind::ConnectionPoolCreationError)
+        Pool::new(config, manager).chain_err(|| ErrorKind::ConnectionPoolCreationError).map_err(Error::from)
     }
 
     /// Extract a database connection from the pool stored in the request.
@@ -28,7 +28,7 @@ impl ConnectionPool {
             // are OK.
             Err(poisoned_lock) => poisoned_lock.into_inner(),
         };
-        pool.get().chain_err(|| ErrorKind::GetConnectionError)
+        pool.get().chain_err(|| ErrorKind::GetConnectionError).map_err(Error::from)
     }
 }
 

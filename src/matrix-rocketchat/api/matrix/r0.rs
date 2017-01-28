@@ -193,12 +193,13 @@ fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
                                  status_code,
                                  body);
     let json_error = ErrorKind::InvalidJSON(json_error_msg);
-    let matrix_error_resp: MatrixErrorResponse = match serde_json::from_str(body).chain_err(|| json_error) {
-        Ok(matrix_error_resp) => matrix_error_resp,
-        Err(err) => {
-            return err;
-        }
-    };
+    let matrix_error_resp: MatrixErrorResponse =
+        match serde_json::from_str(body).chain_err(|| json_error).map_err(Error::from) {
+            Ok(matrix_error_resp) => matrix_error_resp,
+            Err(err) => {
+                return err;
+            }
+        };
     Error::from(ErrorKind::MatrixError(matrix_error_resp.error))
 }
 

@@ -64,7 +64,12 @@ impl<'a> EventDispatcher<'a> {
     }
 
     fn handle_error(&self, err: Error, room_id: RoomId, user_id: &UserId) -> Result<()> {
-        let mut msg = format!("{}", err);
+        let user_message = match err.user_message {
+            Some(ref user_message) => user_message,
+            None => return Err(err),
+        };
+
+        let mut msg = format!("{}", &err);
         for err in err.error_chain.iter().skip(1) {
             msg = msg + " caused by: " + &format!("{}", err);
         }
@@ -73,8 +78,10 @@ impl<'a> EventDispatcher<'a> {
             Some(user) => user.language,
             None => DEFAULT_LANGUAGE.to_string(),
         };
-        let user_msg = t!(["defaults", "internal_error"]).l(&language, None) + " (" + &msg + ")";
-        self.matrix_api.send_text_message_event(room_id, self.config.matrix_bot_user_id()?, user_msg)?;
-        Err(err)
+
+        let (ref t, ref keys) = *user_message;
+        let error_message = &t.l(&language, Some(keys.clone()));
+        let user_msg = t!(["defaults", "internal_error"]).l(&language, None) + " (" + error_message + ")";
+        self.matrix_api.send_text_message_event(room_id, self.config.matrix_bot_user_id()?, user_msg)
     }
 }

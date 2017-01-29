@@ -88,11 +88,10 @@ impl<'a> CommandHandler<'a> {
 
                 let user = User::find(self.connection, &event.user_id)?;
                 let mut vars = HashMap::new();
-                vars.insert("rocketchat_url", rocketchat_url.as_ref());
+                vars.insert("rocketchat_url", rocketchat_url.to_string());
                 let body = t!(["admin_command", "successfully_connected"]).l(&user.language, Some(vars));
                 self.matrix_api.send_text_message_event(event.room_id.clone(), self.config.matrix_bot_user_id()?, body)
             })
-            .chain_err(|| ErrorKind::DBTransactionError)
             .map_err(Error::from)
     }
 

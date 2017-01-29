@@ -35,3 +35,4 @@ en:
     welcome: "Your Rocket.Chat <-> Matrix application service is running"
   errors:
     internal: "An internal error occurred"
+    no_rocketchat_server: "No Rocket.Chat server found when querying ${rocketchat_url}"

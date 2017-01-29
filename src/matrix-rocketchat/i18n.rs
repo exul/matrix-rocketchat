@@ -13,6 +13,7 @@ lazy_static! {
 macro_rules! build_i18n_struct {
     ($($f:ident),*) => {
         /// Struct that stores translations for all supported languages
+        #[derive(Debug)]
         pub struct I18n {
             $(
                 /// language field
@@ -22,7 +23,7 @@ macro_rules! build_i18n_struct {
 
         impl I18n {
             /// Return the translation for a language
-            pub fn l(&self, language: &str, vars: Option<HashMap<&str, &str>>) -> String {
+            pub fn l(&self, language: &str, vars: Option<HashMap<&str, String>>) -> String {
                 let mut translation = match language{
                     $(stringify!($f) => self.$f.clone(),)*
                         _ => "Unsupported language".to_string()
@@ -31,7 +32,7 @@ macro_rules! build_i18n_struct {
                 if let Some(vars) = vars{
                     for (key, val) in vars {
                         let placeholder = format!("${{{}}}", key);
-                        translation = translation.replace(&placeholder, val);
+                        translation = translation.replace(&placeholder, &val);
                     }
                 }
 

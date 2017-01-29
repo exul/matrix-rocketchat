@@ -6,6 +6,7 @@ use slog::Logger;
 
 use api::RestApi;
 use errors::*;
+use i18n::*;
 
 mod v1;
 
@@ -36,11 +37,26 @@ impl RocketchatApi {
         };
 
         if !status_code.is_success() {
-            bail!(ErrorKind::NoRocketchatServer(url));
+            let mut keys = HashMap::new();
+            keys.insert("rocketchat_url", url.clone());
+            return Err(Error {
+                error_chain: ErrorKind::NoRocketchatServer(url).into(),
+                user_message: Some((t!(["errors", "no_rocketchat_server"]), keys)),
+            });
         }
 
-        let rocketchat_info: GetInfoResponse =
-            serde_json::from_str(&body).chain_err(|| ErrorKind::NoRocketchatServer(url))?;
+        let rocketchat_info: GetInfoResponse = match serde_json::from_str(&body)
+            .chain_err(|| ErrorKind::NoRocketchatServer(url.clone())) {
+            Ok(rocketchat_info) => rocketchat_info,
+            Err(err) => {
+                let mut keys = HashMap::new();
+                keys.insert("rocketchat_url", url);
+                return Err(Error {
+                    error_chain: err,
+                    user_message: Some((t!(["errors", "no_rocketchat_server"]), keys)),
+                });
+            }
+        };
 
         debug!(logger, format!("Rocket.Chat version {:?}", rocketchat_info.version));
 

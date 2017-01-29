@@ -120,7 +120,7 @@ impl<'a> RoomHandler<'a> {
         UserInRoom::insert(self.connection, &user_in_room)?;
 
         let mut vars = HashMap::new();
-        vars.insert("as_url", self.config.as_url.as_ref());
+        vars.insert("as_url", self.config.as_url.clone());
         let body = t!(["admin_room", "connection_instructions"]).l(&invitation_submitter.language, Some(vars));
         self.matrix_api.send_text_message_event(matrix_room_id.clone(), matrix_bot_user_id, body)?;
 

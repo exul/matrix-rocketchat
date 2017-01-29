@@ -1,14 +1,18 @@
 #![allow(missing_docs)]
 
+use std::collections::HashMap;
 use std::error::Error as StdError;
 use std::fmt::{Display, Formatter};
 use std::fmt::Error as FmtError;
 use std::result::Result as StdResult;
 
+use diesel::TransactionError;
 use iron::{IronError, Response};
 use iron::modifier::Modifier;
 use iron::status::Status;
 use serde_json;
+
+use i18n::*;
 
 macro_rules! simple_error {
     ($e:expr) => {
@@ -49,7 +53,7 @@ pub struct Error {
     /// The chained errors
     pub error_chain: ErrorChain,
     /// An optional message that is shown to the user
-    pub user_message: Option<String>,
+    pub user_message: Option<(I18n, HashMap<&'static str, String>)>,
 }
 
 pub type Result<T> = StdResult<T, Error>;
@@ -238,7 +242,6 @@ impl Error {
     }
 }
 
-
 impl StdError for Error {
     fn description(&self) -> &str {
         self.error_chain.description()
@@ -260,6 +263,20 @@ impl From<ErrorChain> for Error {
 impl From<ErrorKind> for Error {
     fn from(error: ErrorKind) -> Error {
         simple_error!(error)
+    }
+}
+
+impl From<TransactionError<Error>> for Error {
+    fn from(error: TransactionError<Error>) -> Error {
+        match error {
+            TransactionError::UserReturnedError(err) => {
+                Error {
+                    user_message: err.user_message,
+                    error_chain: err.error_chain,
+                }
+            }
+            TransactionError::CouldntCreateTransaction(_) => simple_error!(ErrorKind::DBTransactionError),
+        }
     }
 }
 

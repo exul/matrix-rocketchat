@@ -1,6 +1,5 @@
 #![allow(missing_docs)]
 
-use std::collections::HashMap;
 use std::error::Error as StdError;
 use std::fmt::{Display, Formatter};
 use std::fmt::Error as FmtError;
@@ -17,9 +16,21 @@ use i18n::*;
 macro_rules! simple_error {
     ($e:expr) => {
         Error{
-            user_message: None,
             error_chain: $e.into(),
+            user_message: None,
         }
+    };
+}
+
+macro_rules! bail_error {
+    ($e:expr) => {
+        return Err(simple_error!($e));
+    };
+    ($e:expr, $u:expr) => {
+        return Err(Error{
+            error_chain: $e.into(),
+            user_message: Some($u),
+        });
     };
 }
 
@@ -53,7 +64,7 @@ pub struct Error {
     /// The chained errors
     pub error_chain: ErrorChain,
     /// An optional message that is shown to the user
-    pub user_message: Option<(I18n, HashMap<&'static str, String>)>,
+    pub user_message: Option<I18n>,
 }
 
 pub type Result<T> = StdResult<T, Error>;

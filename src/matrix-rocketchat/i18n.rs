@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use yaml_rust::{Yaml, YamlLoader};
 
 lazy_static! {
@@ -15,6 +13,8 @@ macro_rules! build_i18n_struct {
         /// Struct that stores translations for all supported languages
         #[derive(Debug)]
         pub struct I18n {
+            /// Variables to replace placeholders in the language string
+            pub vars: Option<Vec<(&'static str, String)>>,
             $(
                 /// language field
                 pub $f: String
@@ -22,14 +22,20 @@ macro_rules! build_i18n_struct {
         }
 
         impl I18n {
+            /// Set the variables to replace placeholders in the language string
+            pub fn with_vars(mut self, vars: Vec<(&'static str, String)>) -> I18n {
+                self.vars = Some(vars);
+                self
+            }
+
             /// Return the translation for a language
-            pub fn l(&self, language: &str, vars: Option<HashMap<&str, String>>) -> String {
+            pub fn l(&self, language: &str) -> String {
                 let mut translation = match language{
                     $(stringify!($f) => self.$f.clone(),)*
                         _ => "Unsupported language".to_string()
                 };
 
-                if let Some(vars) = vars{
+                if let Some(vars) = self.vars.clone() {
                     for (key, val) in vars {
                         let placeholder = format!("${{{}}}", key);
                         translation = translation.replace(&placeholder, &val);
@@ -46,6 +52,7 @@ macro_rules! translate_all_languages {
     ($($language:ident => [[$($key:expr),*]; [$($k:expr => $v:expr),*]]);*)  =>{
         {
             I18n {
+                vars: None,
                 $($language:
                   {
                       let translation = &TRANSLATIONS[0][stringify!($language)]$([$key])*;

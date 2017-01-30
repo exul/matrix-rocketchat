@@ -35,4 +35,10 @@ en:
     welcome: "Your Rocket.Chat <-> Matrix application service is running"
   errors:
     internal: "An internal error occurred"
-    no_rocketchat_server: "No Rocket.Chat server found when querying ${rocketchat_url}"
+    no_rocketchat_server: "No Rocket.Chat server found when querying ${rocketchat_url} (version information is missing from the response)"
+    rocketchat_server_unreachable: "Could not reach Rocket.Chat server ${rocketchat_url}"
+    rocketchat_token_missing: "A token is needed to connect new Rocket.Chat servers"
+    rocketchat_server_already_connected: "The Rocket.Chat server ${rocketchat_url} is already connected, connect without a token if you want to connect to the server"
+    room_already_connected: "This room is already connected"
+    token_already_in_use: "The token ${token} is already in use, please use another token."
+    unsupported_rocketchat_api_version: "No supported API version (>= ${min_version}) found for the Rocket.Chat server, found version: ${version}"

@@ -195,7 +195,7 @@ fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
                     UserId::try_from("@rocketchat:localhost").unwrap());
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("Matrix error: Could not join room)"));
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
 
     let connection = test.connection_pool.get().unwrap();
     let room_option = Room::find_by_matrix_room_id(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
@@ -220,7 +220,7 @@ fn the_user_gets_a_message_when_getting_the_room_members_failes() {
                                UserId::try_from("@rocketchat:localhost").unwrap());
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("An internal error occurred (Matrix error: Could not get room members)"));
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
 
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
@@ -248,7 +248,6 @@ fn the_user_gets_a_message_when_the_room_members_cannot_be_deserialized() {
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("An internal error occurred"));
-    assert!(message_received_by_matrix.contains("Could not process request, the submitted data is not valid JSON"));
 
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
@@ -288,7 +287,7 @@ fn the_user_gets_a_message_when_setting_the_room_display_name_fails() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("An internal error occurred (Matrix error: Could not set display name for room)"));
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
 
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
@@ -327,7 +326,7 @@ fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
     let welcome_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(welcome_message_received_by_matrix.contains("Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."));
     let error_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(error_message_received_by_matrix.contains("An internal error occurred (Matrix error: Could not leave room)"));
+    assert!(error_message_received_by_matrix.contains("An internal error occurred"));
 }
 
 #[test]
@@ -357,7 +356,7 @@ fn the_user_gets_a_message_when_forgetting_the_room_failes_for_the_bot_user() {
     let welcome_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(welcome_message_received_by_matrix.contains("Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."));
     let error_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(error_message_received_by_matrix.contains("An internal error occurred (Matrix error: Could not forget room)"));
+    assert!(error_message_received_by_matrix.contains("An internal error occurred"));
 }
 
 #[test]

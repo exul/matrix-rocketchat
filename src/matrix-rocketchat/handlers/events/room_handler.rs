@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use diesel::Connection;
@@ -83,7 +82,7 @@ impl<'a> RoomHandler<'a> {
         self.connection
             .transaction(|| {
                 let user = User::find_or_create_by_matrix_user_id(self.connection, sender_id)?;
-                let display_name = t!(["defaults", "admin_room_display_name"]).l(&user.language, None);
+                let display_name = t!(["defaults", "admin_room_display_name"]).l(&user.language);
                 let room = NewRoom {
                     matrix_room_id: matrix_room_id.clone(),
                     display_name: display_name,
@@ -118,13 +117,12 @@ impl<'a> RoomHandler<'a> {
             matrix_room_id: room.matrix_room_id,
         };
         UserInRoom::insert(self.connection, &user_in_room)?;
-
-        let mut vars = HashMap::new();
-        vars.insert("as_url", self.config.as_url.clone());
-        let body = t!(["admin_room", "connection_instructions"]).l(&invitation_submitter.language, Some(vars));
+        let body = t!(["admin_room", "connection_instructions"])
+            .with_vars(vec![("as_url", self.config.as_url.clone())])
+            .l(&invitation_submitter.language);
         self.matrix_api.send_text_message_event(matrix_room_id.clone(), matrix_bot_user_id, body)?;
 
-        let room_name = t!(["defaults", "admin_room_display_name"]).l(&invitation_submitter.language, None);
+        let room_name = t!(["defaults", "admin_room_display_name"]).l(&invitation_submitter.language);
         self.matrix_api.set_room_name(matrix_room_id.clone(), room_name)?;
 
         Ok(())
@@ -137,7 +135,7 @@ impl<'a> RoomHandler<'a> {
                   "Another user join the admin room {}, bot user is leaving",
                   matrix_room_id);
             let admin_room_language = self.admin_room_language(&room)?;
-            let body = t!(["admin_room", "other_user_joined"]).l(&admin_room_language, None);
+            let body = t!(["admin_room", "other_user_joined"]).l(&admin_room_language);
             self.matrix_api.send_text_message_event(matrix_room_id, self.config.matrix_bot_user_id()?, body)?;
             self.leave_and_forget_room(&room)?;
         }
@@ -164,7 +162,7 @@ impl<'a> RoomHandler<'a> {
         info!(self.logger,
               format!("Room {} has more then two members and cannot be used as admin room",
                       room.matrix_room_id));
-        let body = t!(["admin_room", "too_many_members_in_room"]).l(&invitation_submitter.language, None);
+        let body = t!(["admin_room", "too_many_members_in_room"]).l(&invitation_submitter.language);
         self.matrix_api.send_text_message_event(room.matrix_room_id.clone(), matrix_bot_user_id, body)?;
         self.matrix_api.leave_room(room.matrix_room_id.clone())?;
         self.matrix_api.forget_room(room.matrix_room_id.clone())?;

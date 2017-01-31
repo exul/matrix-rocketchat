@@ -104,6 +104,7 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
                                                   &RoomId::try_from("!admin:localhost").unwrap())
         .err()
         .unwrap();
+
     let bot_user_in_room_diesel_error = bot_user_in_room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", bot_user_in_room_diesel_error),
                format!("{}", DieselError::NotFound));

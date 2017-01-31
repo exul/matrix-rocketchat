@@ -289,7 +289,7 @@ fn attempt_to_connect_an_already_connected_room() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("Room !admin:localhost is already connected"));
+    assert!(message_received_by_matrix.contains("This room is already connected"));
 }
 
 #[test]

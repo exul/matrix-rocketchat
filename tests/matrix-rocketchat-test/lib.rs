@@ -70,7 +70,7 @@ lazy_static! {
 
 #[macro_export]
 macro_rules! assert_error_kind {
-    ($err:expr, $kind:pat) => (match *$err.kind() {
+    ($err:expr, $kind:pat) => (match *$err.error_chain.kind() {
         $kind => assert!(true, "{:?} is of kind {:?}", $err, stringify!($kind)),
         _     => assert!(false, "{:?} is NOT of kind {:?}", $err, stringify!($kind))
     });
@@ -256,7 +256,7 @@ impl Test {
                 Ok(listening) => listening,
                 Err(err) => {
                     error!(DEFAULT_LOGGER, "error: {}", err);
-                    for err in err.iter().skip(1) {
+                    for err in err.error_chain.iter().skip(1) {
                         error!(DEFAULT_LOGGER, "caused by: {}", err);
                     }
                     return;

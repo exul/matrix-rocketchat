@@ -6,6 +6,7 @@ use slog::Logger;
 
 use api::RestApi;
 use errors::*;
+use i18n::*;
 
 mod v1;
 
@@ -31,16 +32,24 @@ impl RocketchatApi {
             Ok((body, status_code)) => (body, status_code),
             Err(err) => {
                 debug!(logger, err);
-                bail!(ErrorKind::RocketchatServerUnreachable(url));
+                bail_error!(ErrorKind::RocketchatServerUnreachable(url.clone()),
+                            t!(["errors", "rocketchat_server_unreachable"]).with_vars(vec![("rocketchat_url", url)]))
             }
         };
 
         if !status_code.is_success() {
-            bail!(ErrorKind::NoRocketchatServer(url));
+            bail_error!(ErrorKind::NoRocketchatServer(url.clone()),
+                        t!(["errors", "no_rocketchat_server"]).with_vars(vec![("rocketchat_url", url.clone())]));
         }
 
-        let rocketchat_info: GetInfoResponse =
-            serde_json::from_str(&body).chain_err(|| ErrorKind::NoRocketchatServer(url))?;
+        let rocketchat_info: GetInfoResponse = match serde_json::from_str(&body)
+            .chain_err(|| ErrorKind::NoRocketchatServer(url.clone())) {
+            Ok(rocketchat_info) => rocketchat_info,
+            Err(err) => {
+                bail_error!(err,
+                            t!(["errors", "no_rocketchat_server"]).with_vars(vec![("rocketchat_url", url)]))
+            }
+        };
 
         debug!(logger, format!("Rocket.Chat version {:?}", rocketchat_info.version));
 
@@ -62,6 +71,11 @@ impl RocketchatApi {
             return Ok(Box::new(rocketchat_api));
         }
 
-        Err(Error::from(ErrorKind::UnsupportedRocketchatApiVersion("0.49".to_string(), version)))
+        let min_version = "0.49".to_string();
+        Err(Error {
+            error_chain: ErrorKind::UnsupportedRocketchatApiVersion(min_version.clone(), version.clone()).into(),
+            user_message: Some(t!(["errors", "unsupported_rocketchat_api_version"])
+                .with_vars(vec![("min_version", min_version), ("version", version)])),
+        })
     }
 }

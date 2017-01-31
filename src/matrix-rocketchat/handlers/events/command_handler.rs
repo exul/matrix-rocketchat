@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::message::MessageEvent;
@@ -63,7 +61,8 @@ impl<'a> CommandHandler<'a> {
             .transaction(|| {
                 let room = Room::find(self.connection, &event.room_id)?;
                 if room.is_connected() {
-                    bail!(ErrorKind::RoomAlreadyConnected(event.room_id.to_string()));
+                    bail_error!(ErrorKind::RoomAlreadyConnected(event.room_id.to_string()),
+                                t!(["errors", "room_already_connected"]));
                 }
 
                 let mut command = message.split_whitespace().collect::<Vec<&str>>().into_iter();
@@ -87,23 +86,26 @@ impl<'a> CommandHandler<'a> {
                 UserOnRocketchatServer::insert(self.connection, &new_user_on_rocketchat_server)?;
 
                 let user = User::find(self.connection, &event.user_id)?;
-                let mut vars = HashMap::new();
-                vars.insert("rocketchat_url", rocketchat_url.as_ref());
-                let body = t!(["admin_command", "successfully_connected"]).l(&user.language, Some(vars));
+                let body = t!(["admin_command", "successfully_connected"])
+                    .with_vars(vec![("rocketchat_url", rocketchat_url.to_string())])
+                    .l(&user.language);
                 self.matrix_api.send_text_message_event(event.room_id.clone(), self.config.matrix_bot_user_id()?, body)
             })
-            .chain_err(|| ErrorKind::DBTransactionError)
+            .map_err(Error::from)
     }
 
     fn connect_new_rocktechat_server(&self, rocketchat_url: String, token: String) -> Result<RocketchatServer> {
         if let Some(rocketchat_server) = RocketchatServer::find_by_url(self.connection, rocketchat_url.clone())? {
             if rocketchat_server.rocketchat_token.is_some() {
-                bail!(ErrorKind::RocketchatServerAlreadyConnected(rocketchat_url));
+                bail_error!(ErrorKind::RocketchatServerAlreadyConnected(rocketchat_url.clone()),
+                            t!(["errors", "rocketchat_server_already_connected"])
+                                .with_vars(vec![("rocketchat_url", rocketchat_url)]));
             }
         }
 
         if RocketchatServer::find_by_token(self.connection, token.clone())?.is_some() {
-            bail!(ErrorKind::RocketchatTokenAlreadyInUse(token));
+            bail_error!(ErrorKind::RocketchatTokenAlreadyInUse(token.clone()),
+                        t!(["errors", "token_already_in_use"]).with_vars(vec![("token", token)]));
         }
 
         // see if we can reach the server and if the server has a supported API version
@@ -120,9 +122,7 @@ impl<'a> CommandHandler<'a> {
     fn get_existing_rocketchat_server(&self, rocketchat_url: String) -> Result<RocketchatServer> {
         let rocketchat_server: RocketchatServer = match RocketchatServer::find_by_url(self.connection, rocketchat_url)? {
             Some(rocketchat_server) => rocketchat_server,
-            None => {
-                bail!(ErrorKind::RocketchatTokenMissing);
-            }
+            None => bail_error!(ErrorKind::RocketchatTokenMissing, t!(["errors", "rocketchat_token_missing"])),
         };
 
         Ok(rocketchat_server)

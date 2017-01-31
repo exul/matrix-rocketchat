@@ -87,7 +87,7 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
 
     let connection = test.connection_pool.get().unwrap();
     let room_error = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).err().unwrap();
-    let room_diesel_error = room_error.iter().nth(1).unwrap();
+    let room_diesel_error = room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", room_diesel_error), format!("{}", DieselError::NotFound));
 
     let spec_user_in_room_error = UserInRoom::find(&connection,
@@ -95,7 +95,7 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
                                                    &RoomId::try_from("!admin:localhost").unwrap())
         .err()
         .unwrap();
-    let spec_user_in_room_diesel_error = spec_user_in_room_error.iter().nth(1).unwrap();
+    let spec_user_in_room_diesel_error = spec_user_in_room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", spec_user_in_room_diesel_error),
                format!("{}", DieselError::NotFound));
 
@@ -104,7 +104,8 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
                                                   &RoomId::try_from("!admin:localhost").unwrap())
         .err()
         .unwrap();
-    let bot_user_in_room_diesel_error = bot_user_in_room_error.iter().nth(1).unwrap();
+
+    let bot_user_in_room_diesel_error = bot_user_in_room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", bot_user_in_room_diesel_error),
                format!("{}", DieselError::NotFound));
 }
@@ -130,7 +131,7 @@ fn bot_leaves_and_forgets_the_room_when_the_user_leaves_it() {
     forget_receiver.recv_timeout(default_timeout()).unwrap();
 
     let room_error = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).err().unwrap();
-    let room_diesel_error = room_error.iter().nth(1).unwrap();
+    let room_diesel_error = room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", room_diesel_error), format!("{}", DieselError::NotFound));
 
     let spec_user_in_room_error = UserInRoom::find(&connection,
@@ -138,7 +139,7 @@ fn bot_leaves_and_forgets_the_room_when_the_user_leaves_it() {
                                                    &RoomId::try_from("!admin:localhost").unwrap())
         .err()
         .unwrap();
-    let spec_user_in_room_diesel_error = spec_user_in_room_error.iter().nth(1).unwrap();
+    let spec_user_in_room_diesel_error = spec_user_in_room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", spec_user_in_room_diesel_error),
                format!("{}", DieselError::NotFound));
 
@@ -147,7 +148,7 @@ fn bot_leaves_and_forgets_the_room_when_the_user_leaves_it() {
                                                   &RoomId::try_from("!admin:localhost").unwrap())
         .err()
         .unwrap();
-    let bot_user_in_room_diesel_error = bot_user_in_room_error.iter().nth(1).unwrap();
+    let bot_user_in_room_diesel_error = bot_user_in_room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", bot_user_in_room_diesel_error),
                format!("{}", DieselError::NotFound));
 }
@@ -195,7 +196,7 @@ fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
                     UserId::try_from("@rocketchat:localhost").unwrap());
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("Matrix error: Could not join room)"));
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
 
     let connection = test.connection_pool.get().unwrap();
     let room_option = Room::find_by_matrix_room_id(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
@@ -220,7 +221,7 @@ fn the_user_gets_a_message_when_getting_the_room_members_failes() {
                                UserId::try_from("@rocketchat:localhost").unwrap());
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("An internal error occurred (Matrix error: Could not get room members)"));
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
 
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
@@ -248,7 +249,6 @@ fn the_user_gets_a_message_when_the_room_members_cannot_be_deserialized() {
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("An internal error occurred"));
-    assert!(message_received_by_matrix.contains("Could not process request, the submitted data is not valid JSON"));
 
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
@@ -288,7 +288,7 @@ fn the_user_gets_a_message_when_setting_the_room_display_name_fails() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("An internal error occurred (Matrix error: Could not set display name for room)"));
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
 
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
@@ -327,7 +327,7 @@ fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
     let welcome_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(welcome_message_received_by_matrix.contains("Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."));
     let error_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(error_message_received_by_matrix.contains("An internal error occurred (Matrix error: Could not leave room)"));
+    assert!(error_message_received_by_matrix.contains("An internal error occurred"));
 }
 
 #[test]
@@ -357,7 +357,7 @@ fn the_user_gets_a_message_when_forgetting_the_room_failes_for_the_bot_user() {
     let welcome_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(welcome_message_received_by_matrix.contains("Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."));
     let error_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(error_message_received_by_matrix.contains("An internal error occurred (Matrix error: Could not forget room)"));
+    assert!(error_message_received_by_matrix.contains("An internal error occurred"));
 }
 
 #[test]
@@ -407,7 +407,7 @@ fn bot_leaves_when_a_third_user_joins_the_admin_room() {
 
     // room got deleted
     let room_error = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).err().unwrap();
-    let room_diesel_error = room_error.iter().nth(1).unwrap();
+    let room_diesel_error = room_error.error_chain.iter().nth(1).unwrap();
     assert_eq!(format!("{}", room_diesel_error), format!("{}", DieselError::NotFound));
 }
 

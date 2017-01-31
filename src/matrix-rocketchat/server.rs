@@ -47,7 +47,7 @@ impl<'a> Server<'a> {
         chain.link_before(State::<IronLogger>::one::<Logger>(self.logger.clone()));
 
         info!(self.logger, "Starting server"; "address" => format!("{:?}", self.config.as_address));
-        Iron::new(chain).http(self.config.as_address).chain_err(|| ErrorKind::ServerStartupError)
+        Iron::new(chain).http(self.config.as_address).chain_err(|| ErrorKind::ServerStartupError).map_err(Error::from)
     }
 
     fn setup_routes(&self, matrix_api: Box<MatrixApi>) -> Router {
@@ -65,7 +65,7 @@ impl<'a> Server<'a> {
         debug!(self.logger, format!("Setting up database {}", self.config.database_url));
         let connection = SqliteConnection::establish(&self.config.database_url).chain_err(|| ErrorKind::DBConnectionError)?;
         setup_database(&connection).chain_err(|| ErrorKind::DatabaseSetupError)?;
-        run_embedded_migrations(&connection).chain_err(|| ErrorKind::MigrationError)
+        run_embedded_migrations(&connection).chain_err(|| ErrorKind::MigrationError).map_err(Error::from)
     }
 
     fn setup_bot_user(&self, connection: &SqliteConnection, matrix_api: &Box<MatrixApi>) -> Result<()> {

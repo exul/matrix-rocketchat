@@ -1,9 +1,38 @@
 #![allow(missing_docs)]
 
+use std::error::Error as StdError;
+use std::fmt::{Display, Formatter};
+use std::fmt::Error as FmtError;
+use std::result::Result as StdResult;
+
+use diesel::TransactionError;
 use iron::{IronError, Response};
 use iron::modifier::Modifier;
 use iron::status::Status;
 use serde_json;
+
+use i18n::*;
+
+macro_rules! simple_error {
+    ($e:expr) => {
+        Error{
+            error_chain: $e.into(),
+            user_message: None,
+        }
+    };
+}
+
+macro_rules! bail_error {
+    ($e:expr) => {
+        return Err(simple_error!($e));
+    };
+    ($e:expr, $u:expr) => {
+        return Err(Error{
+            error_chain: $e.into(),
+            user_message: Some($u),
+        });
+    };
+}
 
 /// `ErrorResponse` defines the format that is used to send an error response as JSON.
 #[derive(Serialize)]
@@ -30,7 +59,21 @@ pub struct RocketchatErrorResponse {
     pub message: String,
 }
 
+#[derive(Debug)]
+pub struct Error {
+    /// The chained errors
+    pub error_chain: ErrorChain,
+    /// An optional message that is shown to the user
+    pub user_message: Option<I18n>,
+}
+
+pub type Result<T> = StdResult<T, Error>;
+
 error_chain!{
+    types {
+        ErrorChain, ErrorKind, ResultExt;
+    }
+
     errors {
         InvalidAccessToken(token: String) {
             description("The provided access token is not valid")
@@ -38,7 +81,7 @@ error_chain!{
         }
 
         MissingAccessToken {
-            description("Access token missing")
+            description("The access token missing")
             display("Could not process request, no access token was provided")
         }
 
@@ -53,52 +96,52 @@ error_chain!{
         }
 
         EventIdGenerationFailed{
-            description("Could not generate a new event ID")
+            description("Generating a new event ID failed")
             display("Could not generate a new event ID")
         }
 
         UnsupportedHttpMethod(method: String) {
-            description("Could not call REST API")
+            description("The REST API was called with an unsupported method")
             display("Unsupported HTTP method {}", method)
         }
 
         ApiCallFailed(url: String) {
             description("Call to REST API failed")
-            display("Call to REST API endpoint {} failed", url)
+            display("Could not call REST API endpoint {}", url)
         }
 
         MatrixError(error_msg: String) {
-            description("An error occurred when calling the Matrix API")
+            description("Errors returned by the Matrix homeserver")
             display("Matrix error: {}", error_msg)
         }
 
         UnsupportedMatrixApiVersion(versions: String) {
-            description("None of the Matrix homeserver's versions are supported")
+            description("The homeserver's API version is not compatible with the application service")
             display("No supported API version found for the Matrix homeserver, found versions: {}", versions)
         }
 
         RocketchatError(error_msg: String) {
-            description("An error occurred when calling the Rocket.Chat API")
+            description("Errors returned by the Rocket.Chat API")
             display("Rocket.Chat error: {}", error_msg)
         }
 
         NoRocketchatServer(url: String){
-            description("No Rockat.Chat server found.")
+            description("The server is not a Rocket.Chat server")
             display("No Rocket.Chat server found when querying {} (version information is missing from the response)", url)
         }
 
         RocketchatServerUnreachable(url: String) {
-            description("Rocket.Chat server unreachable")
+            description("The Rocket.Chat is not reachable")
             display("Could not reach Rocket.Chat server {}", url)
         }
 
         UnsupportedRocketchatApiVersion(min_version: String, versions: String) {
-            description("None of the Rocket.Chat API versions are supported")
+            description("The Rocket.Chat server's version is not compatible with the application service")
             display("No supported API version (>= {}) found for the Rocket.Chat server, found version: {}", min_version, versions)
         }
 
         ReadFileError(path: String) {
-            description("Reading file failed")
+            description("Error when reading a file")
             display("Reading file from {} failed", path)
         }
 
@@ -109,103 +152,141 @@ error_chain!{
 
         RocketchatTokenMissing{
             description("A token is needed to connect new Rocket.Chat servers")
-            display("A token is needed to connect new Rocket.Chat servers")
+            display("Attempt to connect a Rocket.Chat server without a token")
         }
 
         RocketchatServerAlreadyConnected(rocketchat_url: String){
-            description("This Rocket.Chat server is already connected")
-            display("The Rocket.Chat server {} is already connected, connect without a token if you want to connect to the server", rocketchat_url)
+            description("The Rocket.Chat server is already connected to the application service")
+            display("Attempt to connect {}, but the Rocket.Chat server is already connected", rocketchat_url)
         }
 
         RocketchatTokenAlreadyInUse(token: String){
-            description("The token is already in use, please use a different token to connect your server")
-            display("The token {} is already in use, please use another token.", token)
+            description("The token is already used by another server")
+            display("The token {} is already in use by another server", token)
         }
 
         ReadConfigError {
-            description("Could not read config content to string")
+            description("Error when reading the config content to a string")
             display("Could not read config content to string")
         }
 
         ServerStartupError {
-            description("Starting the application service failed")
-            display("Starting the application service failed")
+            description("Error when starting the application service")
+            display("Could not start application service")
         }
 
         DatabaseSetupError {
-            description("Setting up database failed")
-            display("Setting up database failed")
+            description("Error when setting up the database")
+            display("Could not setup database")
         }
 
         MigrationError {
-            description("Could not run migrations")
+            description("Error when running migrations")
             display("Could not run migrations")
         }
 
         DBConnectionError {
-            description("Could not establish database connection")
+            description("Error when establishing a connection to the database")
             display("Could not establish database connection")
         }
 
         LoggerExtractionError {
-            description("Getting logger from iron request failed")
-            display("Getting logger from iron request failed")
+            description("Error when getting the logger from the request")
+            display("Could not get logger from iron")
         }
 
         ConnectionPoolExtractionError {
-            description("Getting connection pool from iron request failed")
-            display("Getting connection pool from iron request failed")
+            description("Error when getting the connection pool from the request")
+            display("Could not get connection pool from iron request")
         }
 
         ConnectionPoolCreationError {
-            description("Could not create connection pool")
+            description("Error when creating the connection pool")
             display("Could not create connection pool")
         }
 
         GetConnectionError {
-            description("Getting connection from connection pool failed")
-            display("Getting connection from connection pool failed")
+            description("Error when getting a connection from the connection pool")
+            display("Could not get connection from connection pool")
         }
 
         DBTransactionError {
-            description("An error occurred when running the transaction")
+            description("Error when running a transaction")
             display("An error occurred when running the transaction")
         }
 
         DBInsertError {
-            description("Inserting record into the database failed")
+            description("Error when inserting a record")
             display("Inserting record into the database failed")
         }
 
         DBUpdateError {
-            description("Editing record in database failed")
+            description("Error when editing a record")
             display("Editing record in the database failed")
         }
 
         DBSelectError {
-            description("Select record from the database failed")
+            description("Error when selecting a record")
             display("Select record from the database failed")
         }
 
         DBDeleteError {
-            description("Deleting record from the database failed")
+            description("Error when deleting a record")
             display("Deleting record from the database failed")
         }
 
         InternalServerError {
-            description("An internal error occurred")
+            description("An internal error")
             display("An internal error occurred")
         }
     }
 }
 
-impl ErrorKind {
+impl Error {
     pub fn status_code(&self) -> Status {
-        match *self {
+        match *self.error_chain {
             ErrorKind::InvalidAccessToken(_) => Status::Forbidden,
             ErrorKind::MissingAccessToken => Status::Unauthorized,
             ErrorKind::InvalidJSON(_) => Status::UnprocessableEntity,
             _ => Status::InternalServerError,
+        }
+    }
+}
+
+impl StdError for Error {
+    fn description(&self) -> &str {
+        self.error_chain.description()
+    }
+}
+
+impl Display for Error {
+    fn fmt(&self, f: &mut Formatter) -> StdResult<(), FmtError> {
+        write!(f, "{}", self.error_chain)
+    }
+}
+
+impl From<ErrorChain> for Error {
+    fn from(error: ErrorChain) -> Error {
+        simple_error!(error)
+    }
+}
+
+impl From<ErrorKind> for Error {
+    fn from(error: ErrorKind) -> Error {
+        simple_error!(error)
+    }
+}
+
+impl From<TransactionError<Error>> for Error {
+    fn from(error: TransactionError<Error>) -> Error {
+        match error {
+            TransactionError::UserReturnedError(err) => {
+                Error {
+                    user_message: err.user_message,
+                    error_chain: err.error_chain,
+                }
+            }
+            TransactionError::CouldntCreateTransaction(_) => simple_error!(ErrorKind::DBTransactionError),
         }
     }
 }
@@ -222,8 +303,8 @@ impl From<Error> for IronError {
 
 impl<'a> Modifier<Response> for &'a Error {
     fn modify(self, response: &mut Response) {
-        let mut causes = Vec::with_capacity(self.iter().count() - 1);
-        for err in self.iter().skip(1) {
+        let mut causes = Vec::with_capacity(self.error_chain.iter().count() - 1);
+        for err in self.error_chain.iter().skip(1) {
             causes.push(format!("{}", err));
         }
 

@@ -25,7 +25,7 @@ fn main() {
     if let Err(ref e) = run() {
         println!("error: {}", e);
 
-        for e in e.iter().skip(1) {
+        for e in e.error_chain.iter().skip(1) {
             println!("caused by: {}", e);
         }
     }

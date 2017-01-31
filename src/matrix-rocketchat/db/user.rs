@@ -53,7 +53,7 @@ impl User {
 
     /// Find a `User` by his matrix user ID, return an error if the user is not found
     pub fn find(connection: &SqliteConnection, matrix_user_id: &UserId) -> Result<User> {
-        users::table.find(matrix_user_id).first(connection).chain_err(|| ErrorKind::DBSelectError)
+        users::table.find(matrix_user_id).first(connection).chain_err(|| ErrorKind::DBSelectError).map_err(Error::from)
     }
 
     /// Find or create `User` with a given Matrix user ID.

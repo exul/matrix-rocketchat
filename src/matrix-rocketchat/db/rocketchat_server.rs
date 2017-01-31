@@ -38,10 +38,17 @@ impl RocketchatServer {
             .execute(connection)
             .chain_err(|| ErrorKind::DBInsertError)?;
 
-        let rocketchat_server = RocketchatServer::find_by_url(connection, new_rocketchat_server.rocketchat_url.clone())
-            ?
-            .expect("The Rocket.Chat server is always there, because we just inserted it.");
+        let rocketchat_server = RocketchatServer::find(connection, new_rocketchat_server.rocketchat_url.clone())?;
         Ok(rocketchat_server)
+    }
+
+    /// Find a `RocketchatServer` by its URL, return an error if the `RocketchatServer` is not
+    /// found.
+    pub fn find(connection: &SqliteConnection, url: String) -> Result<RocketchatServer> {
+        rocketchat_servers::table.filter(rocketchat_servers::rocketchat_url.eq(url))
+            .first(connection)
+            .chain_err(|| ErrorKind::DBSelectError)
+            .map_err(Error::from)
     }
 
     /// Find a `RocketchatServer` by its URL.

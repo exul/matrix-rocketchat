@@ -31,7 +31,7 @@ fn error_descriptions_from_the_error_chain_are_passed_to_the_outer_error() {
                                            &RoomId::try_from("!some_room:localhost").unwrap())
         .unwrap_err();
 
-    assert_eq!(not_found_error.description(), "Select record from the database failed");
+    assert_eq!(not_found_error.description(), "Error when selecting a record");
 }
 
 #[test]

@@ -45,10 +45,10 @@ impl RocketchatServer {
     /// Find a `RocketchatServer` by its URL, return an error if the `RocketchatServer` is not
     /// found.
     pub fn find(connection: &SqliteConnection, url: String) -> Result<RocketchatServer> {
-        rocketchat_servers::table.filter(rocketchat_servers::rocketchat_url.eq(url))
+        let rocketchat_server = rocketchat_servers::table.filter(rocketchat_servers::rocketchat_url.eq(url))
             .first(connection)
-            .chain_err(|| ErrorKind::DBSelectError)
-            .map_err(Error::from)
+            .chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(rocketchat_server)
     }
 
     /// Find a `RocketchatServer` by its URL.

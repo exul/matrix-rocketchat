@@ -1,6 +1,4 @@
 en:
-  admin_command:
-    successfully_connected: You are connected to ${rocketchat_url}.
   admin_room:
     connection_instructions: |
       Hi, I'm the Rocket.Chat application service
@@ -26,8 +24,15 @@ en:
       A sample message could look like this:
 
       `connect https://chat.example.com z44cwkD86P5PmdkEv7nHX7KB`
-    too_many_members_in_room: "Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."
-    other_user_joined: "Another user join the admin room, leaving, please create a new admin room."
+    login_instructions: |
+      You are connected to ${rocketchat_url}.
+
+      You have to login before you can use the application service, there are two ways to do that:
+
+      1. Send a message in this room: `login rocketchatusername mysecret`
+      **Warning**: This will store your password *unecrypted* in the database of your homeserver
+
+      1. Login via curl: `curl AS_URL/login -d '{"rocketchat_server_url": "${rocketchat_url}", "matrix_user_id": "${matrix_user_id}", "username": "rocketchat_user", "password": "mysecret"}'`
   defaults:
     admin_room_display_name: "Admin Room (Rocket.Chat)"
     internal_error: "An internal error occurred"
@@ -42,3 +47,5 @@ en:
     room_already_connected: "This room is already connected"
     token_already_in_use: "The token ${token} is already in use, please use another token."
     unsupported_rocketchat_api_version: "No supported API version (>= ${min_version}) found for the Rocket.Chat server, found version: ${version}"
+    too_many_members_in_room: "Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."
+    other_user_joined: "Another user join the admin room, leaving, please create a new admin room."

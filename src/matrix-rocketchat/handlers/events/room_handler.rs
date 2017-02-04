@@ -135,7 +135,7 @@ impl<'a> RoomHandler<'a> {
                   "Another user join the admin room {}, bot user is leaving",
                   matrix_room_id);
             let admin_room_language = self.admin_room_language(&room)?;
-            let body = t!(["admin_room", "other_user_joined"]).l(&admin_room_language);
+            let body = t!(["errors", "other_user_joined"]).l(&admin_room_language);
             self.matrix_api.send_text_message_event(matrix_room_id, self.config.matrix_bot_user_id()?, body)?;
             self.leave_and_forget_room(&room)?;
         }
@@ -162,7 +162,7 @@ impl<'a> RoomHandler<'a> {
         info!(self.logger,
               format!("Room {} has more then two members and cannot be used as admin room",
                       room.matrix_room_id));
-        let body = t!(["admin_room", "too_many_members_in_room"]).l(&invitation_submitter.language);
+        let body = t!(["errors", "too_many_members_in_room"]).l(&invitation_submitter.language);
         self.matrix_api.send_text_message_event(room.matrix_room_id.clone(), matrix_bot_user_id, body)?;
         self.matrix_api.leave_room(room.matrix_room_id.clone())?;
         self.matrix_api.forget_room(room.matrix_room_id.clone())?;

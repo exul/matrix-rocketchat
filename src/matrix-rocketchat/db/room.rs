@@ -4,13 +4,15 @@ use diesel::sqlite::SqliteConnection;
 use ruma_identifiers::RoomId;
 
 use errors::*;
-use super::schema::{rooms, users, users_in_rooms};
+use super::schema::{rocketchat_servers, rooms, users, users_in_rooms};
+use super::RocketchatServer;
 use super::user::User;
 use super::user_in_room::UserInRoom;
 
 /// A room that is managed by the application service. This can be either a bridged room or an
 /// admin room.
 #[derive(Associations, Debug, Identifiable, Queryable)]
+#[belongs_to(RocketchatServer, foreign_key = "rocketchat_server_id")]
 #[primary_key(matrix_room_id)]
 #[table_name="rooms"]
 pub struct Room {
@@ -66,6 +68,19 @@ impl Room {
     pub fn find_by_matrix_room_id(connection: &SqliteConnection, matrix_room_id: &RoomId) -> Result<Option<Room>> {
         let rooms = rooms::table.find(matrix_room_id).load(connection).chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rooms.into_iter().next())
+    }
+
+    /// Get the URL of the connected Rocket.Chat server, if any.
+    pub fn rocketchat_url(&self, connection: &SqliteConnection) -> Result<Option<String>> {
+        match self.rocketchat_server_id {
+            Some(rocketchat_server_id) => {
+                let rocketchat_server = rocketchat_servers::table.find(rocketchat_server_id)
+                    .first::<RocketchatServer>(connection)
+                    .chain_err(|| ErrorKind::DBSelectError)?;
+                Ok(Some(rocketchat_server.rocketchat_url))
+            }
+            None => Ok(None),
+        }
     }
 
     /// Set the Rocket.Chat id for a room.

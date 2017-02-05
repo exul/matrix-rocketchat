@@ -12,7 +12,8 @@ use api::RestApi;
 use config::Config;
 use errors::*;
 
-mod r0;
+/// Matrix REST API v0
+pub mod r0;
 
 /// Matrix REST API
 pub trait MatrixApi: Send + Sync + MatrixApiClone {

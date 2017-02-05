@@ -23,6 +23,7 @@ use config::Config;
 use errors::*;
 
 #[derive(Clone)]
+/// Rocket.Chat REST API v0
 pub struct MatrixApi {
     /// URL to call the API
     pub base_url: String,
@@ -33,6 +34,7 @@ pub struct MatrixApi {
 }
 
 impl MatrixApi {
+    /// Create a new MatrixApi.
     pub fn new(config: &Config, logger: Logger) -> MatrixApi {
         MatrixApi {
             base_url: config.hs_url.to_string(),

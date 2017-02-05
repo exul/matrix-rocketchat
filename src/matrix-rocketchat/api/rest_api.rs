@@ -6,6 +6,7 @@ use reqwest::header::Headers;
 use ruma_client_api::Method as RumaHttpMethod;
 
 use errors::*;
+use api::rocketchat::Endpoint;
 
 /// REST API
 pub struct RestApi {}
@@ -25,6 +26,16 @@ impl RestApi {
         };
 
         RestApi::call(method, url, payload, params, None)
+    }
+
+    /// Call a Rocket.Chat API endpoint
+    pub fn call_rocketchat(endpoint: &Endpoint) -> Result<(String, StatusCode)> {
+        let query_params = HashMap::new();
+        RestApi::call(endpoint.method(),
+                      &endpoint.url(),
+                      &endpoint.payload()?,
+                      &query_params,
+                      endpoint.headers())
     }
 
     /// Call a REST API endpoint

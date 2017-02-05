@@ -1,6 +1,6 @@
 use iron::prelude::*;
 use iron::{Handler, status};
-use matrix_rocketchat::errors::MatrixErrorResponse;
+use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
 use ruma_client_api::r0::sync::get_member_events;
 use ruma_events::EventType;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
@@ -20,6 +20,52 @@ impl Handler for RocketchatInfo {
             .replace("VERSION", self.version);
 
         Ok(Response::with((status::Ok, payload)))
+    }
+}
+
+pub struct RocketchatLogin {
+    pub successful: bool,
+}
+
+impl Handler for RocketchatLogin {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let (status, payload) = match self.successful {
+            true => {
+                (status::Ok,
+                 r#"{
+                    "status": "success",
+                    "data": {
+                        "authToken": "spec_auth_token",
+                        "userId": "spec_user_id"
+                    }
+                 }"#)
+            }
+            false => {
+                (status::Unauthorized,
+                 r#"{
+                    "status": "error",
+                    "message": "Unauthorized"
+                }"#)
+            }
+        };
+
+        Ok(Response::with((status, payload)))
+    }
+}
+
+pub struct RocketchatErrorResponder {
+    pub status: status::Status,
+    pub message: String,
+}
+
+impl Handler for RocketchatErrorResponder {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let error_response = RocketchatErrorResponse {
+            status: "error".to_string(),
+            message: self.message.clone(),
+        };
+        let payload = serde_json::to_string(&error_response).unwrap();
+        Ok(Response::with((self.status, payload)))
     }
 }
 
@@ -77,12 +123,12 @@ impl Handler for EmptyJson {
     }
 }
 
-pub struct ErrorResponder {
+pub struct MatrixErrorResponder {
     pub status: status::Status,
     pub message: String,
 }
 
-impl Handler for ErrorResponder {
+impl Handler for MatrixErrorResponder {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
         let error_response = MatrixErrorResponse {
             errcode: "1234".to_string(),

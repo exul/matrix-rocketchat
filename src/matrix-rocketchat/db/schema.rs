@@ -3,7 +3,6 @@
 table! {
     users (matrix_user_id) {
         matrix_user_id -> Text,
-        rocketchat_user_id -> Nullable<Text>,
         display_name -> Text,
         language -> Text,
         is_virtual_user -> Bool,
@@ -49,6 +48,7 @@ table! {
     users_on_rocketchat_servers (matrix_user_id, rocketchat_server_id) {
         matrix_user_id -> Text,
         rocketchat_server_id -> Integer,
+        rocketchat_user_id -> Nullable<Text>,
         rocketchat_auth_token -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,

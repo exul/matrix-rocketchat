@@ -12,8 +12,6 @@ use super::schema::users;
 pub struct User {
     /// The users unique id on the Matrix server.
     pub matrix_user_id: UserId,
-    /// The users unique id on the Rocket.Chat server.
-    pub rocketchat_user_id: Option<String>,
     /// The name that is shown when the user posts messages on Matrix and Rocket.Chat.
     pub display_name: String,
     /// The language the user prefers to get messages in.
@@ -34,8 +32,6 @@ pub struct User {
 pub struct NewUser<'a> {
     /// The users unique id on the Matrix server.
     pub matrix_user_id: UserId,
-    /// The users unique id on the Rocket.Chat server.
-    pub rocketchat_user_id: Option<String>,
     /// The name that is shown when the user posts messages on Matrix and Rocket.Chat.
     pub display_name: String,
     /// The language the user prefers to get messages in.
@@ -63,7 +59,6 @@ impl User {
             None => {
                 let new_user = NewUser {
                     matrix_user_id: matrix_user_id.clone(),
-                    rocketchat_user_id: None,
                     display_name: matrix_user_id.to_string(),
                     language: DEFAULT_LANGUAGE,
                     is_virtual_user: false,

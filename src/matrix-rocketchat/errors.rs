@@ -105,6 +105,11 @@ error_chain!{
             display("Unsupported HTTP method {}", method)
         }
 
+        AuthenticationFailed(error_msg: String) {
+            description("Authentication failed")
+            display("Authentication failed: {}", error_msg)
+        }
+
         ApiCallFailed(url: String) {
             description("Call to REST API failed")
             display("Could not call REST API endpoint {}", url)
@@ -145,6 +150,11 @@ error_chain!{
             display("Reading file from {} failed", path)
         }
 
+        RoomNotConnected(matrix_room_id: String, command: String) {
+            description("The room is not connected, but has to be for the command the user submitted")
+            display("Room {} is not connected to a Rocket.Chat server, cannot execute command {}", matrix_room_id, command)
+        }
+
         RoomAlreadyConnected(matrix_room_id: String) {
             description("The Room is already connected to a Rocket.Chat server")
             display("Room {} is already connected", matrix_room_id)
@@ -155,12 +165,12 @@ error_chain!{
             display("Attempt to connect a Rocket.Chat server without a token")
         }
 
-        RocketchatServerAlreadyConnected(rocketchat_url: String){
+        RocketchatServerAlreadyConnected(rocketchat_url: String) {
             description("The Rocket.Chat server is already connected to the application service")
             display("Attempt to connect {}, but the Rocket.Chat server is already connected", rocketchat_url)
         }
 
-        RocketchatTokenAlreadyInUse(token: String){
+        RocketchatTokenAlreadyInUse(token: String) {
             description("The token is already used by another server")
             display("The token {} is already in use by another server", token)
         }

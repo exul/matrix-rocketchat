@@ -176,7 +176,7 @@ fn bot_ignoeres_when_a_user_leaves_a_room_that_is_not_in_the_database() {
 fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
-    let error_responder = handlers::ErrorResponder {
+    let error_responder = handlers::MatrixErrorResponder {
         status: status::InternalServerError,
         message: "Could not join room".to_string(),
     };
@@ -207,7 +207,7 @@ fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
 fn the_user_gets_a_message_when_getting_the_room_members_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
-    let error_responder = handlers::ErrorResponder {
+    let error_responder = handlers::MatrixErrorResponder {
         status: status::InternalServerError,
         message: "Could not get room members".to_string(),
     };
@@ -263,7 +263,7 @@ fn the_user_gets_a_message_when_the_room_members_cannot_be_deserialized() {
 fn the_user_gets_a_message_when_setting_the_room_display_name_fails() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
-    let error_responder = handlers::ErrorResponder {
+    let error_responder = handlers::MatrixErrorResponder {
         status: status::InternalServerError,
         message: "Could not set display name for room".to_string(),
     };
@@ -312,7 +312,7 @@ fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let error_responder = handlers::ErrorResponder {
+    let error_responder = handlers::MatrixErrorResponder {
         status: status::InternalServerError,
         message: "Could not leave room".to_string(),
     };
@@ -342,7 +342,7 @@ fn the_user_gets_a_message_when_forgetting_the_room_failes_for_the_bot_user() {
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let error_responder = handlers::ErrorResponder {
+    let error_responder = handlers::MatrixErrorResponder {
         status: status::InternalServerError,
         message: "Could not forget room".to_string(),
     };

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use reqwest::header::Headers;
 use reqwest::Method;
 use serde_json;
 use slog::Logger;
@@ -8,10 +9,26 @@ use api::RestApi;
 use errors::*;
 use i18n::*;
 
-mod v1;
+/// Rocket.Chat REST API v1
+pub mod v1;
+
+/// A Rocket.Chat REST API endpoint.
+pub trait Endpoint {
+    /// HTTP Method
+    fn method(&self) -> Method;
+    /// The URL of the endpoint
+    fn url(&self) -> String;
+    /// Payload that is sent to the server
+    fn payload(&self) -> Result<String>;
+    /// Headers that are sent to the server
+    fn headers(&self) -> Option<Headers>;
+}
 
 /// Rocket.Chat REST API
-pub trait RocketchatApi {}
+pub trait RocketchatApi {
+    /// Login a user on the Rocket.Chat server
+    fn login(&self, username: &str, password: &str) -> Result<(String, String)>;
+}
 
 /// Response format when querying the Rocket.Chat info endpoint
 #[derive(Deserialize, Serialize)]

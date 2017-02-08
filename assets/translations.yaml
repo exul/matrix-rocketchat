@@ -33,6 +33,7 @@ en:
       **Warning**: This will store your password *unecrypted* in the database of your homeserver
 
       1. Login via curl: `curl AS_URL/login -d '{"rocketchat_server_url": "${rocketchat_url}", "matrix_user_id": "${matrix_user_id}", "username": "rocketchat_user", "password": "mysecret"}'`
+    bridge_instructions: "You are logged in."
   defaults:
     admin_room_display_name: "Admin Room (Rocket.Chat)"
     internal_error: "An internal error occurred"
@@ -49,3 +50,5 @@ en:
     unsupported_rocketchat_api_version: "No supported API version (>= ${min_version}) found for the Rocket.Chat server, found version: ${version}"
     too_many_members_in_room: "Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."
     other_user_joined: "Another user join the admin room, leaving, please create a new admin room."
+    room_not_connected: "This room is not connected to a Rocket.Chat server, you have to connect it first to be able to execute the command, type `help` for further instructions on how to connect this room"
+    authentication_failed: "Authentication failed!"

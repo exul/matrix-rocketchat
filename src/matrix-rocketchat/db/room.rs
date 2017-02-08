@@ -70,15 +70,23 @@ impl Room {
         Ok(rooms.into_iter().next())
     }
 
-    /// Get the URL of the connected Rocket.Chat server, if any.
-    pub fn rocketchat_url(&self, connection: &SqliteConnection) -> Result<Option<String>> {
+    /// Get the Rocket.Chat server this room is connected to, if any.
+    pub fn rocketchat_server(&self, connection: &SqliteConnection) -> Result<Option<RocketchatServer>> {
         match self.rocketchat_server_id {
             Some(rocketchat_server_id) => {
                 let rocketchat_server = rocketchat_servers::table.find(rocketchat_server_id)
                     .first::<RocketchatServer>(connection)
                     .chain_err(|| ErrorKind::DBSelectError)?;
-                Ok(Some(rocketchat_server.rocketchat_url))
+                Ok(Some(rocketchat_server))
             }
+            None => Ok(None),
+        }
+    }
+
+    /// Get the URL of the connected Rocket.Chat server, if any.
+    pub fn rocketchat_url(&self, connection: &SqliteConnection) -> Result<Option<String>> {
+        match self.rocketchat_server(connection)? {
+            Some(rocketchat_server) => Ok(Some(rocketchat_server.rocketchat_url)),
             None => Ok(None),
         }
     }

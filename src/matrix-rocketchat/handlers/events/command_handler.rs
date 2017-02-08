@@ -52,6 +52,10 @@ impl<'a> CommandHandler<'a> {
             debug!(self.logger, "Received help command");
 
             self.help(event)?;
+        } else if message.starts_with("login") {
+            debug!(self.logger, "Received login command");
+
+            self.login(event, &message)?;
         } else if event.user_id == self.config.matrix_bot_user_id()? {
             debug!(self.logger, "Skipping event from bot user");
         } else {
@@ -88,6 +92,7 @@ impl<'a> CommandHandler<'a> {
                 let new_user_on_rocketchat_server = NewUserOnRocketchatServer {
                     matrix_user_id: event.user_id.clone(),
                     rocketchat_server_id: rocketchat_server.id,
+                    rocketchat_user_id: None,
                     rocketchat_auth_token: None,
                 };
 
@@ -154,5 +159,35 @@ impl<'a> CommandHandler<'a> {
 
         self.matrix_api
             .send_text_message_event(event.room_id.clone(), self.config.matrix_bot_user_id()?, body.l(&user.language))
+    }
+
+    fn login(&self, event: &MessageEvent, message: &str) -> Result<()> {
+        let room = Room::find(self.connection, &event.room_id)?;
+        let rocketchat_server = match room.rocketchat_server(self.connection)? {
+            Some(rocketchat_server) => rocketchat_server,
+            None => {
+                bail_error!(ErrorKind::RoomNotConnected(event.room_id.to_string(), message.to_string()),
+                            t!(["errors", "room_not_connected"]))
+            }
+        };
+        let user = User::find(self.connection, &event.user_id)?;
+
+        let user_on_rocketchat_server =
+            UserOnRocketchatServer::find(self.connection, &event.user_id, rocketchat_server.id)?;
+
+        let mut command = message.split_whitespace().collect::<Vec<&str>>().into_iter();
+        let username = command.by_ref().nth(1).unwrap_or_default();
+        let password = command.by_ref().fold("".to_string(), |acc, x| acc + x);
+
+        let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url,
+                                                rocketchat_server.rocketchat_token,
+                                                self.logger.clone())?;
+        let (rocketchat_user_id, rocketchat_auth_token) = rocketchat_api.login(username, &password)?;
+
+        user_on_rocketchat_server.set_credentials(self.connection, rocketchat_user_id, rocketchat_auth_token)?;
+
+        let matrix_user_id = self.config.matrix_bot_user_id()?;
+        let message = t!(["admin_room", "bridge_instructions"]);
+        self.matrix_api.send_text_message_event(event.room_id.clone(), matrix_user_id, message.l(&user.language))
     }
 }

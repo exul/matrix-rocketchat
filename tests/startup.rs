@@ -71,7 +71,7 @@ fn starup_fails_when_server_cannot_bind_to_address() {
 #[test]
 fn startup_fails_when_querying_the_api_version_is_not_successful_and_returs_a_matrix_error() {
     let mut router = Router::new();
-    let error_responder = handlers::ErrorResponder {
+    let error_responder = handlers::MatrixErrorResponder {
         status: status::InternalServerError,
         message: "Could not server API versions".to_string(),
     };
@@ -132,7 +132,7 @@ fn startup_failes_when_the_bot_user_registration_failes() {
     router.get("/_matrix/client/versions",
                handlers::MatrixVersion { versions: default_matrix_api_versions() },
                "get_versions");
-    let error_responder = handlers::ErrorResponder {
+    let error_responder = handlers::MatrixErrorResponder {
         status: status::InternalServerError,
         message: "Could not register user".to_string(),
     };

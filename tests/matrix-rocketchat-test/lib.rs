@@ -37,6 +37,7 @@ use std::time::Duration;
 use diesel::sqlite::SqliteConnection;
 use iron::{Iron, Listening};
 use matrix_rocketchat::{Config, Server};
+use matrix_rocketchat::api::rocketchat::v1::LOGIN_PATH;
 use matrix_rocketchat::db::ConnectionPool;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
@@ -106,6 +107,8 @@ pub struct Test {
     pub with_admin_room: bool,
     /// Flag to indicate if a connected admin room should be created
     pub with_connected_admin_room: bool,
+    /// Flag to indicate that the user should be logged in when the test starts
+    pub with_logged_in_user: bool,
     /// Flag to indicate if a Rocket.Chat mock server should be started
     pub with_rocketchat_mock: bool,
 }
@@ -121,6 +124,7 @@ impl Test {
             config: config,
             connection_pool: connection_pool,
             hs_listening: None,
+            with_logged_in_user: false,
             matrix_homeserver_mock_router: None,
             rocketchat_mock_router: None,
             rocketchat_listening: None,
@@ -147,6 +151,12 @@ impl Test {
     /// Creates an admin room that is connected to the Rocket.Chat mock
     pub fn with_connected_admin_room(mut self) -> Test {
         self.with_connected_admin_room = true;
+        self
+    }
+
+    /// Login the user on the Rocket.Chat server
+    pub fn with_logged_in_user(mut self) -> Test {
+        self.with_logged_in_user = true;
         self
     }
 
@@ -178,6 +188,10 @@ impl Test {
 
         if self.with_connected_admin_room {
             self.create_connected_admin_room();
+        }
+
+        if self.with_logged_in_user {
+            self.login_user();
         }
 
         self
@@ -231,6 +245,10 @@ impl Test {
         router.get("/api/info",
                    handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION },
                    "info");
+
+        if self.with_logged_in_user {
+            router.post(LOGIN_PATH, handlers::RocketchatLogin { successful: true }, "login");
+        }
 
         thread::spawn(move || {
             let mut server = Iron::new(router);
@@ -287,6 +305,13 @@ impl Test {
             }
             None => panic!("No Rocket.Chat mock present to connect to"),
         }
+    }
+
+    fn login_user(&self) {
+        helpers::send_room_message_from_matrix(&self.config.as_url,
+                                               RoomId::try_from("!admin:localhost").unwrap(),
+                                               UserId::try_from("@spec_user:localhost").unwrap(),
+                                               "login spec_user secret".to_string());
     }
 }
 

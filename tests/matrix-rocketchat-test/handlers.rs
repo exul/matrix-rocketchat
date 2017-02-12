@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use iron::prelude::*;
 use iron::{Handler, status};
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
@@ -53,9 +55,41 @@ impl Handler for RocketchatLogin {
     }
 }
 
+pub struct RocketchatChannelsList {
+    channels: HashMap<&'static str, Vec<&'static str>>,
+    status: status::Status,
+}
+
+impl Handler for RocketchatChannelsList {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let payload = "".to_string();
+
+        for (channel_name, user_names) in self.channels.iter() {
+            r#"{
+                "_id": "CHANNEL_ID",
+                "name": "CHANNEL_NAME",
+                "t": "c",
+                "usernames": [
+                    CHANNEL_USERNAMES
+                ],
+                "msgs": 0,
+                "u": CHANNEL_USERS,
+                "ts": "2017-02-12T13:20:22.092Z",
+                "ro": false,
+                "sysMes": true,
+                "_updatedAt": "2017-02-12T13:20:22.092Z"
+            }"#
+                .replace("CHANNEL_NAME", channel_name)
+                .replace("CHANNEL_USERNAMES", &user_names.join(","));
+        }
+
+        Ok(Response::with((self.status, payload)))
+    }
+}
+
 pub struct RocketchatErrorResponder {
-    pub status: status::Status,
     pub message: String,
+    pub status: status::Status,
 }
 
 impl Handler for RocketchatErrorResponder {

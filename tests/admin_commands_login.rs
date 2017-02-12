@@ -117,6 +117,55 @@ fn login_multiple_times() {
 }
 
 #[test]
+fn the_user_can_login_again_on_the_same_server_with_a_new_admin_room() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let mut rocketchat_router = Router::new();
+    rocketchat_router.post(LOGIN_PATH, handlers::RocketchatLogin { successful: true }, "login");
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .run();
+
+    helpers::leave_room(&test.config.as_url,
+                        RoomId::try_from("!admin:localhost").unwrap(),
+                        UserId::try_from("@spec_user:localhost").unwrap());
+
+    helpers::create_admin_room(&test.config.as_url,
+                               RoomId::try_from("!admin:localhost").unwrap(),
+                               UserId::try_from("@spec_user:localhost").unwrap(),
+                               UserId::try_from("@rocketchat:localhost").unwrap());
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           format!("connect {}", test.rocketchat_mock_url.clone().unwrap()));
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           "login spec_user secret".to_string());
+
+    // discard first welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard first connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard first login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard second welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard second connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("You are logged in."));
+}
+
+#[test]
 fn server_does_not_respond_when_logging_in_via_chat_mesage() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();

@@ -96,7 +96,7 @@ impl<'a> CommandHandler<'a> {
                     rocketchat_auth_token: None,
                 };
 
-                UserOnRocketchatServer::insert(self.connection, &new_user_on_rocketchat_server)?;
+                UserOnRocketchatServer::upsert(self.connection, &new_user_on_rocketchat_server)?;
 
                 let user = User::find(self.connection, &event.user_id)?;
                 let body = t!(["admin_room", "login_instructions"])
@@ -184,7 +184,7 @@ impl<'a> CommandHandler<'a> {
                                                 self.logger.clone())?;
         let (rocketchat_user_id, rocketchat_auth_token) = rocketchat_api.login(username, &password)?;
 
-        user_on_rocketchat_server.set_credentials(self.connection, rocketchat_user_id, rocketchat_auth_token)?;
+        user_on_rocketchat_server.set_credentials(self.connection, Some(rocketchat_user_id), Some(rocketchat_auth_token))?;
 
         let matrix_user_id = self.config.matrix_bot_user_id()?;
         let message = t!(["admin_room", "bridge_instructions"]);

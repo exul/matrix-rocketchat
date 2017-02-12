@@ -38,13 +38,28 @@ pub struct NewUserOnRocketchatServer {
 }
 
 impl UserOnRocketchatServer {
-    /// Insert a new `UserOnRocketchatServer` into the database.
-    pub fn insert(connection: &SqliteConnection,
+    /// Insert or update a `UserOnRocketchatServer`.
+    pub fn upsert(connection: &SqliteConnection,
                   user_on_rocketchat_server: &NewUserOnRocketchatServer)
                   -> Result<UserOnRocketchatServer> {
-        diesel::insert(user_on_rocketchat_server).into(users_on_rocketchat_servers::table)
-            .execute(connection)
-            .chain_err(|| ErrorKind::DBInsertError)?;
+        let users_on_rocketchat_server: Vec<UserOnRocketchatServer> = users_on_rocketchat_servers::table
+            .find((&user_on_rocketchat_server.matrix_user_id, &user_on_rocketchat_server.rocketchat_server_id))
+            .load(connection).chain_err(|| ErrorKind::DBSelectError)?;
+
+        match users_on_rocketchat_server.into_iter().next() {
+            Some(existing_user_on_rocketchat_server) => {
+                existing_user_on_rocketchat_server.set_credentials(connection,
+                                     user_on_rocketchat_server.rocketchat_user_id.clone(),
+                                     user_on_rocketchat_server.rocketchat_auth_token.clone())?;
+            }
+            None => {
+                diesel::insert(user_on_rocketchat_server).into(users_on_rocketchat_servers::table)
+                    .execute(connection)
+                    .chain_err(|| ErrorKind::DBInsertError)?;
+            }
+        }
+
+
         UserOnRocketchatServer::find(connection,
                                      &user_on_rocketchat_server.matrix_user_id,
                                      user_on_rocketchat_server.rocketchat_server_id)
@@ -65,8 +80,8 @@ impl UserOnRocketchatServer {
     /// Update the users credentials.
     pub fn set_credentials(&self,
                            connection: &SqliteConnection,
-                           rocketchat_user_id: String,
-                           rocketchat_auth_token: String)
+                           rocketchat_user_id: Option<String>,
+                           rocketchat_auth_token: Option<String>)
                            -> Result<()> {
         diesel::update(users_on_rocketchat_servers::table.find((&self.matrix_user_id, self.rocketchat_server_id)))
                 .set((users_on_rocketchat_servers::rocketchat_user_id.eq(rocketchat_user_id),

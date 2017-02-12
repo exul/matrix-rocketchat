@@ -1,7 +1,7 @@
 use diesel;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
-use ruma_identifiers::RoomId;
+use ruma_identifiers::{RoomId, UserId};
 
 use errors::*;
 use super::schema::{rocketchat_servers, rooms, users, users_in_rooms};
@@ -70,6 +70,20 @@ impl Room {
         Ok(rooms.into_iter().next())
     }
 
+    /// Find a `Room` by its Rocket.Chat room ID. It also requires the server id, because the
+    /// Rocket.Chat room ID might not be unique across servers.
+    /// Returns `None`, if the room is not found.
+    pub fn find_by_rocketchat_room_id(connection: &SqliteConnection,
+                                      rocketchat_server_id: i32,
+                                      rocketchat_room_id: String)
+                                      -> Result<Option<Room>> {
+        let rooms = rooms::table.filter(rooms::rocketchat_server_id.eq(rocketchat_server_id)
+                .and(rooms::rocketchat_room_id.eq(rocketchat_room_id)))
+            .load(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(rooms.into_iter().next())
+    }
+
     /// Get the Rocket.Chat server this room is connected to, if any.
     pub fn rocketchat_server(&self, connection: &SqliteConnection) -> Result<Option<RocketchatServer>> {
         match self.rocketchat_server_id {
@@ -102,6 +116,11 @@ impl Room {
     /// Indicate if the room is connected to a Rocket.Chat server
     pub fn is_connected(&self) -> bool {
         self.rocketchat_server_id.is_some()
+    }
+
+    /// Indicates if the room is bridged for a given user.
+    pub fn is_bridged_for_user(&self, connection: &SqliteConnection, matrix_user_id: &UserId) -> Result<bool> {
+        Ok(self.is_bridged && self.users(connection)?.iter().any(|u| &u.matrix_user_id == matrix_user_id))
     }
 
     /// Returns all `User`s in the room.

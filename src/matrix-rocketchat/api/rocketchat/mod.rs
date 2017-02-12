@@ -24,10 +24,24 @@ pub trait Endpoint {
     fn headers(&self) -> Option<Headers>;
 }
 
+/// A Rocket.Chat channel
+#[derive(Deserialize)]
+pub struct Channel {
+    /// ID of the Rocket.Chat room
+    #[serde(rename = "_id")]
+    pub id: String,
+    /// Name of the Rocket.Chat room
+    pub name: String,
+    /// List of users in the room
+    pub usernames: Vec<String>,
+}
+
 /// Rocket.Chat REST API
 pub trait RocketchatApi {
     /// Login a user on the Rocket.Chat server
     fn login(&self, username: &str, password: &str) -> Result<(String, String)>;
+    /// List of channels on the Rocket.Chat server
+    fn channels_list(&self, user_id: String, auth_token: String) -> Result<Vec<Channel>>;
 }
 
 /// Response format when querying the Rocket.Chat info endpoint

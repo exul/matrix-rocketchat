@@ -56,16 +56,16 @@ impl Handler for RocketchatLogin {
 }
 
 pub struct RocketchatChannelsList {
-    channels: HashMap<&'static str, Vec<&'static str>>,
-    status: status::Status,
+    pub channels: HashMap<&'static str, Vec<&'static str>>,
+    pub status: status::Status,
 }
 
 impl Handler for RocketchatChannelsList {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
-        let payload = "".to_string();
+        let mut channels: Vec<String> = Vec::new();
 
         for (channel_name, user_names) in self.channels.iter() {
-            r#"{
+            let channel = r#"{
                 "_id": "CHANNEL_ID",
                 "name": "CHANNEL_NAME",
                 "t": "c",
@@ -73,15 +73,22 @@ impl Handler for RocketchatChannelsList {
                     CHANNEL_USERNAMES
                 ],
                 "msgs": 0,
-                "u": CHANNEL_USERS,
+                "u": {
+                    "_id": "spec_user_id",
+                    "username": "spec_username"
+                },
                 "ts": "2017-02-12T13:20:22.092Z",
                 "ro": false,
                 "sysMes": true,
                 "_updatedAt": "2017-02-12T13:20:22.092Z"
             }"#
+                .replace("CHANNEL_ID", channel_name)
                 .replace("CHANNEL_NAME", channel_name)
                 .replace("CHANNEL_USERNAMES", &user_names.join(","));
+            channels.push(channel);
         }
+
+        let payload = "{ \"channels\": [".to_string() + &channels.join(",") + "], \"success\": true }";
 
         Ok(Response::with((self.status, payload)))
     }

@@ -6,6 +6,7 @@ use ruma_identifiers::UserId;
 use slog::Logger;
 
 use api::{MatrixApi, RocketchatApi};
+use api::rocketchat::Channel;
 use config::Config;
 use db::{NewRocketchatServer, NewUserOnRocketchatServer, RocketchatServer, Room, User, UserOnRocketchatServer};
 use errors::*;
@@ -56,6 +57,10 @@ impl<'a> CommandHandler<'a> {
             debug!(self.logger, "Received login command");
 
             self.login(event, &message)?;
+        } else if message == "list" {
+            debug!(self.logger, "Received list command");
+
+            self.list_channels(event)?;
         } else if event.user_id == self.config.matrix_bot_user_id()? {
             debug!(self.logger, "Skipping event from bot user");
         } else {
@@ -189,5 +194,59 @@ impl<'a> CommandHandler<'a> {
         let matrix_user_id = self.config.matrix_bot_user_id()?;
         let message = t!(["admin_room", "bridge_instructions"]);
         self.matrix_api.send_text_message_event(event.room_id.clone(), matrix_user_id, message.l(&user.language))
+    }
+
+    fn list_channels(&self, event: &MessageEvent) -> Result<()> {
+        let room = Room::find(self.connection, &event.room_id)?;
+        let user = User::find(self.connection, &event.user_id)?;
+
+        let rocketchat_server = match room.rocketchat_server(self.connection)? {
+            Some(rocketchat_server) => rocketchat_server,
+            None => {
+                bail_error!(ErrorKind::RoomNotConnected(event.room_id.to_string(), room.matrix_room_id.to_string()),
+                            t!(["errors", "room_not_connected"]))
+            }
+        };
+
+        let user_on_rocketchat_server =
+            UserOnRocketchatServer::find(self.connection, &event.user_id, rocketchat_server.id)?;
+        let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url,
+                                                rocketchat_server.rocketchat_token,
+                                                self.logger.clone())?;
+        let channels = rocketchat_api.channels_list(user_on_rocketchat_server.rocketchat_user_id.unwrap_or_default(),
+                           user_on_rocketchat_server.rocketchat_auth_token.unwrap_or_default())?;
+
+        let matrix_user_id = self.config.matrix_bot_user_id()?;
+        let channels_list = self.build_channels_list(rocketchat_server.id, &event.user_id, channels)?;
+        let message = t!(["admin_room", "list_channels"]).with_vars(vec![("channel_list", channels_list)]);
+        self.matrix_api.send_text_message_event(event.room_id.clone(), matrix_user_id, message.l(&user.language))
+    }
+
+    fn build_channels_list(&self,
+                           rocketchat_server_id: i32,
+                           matrix_user_id: &UserId,
+                           channels: Vec<Channel>)
+                           -> Result<String> {
+        let mut channel_list = "".to_string();
+
+        for channel in channels {
+            let formatter = match Room::find_by_rocketchat_room_id(self.connection, rocketchat_server_id, channel.id)? {
+                Some(room) => {
+                    if room.is_bridged_for_user(self.connection, matrix_user_id)? {
+                        "***"
+                    } else if room.is_bridged {
+                        "**"
+                    } else {
+                        // TODO: See if the channel contains the users name => "*"
+                        "*"
+                    }
+                }
+                None => "",
+            };
+
+            channel_list = channel_list + "*   " + formatter + &channel.name + formatter + "\n\n";
+        }
+
+        Ok(channel_list)
     }
 }

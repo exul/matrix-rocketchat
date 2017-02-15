@@ -25,7 +25,7 @@ pub trait Endpoint {
 }
 
 /// A Rocket.Chat channel
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 pub struct Channel {
     /// ID of the Rocket.Chat room
     #[serde(rename = "_id")]
@@ -40,6 +40,8 @@ pub struct Channel {
 pub trait RocketchatApi {
     /// Login a user on the Rocket.Chat server
     fn login(&self, username: &str, password: &str) -> Result<(String, String)>;
+    /// Get the logged in users username
+    fn username(&self, user_id: String, auth_token: String) -> Result<String>;
     /// List of channels on the Rocket.Chat server
     fn channels_list(&self, user_id: String, auth_token: String) -> Result<Vec<Channel>>;
 }

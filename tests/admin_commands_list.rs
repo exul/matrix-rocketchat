@@ -11,7 +11,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use iron::status;
-use matrix_rocketchat::api::rocketchat::v1::CHANNELS_LIST_PATH;
+use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, ME_PATH};
 use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout, handlers, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
@@ -27,6 +27,8 @@ fn sucessfully_list_rocketchat_rooms() {
     let mut rocketchat_router = Router::new();
     let mut channels = HashMap::new();
     channels.insert("normal_channel", Vec::new());
+    channels.insert("joined_channel", vec!["spec_user"]);
+    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
     rocketchat_router.get(CHANNELS_LIST_PATH,
                           handlers::RocketchatChannelsList {
                               status: status::Ok,

@@ -99,6 +99,7 @@ impl<'a> CommandHandler<'a> {
                     rocketchat_server_id: rocketchat_server.id,
                     rocketchat_user_id: None,
                     rocketchat_auth_token: None,
+                    rocketchat_username: None,
                 };
 
                 UserOnRocketchatServer::upsert(self.connection, &new_user_on_rocketchat_server)?;
@@ -187,9 +188,14 @@ impl<'a> CommandHandler<'a> {
         let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url,
                                                 rocketchat_server.rocketchat_token,
                                                 self.logger.clone())?;
-        let (rocketchat_user_id, rocketchat_auth_token) = rocketchat_api.login(username, &password)?;
 
-        user_on_rocketchat_server.set_credentials(self.connection, Some(rocketchat_user_id), Some(rocketchat_auth_token))?;
+        let (rocketchat_user_id, rocketchat_auth_token) = rocketchat_api.login(username, &password)?;
+        user_on_rocketchat_server.set_credentials(self.connection,
+                             Some(rocketchat_user_id.clone()),
+                             Some(rocketchat_auth_token.clone()))?;
+
+        let username = rocketchat_api.username(rocketchat_user_id, rocketchat_auth_token)?;
+        user_on_rocketchat_server.set_rocketchat_username(self.connection, Some(username))?;
 
         let matrix_user_id = self.config.matrix_bot_user_id()?;
         let message = t!(["admin_room", "bridge_instructions"]);
@@ -227,7 +233,11 @@ impl<'a> CommandHandler<'a> {
                            matrix_user_id: &UserId,
                            channels: Vec<Channel>)
                            -> Result<String> {
+        let user = UserOnRocketchatServer::find(self.connection, matrix_user_id, rocketchat_server_id)?;
         let mut channel_list = "".to_string();
+
+        println!("USER: {:?}", user);
+        println!("CHANNELS: {:?}", channels);
 
         for channel in channels {
             let formatter = match Room::find_by_rocketchat_room_id(self.connection, rocketchat_server_id, channel.id)? {
@@ -236,12 +246,19 @@ impl<'a> CommandHandler<'a> {
                         "***"
                     } else if room.is_bridged {
                         "**"
-                    } else {
-                        // TODO: See if the channel contains the users name => "*"
+                    } else if channel.usernames.iter().any(|username| Some(username) == user.rocketchat_username.as_ref()) {
                         "*"
+                    } else {
+                        ""
                     }
                 }
-                None => "",
+                None => {
+                    if channel.usernames.iter().any(|username| Some(username) == user.rocketchat_username.as_ref()) {
+                        "*"
+                    } else {
+                        ""
+                    }
+                }
             };
 
             channel_list = channel_list + "*   " + formatter + &channel.name + formatter + "\n\n";

@@ -55,6 +55,21 @@ impl Handler for RocketchatLogin {
     }
 }
 
+pub struct RocketchatMe {
+    pub username: String,
+}
+
+impl Handler for RocketchatMe {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let payload = r#"{
+            "username": "USERNAME"
+        }"#
+            .replace("USERNAME", &self.username);
+
+        Ok(Response::with((status::Ok, payload)))
+    }
+}
+
 pub struct RocketchatChannelsList {
     pub channels: HashMap<&'static str, Vec<&'static str>>,
     pub status: status::Status,
@@ -70,7 +85,7 @@ impl Handler for RocketchatChannelsList {
                 "name": "CHANNEL_NAME",
                 "t": "c",
                 "usernames": [
-                    CHANNEL_USERNAMES
+                    "CHANNEL_USERNAMES"
                 ],
                 "msgs": 0,
                 "u": {
@@ -84,7 +99,7 @@ impl Handler for RocketchatChannelsList {
             }"#
                 .replace("CHANNEL_ID", channel_name)
                 .replace("CHANNEL_NAME", channel_name)
-                .replace("CHANNEL_USERNAMES", &user_names.join(","));
+                .replace("CHANNEL_USERNAMES", &user_names.join("\",\""));
             channels.push(channel);
         }
 

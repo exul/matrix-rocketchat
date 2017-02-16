@@ -236,30 +236,17 @@ impl<'a> CommandHandler<'a> {
         let user = UserOnRocketchatServer::find(self.connection, matrix_user_id, rocketchat_server_id)?;
         let mut channel_list = "".to_string();
 
-        println!("USER: {:?}", user);
-        println!("CHANNELS: {:?}", channels);
-
         for channel in channels {
-            let formatter = match Room::find_by_rocketchat_room_id(self.connection, rocketchat_server_id, channel.id)? {
-                Some(room) => {
-                    if room.is_bridged_for_user(self.connection, matrix_user_id)? {
-                        "***"
-                    } else if room.is_bridged {
-                        "**"
-                    } else if channel.usernames.iter().any(|username| Some(username) == user.rocketchat_username.as_ref()) {
-                        "*"
-                    } else {
-                        ""
-                    }
-                }
-                None => {
-                    if channel.usernames.iter().any(|username| Some(username) == user.rocketchat_username.as_ref()) {
-                        "*"
-                    } else {
-                        ""
-                    }
-                }
-            };
+            let formatter =
+                if Room::is_bridged_for_user(self.connection, rocketchat_server_id, channel.id.clone(), matrix_user_id)? {
+                    "***"
+                } else if Room::is_bridged(self.connection, rocketchat_server_id, channel.id)? {
+                    "**"
+                } else if channel.usernames.iter().any(|username| Some(username) == user.rocketchat_username.as_ref()) {
+                    "*"
+                } else {
+                    ""
+                };
 
             channel_list = channel_list + "*   " + formatter + &channel.name + formatter + "\n\n";
         }

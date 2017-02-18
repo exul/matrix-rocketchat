@@ -56,9 +56,85 @@ fn sucessfully_list_rocketchat_rooms() {
                                            "list".to_string());
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("MSG: {}", message_received_by_matrix);
     assert!(message_received_by_matrix.contains("normal_channel"));
     assert!(message_received_by_matrix.contains("*joined_channel*"));
     assert!(message_received_by_matrix.contains("**bridged_channel**"));
     assert!(message_received_by_matrix.contains("***joined_bridged_room***"));
+}
+
+#[test]
+fn the_user_gets_a_message_when_getting_room_list_failes() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let mut rocketchat_router = Router::new();
+    let mut channels = HashMap::new();
+    channels.insert("normal_channel", Vec::new());
+    channels.insert("joined_channel", vec!["spec_user"]);
+    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
+    rocketchat_router.get(CHANNELS_LIST_PATH,
+                          handlers::RocketchatErrorResponder {
+                              message: "List Error".to_string(),
+                              status: status::InternalServerError,
+                          },
+                          "channels_list");
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           "list".to_string());
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
+}
+
+#[test]
+fn the_user_gets_a_message_when_the_room_list_cannot_be_deserialized() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let mut rocketchat_router = Router::new();
+    let mut channels = HashMap::new();
+    channels.insert("normal_channel", Vec::new());
+    channels.insert("joined_channel", vec!["spec_user"]);
+    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
+    rocketchat_router.get(CHANNELS_LIST_PATH,
+                          handlers::InvalidJsonResponse { status: status::Ok },
+                          "channels_list");
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           "list".to_string());
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
 }

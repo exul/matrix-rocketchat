@@ -1,7 +1,7 @@
 use diesel;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
-use ruma_identifiers::RoomId;
+use ruma_identifiers::{RoomId, UserId};
 
 use errors::*;
 use super::schema::{rocketchat_servers, rooms, users, users_in_rooms};
@@ -68,6 +68,45 @@ impl Room {
     pub fn find_by_matrix_room_id(connection: &SqliteConnection, matrix_room_id: &RoomId) -> Result<Option<Room>> {
         let rooms = rooms::table.find(matrix_room_id).load(connection).chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rooms.into_iter().next())
+    }
+
+    /// Find a `Room` by its Rocket.Chat room ID. It also requires the server id, because the
+    /// Rocket.Chat room ID might not be unique across servers.
+    /// Returns `None`, if the room is not found.
+    pub fn find_by_rocketchat_room_id(connection: &SqliteConnection,
+                                      rocketchat_server_id: i32,
+                                      rocketchat_room_id: String)
+                                      -> Result<Option<Room>> {
+        let rooms = rooms::table.filter(rooms::rocketchat_server_id.eq(rocketchat_server_id)
+                .and(rooms::rocketchat_room_id.eq(rocketchat_room_id)))
+            .load(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(rooms.into_iter().next())
+    }
+
+    /// Indicates if the room is bridged for a given user.
+    pub fn is_bridged_for_user(connection: &SqliteConnection,
+                               rocketchat_server_id: i32,
+                               rocketchat_room_id: String,
+                               matrix_user_id: &UserId)
+                               -> Result<bool> {
+        if let Some(room) = Room::find_by_rocketchat_room_id(connection, rocketchat_server_id, rocketchat_room_id)? {
+            Ok(room.is_bridged && room.users(connection)?.iter().any(|u| &u.matrix_user_id == matrix_user_id))
+        } else {
+            Ok(false)
+        }
+    }
+
+    /// Indicates if a room is bridged.
+    pub fn is_bridged(connection: &SqliteConnection,
+                      rocketchat_server_id: i32,
+                      rocketchat_room_id: String)
+                      -> Result<bool> {
+        if let Some(room) = Room::find_by_rocketchat_room_id(connection, rocketchat_server_id, rocketchat_room_id)? {
+            Ok(room.is_bridged)
+        } else {
+            Ok(false)
+        }
     }
 
     /// Get the Rocket.Chat server this room is connected to, if any.

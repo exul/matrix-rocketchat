@@ -17,6 +17,8 @@ pub struct UserOnRocketchatServer {
     pub rocketchat_user_id: Option<String>,
     /// The token to identify reuqests from the Rocket.Chat server
     pub rocketchat_auth_token: Option<String>,
+    /// The username on the Rocket.Chat server
+    pub rocketchat_username: Option<String>,
     /// created timestamp
     pub created_at: String,
     /// updated timestamp
@@ -35,6 +37,8 @@ pub struct NewUserOnRocketchatServer {
     pub rocketchat_user_id: Option<String>,
     /// The token to identify reuqests from the Rocket.Chat server
     pub rocketchat_auth_token: Option<String>,
+    /// The username on the Rocket.Chat server
+    pub rocketchat_username: Option<String>,
 }
 
 impl UserOnRocketchatServer {
@@ -86,6 +90,17 @@ impl UserOnRocketchatServer {
         diesel::update(users_on_rocketchat_servers::table.find((&self.matrix_user_id, self.rocketchat_server_id)))
                 .set((users_on_rocketchat_servers::rocketchat_user_id.eq(rocketchat_user_id),
                       users_on_rocketchat_servers::rocketchat_auth_token.eq(rocketchat_auth_token))).execute(connection)
+            .chain_err(|| ErrorKind::DBUpdateError)?;
+        Ok(())
+    }
+
+    /// Update the users Rocket.Chat username.
+    pub fn set_rocketchat_username(&self,
+                                   connection: &SqliteConnection,
+                                   rocketchat_username: Option<String>)
+                                   -> Result<()> {
+        diesel::update(users_on_rocketchat_servers::table.find((&self.matrix_user_id, self.rocketchat_server_id)))
+            .set(users_on_rocketchat_servers::rocketchat_username.eq(rocketchat_username)).execute(connection)
             .chain_err(|| ErrorKind::DBUpdateError)?;
         Ok(())
     }

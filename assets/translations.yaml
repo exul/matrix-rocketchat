@@ -34,6 +34,14 @@ en:
 
       1. Login via curl: `curl AS_URL/login -d '{"rocketchat_server_url": "${rocketchat_url}", "matrix_user_id": "${matrix_user_id}", "username": "rocketchat_user", "password": "mysecret"}'`
     bridge_instructions: "You are logged in."
+    list_channels: |
+      Rooms are written in *italic* when you joined them on the Rocket.Chat server, you can `bridge` such a room.
+
+      Rooms are written in **bold** when they are already bridged, you can `join` such a room on the Matrix server.
+
+      Rooms are written in ***bold and italic*** when they are bridged an you are already in the corresponding Matrix room.
+
+      ${channel_list}
   defaults:
     admin_room_display_name: "Admin Room (Rocket.Chat)"
     internal_error: "An internal error occurred"

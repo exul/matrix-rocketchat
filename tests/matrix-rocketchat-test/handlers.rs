@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use iron::prelude::*;
 use iron::{Handler, status};
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
@@ -53,9 +55,63 @@ impl Handler for RocketchatLogin {
     }
 }
 
-pub struct RocketchatErrorResponder {
+pub struct RocketchatMe {
+    pub username: String,
+}
+
+impl Handler for RocketchatMe {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let payload = r#"{
+            "username": "USERNAME"
+        }"#
+            .replace("USERNAME", &self.username);
+
+        Ok(Response::with((status::Ok, payload)))
+    }
+}
+
+pub struct RocketchatChannelsList {
+    pub channels: HashMap<&'static str, Vec<&'static str>>,
     pub status: status::Status,
+}
+
+impl Handler for RocketchatChannelsList {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let mut channels: Vec<String> = Vec::new();
+
+        for (channel_name, user_names) in self.channels.iter() {
+            let channel = r#"{
+                "_id": "CHANNEL_ID",
+                "name": "CHANNEL_NAME",
+                "t": "c",
+                "usernames": [
+                    "CHANNEL_USERNAMES"
+                ],
+                "msgs": 0,
+                "u": {
+                    "_id": "spec_user_id",
+                    "username": "spec_username"
+                },
+                "ts": "2017-02-12T13:20:22.092Z",
+                "ro": false,
+                "sysMes": true,
+                "_updatedAt": "2017-02-12T13:20:22.092Z"
+            }"#
+                .replace("CHANNEL_ID", channel_name)
+                .replace("CHANNEL_NAME", channel_name)
+                .replace("CHANNEL_USERNAMES", &user_names.join("\",\""));
+            channels.push(channel);
+        }
+
+        let payload = "{ \"channels\": [".to_string() + &channels.join(",") + "], \"success\": true }";
+
+        Ok(Response::with((self.status, payload)))
+    }
+}
+
+pub struct RocketchatErrorResponder {
     pub message: String,
+    pub status: status::Status,
 }
 
 impl Handler for RocketchatErrorResponder {

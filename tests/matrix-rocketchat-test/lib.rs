@@ -37,7 +37,7 @@ use std::time::Duration;
 use diesel::sqlite::SqliteConnection;
 use iron::{Iron, Listening};
 use matrix_rocketchat::{Config, Server};
-use matrix_rocketchat::api::rocketchat::v1::LOGIN_PATH;
+use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH};
 use matrix_rocketchat::db::ConnectionPool;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
@@ -248,6 +248,7 @@ impl Test {
 
         if self.with_logged_in_user {
             router.post(LOGIN_PATH, handlers::RocketchatLogin { successful: true }, "login");
+            router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
         }
 
         thread::spawn(move || {

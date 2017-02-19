@@ -58,8 +58,6 @@ fn sucessfully_list_rocketchat_rooms() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("normal_channel"));
     assert!(message_received_by_matrix.contains("*joined_channel*"));
-    assert!(message_received_by_matrix.contains("**bridged_channel**"));
-    assert!(message_received_by_matrix.contains("***joined_bridged_room***"));
 }
 
 #[test]

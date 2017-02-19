@@ -22,15 +22,21 @@ macro_rules! simple_error {
     };
 }
 
+macro_rules! user_error {
+    ($e:expr, $u:expr) => {
+        Error{
+            error_chain: $e.into(),
+            user_message: Some($u),
+        }
+    }
+}
+
 macro_rules! bail_error {
     ($e:expr) => {
         return Err(simple_error!($e));
     };
     ($e:expr, $u:expr) => {
-        return Err(Error{
-            error_chain: $e.into(),
-            user_message: Some($u),
-        });
+        return Err(user_error!($e, $u));
     };
 }
 

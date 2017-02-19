@@ -136,3 +136,25 @@ fn the_user_gets_a_message_when_the_room_list_cannot_be_deserialized() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("An internal error occurred"));
 }
+
+#[test]
+fn attempt_to_list_rooms_when_the_admin_room_is_not_connected() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_admin_room()
+        .run();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           "list".to_string());
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("This room is not connected to a Rocket.Chat server"));
+}

@@ -181,6 +181,16 @@ error_chain!{
             display("The token {} is already in use by another server", token)
         }
 
+        RocketchatChannelNotFound(channel_name: String) {
+            description("No channel with the given name found on the Rocket.Chat server")
+            display("The channel {} does not exist on the Rocket.Chat server", channel_name)
+        }
+
+        RocketchatChannelAlreadyBridged(channel_name: String) {
+            description("The channel with the given name is already bridged")
+            display("The channel {} is already bridged", channel_name)
+        }
+
         ReadConfigError {
             description("Error when reading the config content to a string")
             display("Could not read config content to string")

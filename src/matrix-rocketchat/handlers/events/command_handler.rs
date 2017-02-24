@@ -8,7 +8,8 @@ use slog::Logger;
 use api::{MatrixApi, RocketchatApi};
 use api::rocketchat::Channel;
 use config::Config;
-use db::{NewRocketchatServer, NewUserOnRocketchatServer, RocketchatServer, Room, User, UserOnRocketchatServer};
+use db::{NewRocketchatServer, NewRoom, NewUserInRoom, NewUserOnRocketchatServer, RocketchatServer, Room, User, UserInRoom,
+         UserOnRocketchatServer};
 use errors::*;
 use i18n::*;
 
@@ -187,9 +188,9 @@ impl<'a> CommandHandler<'a> {
         let username = rocketchat_api.username(rocketchat_user_id, rocketchat_auth_token)?;
         user_on_rocketchat_server.set_rocketchat_username(self.connection, Some(username))?;
 
-        let matrix_user_id = self.config.matrix_bot_user_id()?;
+        let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
         let message = t!(["admin_room", "bridge_instructions"]);
-        self.matrix_api.send_text_message_event(event.room_id.clone(), matrix_user_id, message.l(&user.language))
+        self.matrix_api.send_text_message_event(event.room_id.clone(), bot_matrix_user_id, message.l(&user.language))
     }
 
     fn list_channels(&self, event: &MessageEvent, rocketchat_server: &RocketchatServer) -> Result<()> {
@@ -203,47 +204,88 @@ impl<'a> CommandHandler<'a> {
         let channels = rocketchat_api.channels_list(user_on_rocketchat_server.rocketchat_user_id.unwrap_or_default(),
                            user_on_rocketchat_server.rocketchat_auth_token.unwrap_or_default())?;
 
-        let matrix_user_id = self.config.matrix_bot_user_id()?;
+        let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
         let channels_list = self.build_channels_list(rocketchat_server.id, &event.user_id, channels)?;
         let message = t!(["admin_room", "list_channels"]).with_vars(vec![("channel_list", channels_list)]);
-        self.matrix_api.send_text_message_event(event.room_id.clone(), matrix_user_id, message.l(&user.language))
+        self.matrix_api.send_text_message_event(event.room_id.clone(), bot_matrix_user_id, message.l(&user.language))
     }
 
     fn bridge(&self, event: &MessageEvent, rocketchat_server: &RocketchatServer, message: &str) -> Result<()> {
-        let user_on_rocketchat_server =
-            UserOnRocketchatServer::find(self.connection, &event.user_id, rocketchat_server.id)?;
-        let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(),
-                                                rocketchat_server.rocketchat_token.clone(),
-                                                self.logger.clone())?;
+        self.connection
+            .transaction(|| {
+                let user_on_rocketchat_server =
+                    UserOnRocketchatServer::find(self.connection, &event.user_id, rocketchat_server.id)?;
+                let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(),
+                                                        rocketchat_server.rocketchat_token.clone(),
+                                                        self.logger.clone())?;
 
-        let channels = rocketchat_api.channels_list(user_on_rocketchat_server.rocketchat_user_id.unwrap_or_default(),
-                           user_on_rocketchat_server.rocketchat_auth_token.unwrap_or_default())?;
+                let channels =
+                    rocketchat_api.channels_list(user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
+                                       user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default())?;
 
-        let mut command = message.split_whitespace().collect::<Vec<&str>>().into_iter();
-        let channel_name = command.by_ref().nth(1).unwrap_or_default();
+                let mut command = message.split_whitespace().collect::<Vec<&str>>().into_iter();
+                let channel_name = command.by_ref().nth(1).unwrap_or_default();
 
-        let channel = match channels.iter().find(|channel| channel.name == channel_name) {
-            Some(channel) => channel,
-            None => {
-                bail_error!(ErrorKind::RocketchatChannelNotFound(channel_name.to_string()),
-                            t!(["errors", "rocketchat_channel_not_found"])
-                                .with_vars(vec![("channel_name", channel_name.to_string())]))
-            }
-        };
+                let channel = match channels.iter().find(|channel| channel.name == channel_name) {
+                    Some(channel) => channel,
+                    None => {
+                        bail_error!(ErrorKind::RocketchatChannelNotFound(channel_name.to_string()),
+                                    t!(["errors", "rocketchat_channel_not_found"])
+                                        .with_vars(vec![("channel_name", channel_name.to_string())]));
+                    }
+                };
 
-        if Room::is_bridged(self.connection, rocketchat_server.id, channel.id.clone())? {
-            bail_error!(ErrorKind::RocketchatChannelAlreadyBridged(channel_name.to_string()),
-                        t!(["errors", "rocketchat_channel_already_bridged"])
-                            .with_vars(vec![("channel_name", channel_name.to_string())]))
-        }
+                if Room::is_bridged(self.connection, rocketchat_server.id, channel.id.clone())? {
+                    bail_error!(ErrorKind::RocketchatChannelAlreadyBridged(channel_name.to_string()),
+                                t!(["errors", "rocketchat_channel_already_bridged"])
+                                    .with_vars(vec![("channel_name", channel_name.to_string())]));
+                }
 
-        Ok(())
+                let username = user_on_rocketchat_server.rocketchat_username.clone().unwrap_or_default();
+                if !channel.usernames
+                    .iter()
+                    .any(|u| u == &username) {
+                    bail_error!(ErrorKind::RocketchatJoinFirst(channel_name.to_string()),
+                                t!(["errors", "rocketchat_join_first"])
+                                    .with_vars(vec![("channel_name", channel_name.to_string())]));
+                }
+
+                let matrix_room_id = self.matrix_api.create_room(channel.name.clone(), event.user_id.clone())?;
+                let new_room = NewRoom {
+                    matrix_room_id: matrix_room_id,
+                    display_name: channel.name.clone(),
+                    rocketchat_server_id: Some(rocketchat_server.id),
+                    rocketchat_room_id: Some(channel.id.clone()),
+                    is_admin_room: false,
+                    is_bridged: true,
+                };
+
+                let room = Room::insert(self.connection, &new_room)?;
+                let user = user_on_rocketchat_server.user(self.connection)?;
+                let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
+
+                for matrix_user_id in vec![user.matrix_user_id, bot_matrix_user_id.clone()] {
+                    let new_user_in_room = NewUserInRoom {
+                        matrix_user_id: matrix_user_id,
+                        matrix_room_id: room.matrix_room_id.clone(),
+                    };
+                    UserInRoom::insert(self.connection, &new_user_in_room)?;
+                }
+
+                let message = t!(["admin_room", "room_successfully_bridged"])
+                    .with_vars(vec![("channel_name", channel.name.clone())]);
+                self.matrix_api
+                    .send_text_message_event(event.room_id.clone(), bot_matrix_user_id, message.l(&user.language))
+            })
+            .map_err(Error::from)
     }
 
     fn get_existing_rocketchat_server(&self, rocketchat_url: String) -> Result<RocketchatServer> {
         let rocketchat_server: RocketchatServer = match RocketchatServer::find_by_url(self.connection, rocketchat_url)? {
             Some(rocketchat_server) => rocketchat_server,
-            None => bail_error!(ErrorKind::RocketchatTokenMissing, t!(["errors", "rocketchat_token_missing"])),
+            None => {
+                bail_error!(ErrorKind::RocketchatTokenMissing, t!(["errors", "rocketchat_token_missing"]));
+            }
         };
 
         Ok(rocketchat_server)

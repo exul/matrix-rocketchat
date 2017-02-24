@@ -42,6 +42,7 @@ en:
       Rooms are written in ***bold and italic*** when they are bridged an you are already in the corresponding Matrix room.
 
       ${channel_list}
+    room_successfully_bridged: "${channel_name} is now bridged."
   defaults:
     admin_room_display_name: "Admin Room (Rocket.Chat)"
     internal_error: "An internal error occurred"
@@ -56,6 +57,7 @@ en:
     rocketchat_token_missing: "A token is needed to connect new Rocket.Chat servers"
     rocketchat_server_already_connected: "The Rocket.Chat server ${rocketchat_url} is already connected, connect without a token if you want to connect to the server"
     rocketchat_server_unreachable: "Could not reach Rocket.Chat server ${rocketchat_url}"
+    rocketchat_join_first: "You have to join the channel ${channel_name} on the Rocket.Chat server before you can bridge it."
     room_already_connected: "This room is already connected"
     room_not_connected: "This room is not connected to a Rocket.Chat server, you have to connect it first to be able to execute the command, type `help` for further instructions on how to connect this room"
     token_already_in_use: "The token ${token} is already in use, please use another token."

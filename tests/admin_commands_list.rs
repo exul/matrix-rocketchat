@@ -29,18 +29,15 @@ fn sucessfully_list_rocketchat_rooms() {
     channels.insert("normal_channel", Vec::new());
     channels.insert("joined_channel", vec!["spec_user"]);
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
-    rocketchat_router.get(CHANNELS_LIST_PATH,
-                          handlers::RocketchatChannelsList {
-                              status: status::Ok,
-                              channels: channels,
-                          },
-                          "channels_list");
+
     let test = Test::new()
         .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
+        .with_custom_channel_list(channels)
+        .with_bridged_room(("bridged_room", "@spec_user:localhost"))
         .run();
 
     // discard welcome message
@@ -66,9 +63,6 @@ fn the_user_gets_a_message_when_getting_room_list_failes() {
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    let mut channels = HashMap::new();
-    channels.insert("normal_channel", Vec::new());
-    channels.insert("joined_channel", vec!["spec_user"]);
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
     rocketchat_router.get(CHANNELS_LIST_PATH,
                           handlers::RocketchatErrorResponder {
@@ -106,9 +100,6 @@ fn the_user_gets_a_message_when_the_room_list_cannot_be_deserialized() {
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    let mut channels = HashMap::new();
-    channels.insert("normal_channel", Vec::new());
-    channels.insert("joined_channel", vec!["spec_user"]);
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
     rocketchat_router.get(CHANNELS_LIST_PATH,
                           handlers::InvalidJsonResponse { status: status::Ok },

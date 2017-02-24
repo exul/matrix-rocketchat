@@ -191,6 +191,11 @@ error_chain!{
             display("The channel {} is already bridged", channel_name)
         }
 
+        RocketchatJoinFirst(channel_name: String) {
+            description("The user has to join the channel on Rocket.Chat before it can be bridged")
+            display("Bridging the channel {} failed, because the user hasn't joined it on Rocket.Chat", channel_name)
+        }
+
         ReadConfigError {
             description("Error when reading the config content to a string")
             display("Could not read config content to string")

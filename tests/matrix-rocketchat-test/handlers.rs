@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use iron::prelude::*;
 use iron::{Handler, status};
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
+use ruma_client_api::r0::room::create_room;
 use ruma_client_api::r0::sync::get_member_events;
 use ruma_events::EventType;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
@@ -136,6 +137,19 @@ impl Handler for MatrixVersion {
         Ok(Response::with((status::Ok, payload)))
     }
 }
+
+pub struct MatrixCreateRoom {
+    pub room_id: RoomId,
+}
+
+impl Handler for MatrixCreateRoom {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let response = create_room::Response { room_id: self.room_id.clone() };
+        let payload = serde_json::to_string(&response).unwrap();
+        Ok(Response::with((status::Ok, payload)))
+    }
+}
+
 
 pub struct RoomMembers {
     pub members: Vec<UserId>,

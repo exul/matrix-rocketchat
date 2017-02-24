@@ -26,6 +26,7 @@ extern crate tempdir;
 pub mod handlers;
 pub mod helpers;
 
+use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::mem;
 use std::net::SocketAddr;
@@ -35,9 +36,9 @@ use std::thread;
 use std::time::Duration;
 
 use diesel::sqlite::SqliteConnection;
-use iron::{Iron, Listening};
+use iron::{Iron, Listening, status};
 use matrix_rocketchat::{Config, Server};
-use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH};
+use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, LOGIN_PATH, ME_PATH};
 use matrix_rocketchat::db::ConnectionPool;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
@@ -45,6 +46,7 @@ use router::Router;
 use ruma_identifiers::{RoomId, UserId};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinEndpoint;
+use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
 use slog::{DrainExt, Record};
 use tempdir::TempDir;
@@ -86,6 +88,11 @@ pub use message_forwarder::MessageForwarder;
 pub struct Test {
     /// The application service listening server
     pub as_listening: Option<Listening>,
+    /// Room that is bridged and the user that bridged it
+    pub bridged_room: Option<(&'static str, &'static str)>,
+    /// A list of Rocket.Chat channels that are returned when querying the Rocket.Chat mock
+    /// channels.list endpoint
+    pub channels: Option<HashMap<&'static str, Vec<&'static str>>>,
     /// Configuration that is used during the test
     pub config: Config,
     /// Connection pool to get connection to the test database
@@ -121,6 +128,8 @@ impl Test {
         let connection_pool = ConnectionPool::create(&config.database_url).unwrap();
         Test {
             as_listening: None,
+            bridged_room: None,
+            channels: None,
             config: config,
             connection_pool: connection_pool,
             hs_listening: None,
@@ -169,6 +178,19 @@ impl Test {
     /// Use custom routes when running the Rocket.Chat mock server instead of the default ones.
     pub fn with_custom_rocketchat_routes(mut self, router: Router) -> Test {
         self.rocketchat_mock_router = Some(router);
+        self
+    }
+
+    /// Rooms that are bridged when running the tests.
+    pub fn with_bridged_room(mut self, bridged_room: (&'static str, &'static str)) -> Test {
+        self.bridged_room = Some(bridged_room);
+        self
+    }
+
+    /// Set a list of Rocket.Chat channels that are returned when querying the Rocket.Chat mock
+    /// channels.list edpoint
+    pub fn with_custom_channel_list(mut self, channels: HashMap<&'static str, Vec<&'static str>>) -> Test {
+        self.channels = Some(channels);
         self
     }
 
@@ -222,6 +244,15 @@ impl Test {
             router.post(JoinEndpoint::router_path(), handlers::EmptyJson {}, "join");
         }
 
+        if let Some(bridged_room) = self.bridged_room {
+            let (room_name, _) = bridged_room;
+            router.post(CreateRoomEndpoint::router_path(),
+                        handlers::MatrixCreateRoom {
+                            room_id: RoomId::try_from(&format!("!{}_id:localhost", &room_name)).unwrap(),
+                        },
+                        "create_room");
+        }
+
         thread::spawn(move || {
             let mut server = Iron::new(router);
             server.threads = IRON_THREADS;
@@ -249,6 +280,25 @@ impl Test {
         if self.with_logged_in_user {
             router.post(LOGIN_PATH, handlers::RocketchatLogin { successful: true }, "login");
             router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
+        }
+
+        let mut channels = match self.channels.clone() {
+            Some(channels) => channels,
+            None => HashMap::new(),
+        };
+
+        if let Some(bridged_room) = self.bridged_room {
+            let (room_name, matrix_user_id) = bridged_room;
+            channels.insert(room_name, vec![matrix_user_id]);
+        }
+
+        if channels.len() > 0 {
+            router.get(CHANNELS_LIST_PATH,
+                       handlers::RocketchatChannelsList {
+                           status: status::Ok,
+                           channels: channels,
+                       },
+                       "channels_list");
         }
 
         thread::spawn(move || {

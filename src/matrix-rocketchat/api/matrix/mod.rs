@@ -17,6 +17,8 @@ pub mod r0;
 
 /// Matrix REST API
 pub trait MatrixApi: Send + Sync + MatrixApiClone {
+    /// Create a room.
+    fn create_room(&self, room_name: String, matrix_user_id: UserId) -> Result<RoomId>;
     /// Forget a room.
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()>;
     /// Get the list of members for this room.

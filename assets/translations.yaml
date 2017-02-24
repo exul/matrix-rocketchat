@@ -37,9 +37,7 @@ en:
     list_channels: |
       Rooms are written in *italic* when you joined them on the Rocket.Chat server, you can `bridge` such a room.
 
-      Rooms are written in **bold** when they are already bridged, you can `join` such a room on the Matrix server.
-
-      Rooms are written in ***bold and italic*** when they are bridged an you are already in the corresponding Matrix room.
+      Rooms are written in **bold** when they are already bridged.
 
       ${channel_list}
     room_successfully_bridged: "${channel_name} is now bridged."
@@ -52,7 +50,7 @@ en:
     authentication_failed: "Authentication failed!"
     internal: "An internal error occurred"
     no_rocketchat_server: "No Rocket.Chat server found when querying ${rocketchat_url} (version information is missing from the response)"
-    rocketchat_channel_already_bridged: "The channel ${channel_name} is already bridged. Use `join` to join the bridged channel."
+    rocketchat_channel_already_bridged: "The channel ${channel_name} is already bridged."
     rocketchat_channel_not_found: "No channel with the name ${channel_name} found."
     rocketchat_token_missing: "A token is needed to connect new Rocket.Chat servers"
     rocketchat_server_already_connected: "The Rocket.Chat server ${rocketchat_url} is already connected, connect without a token if you want to connect to the server"

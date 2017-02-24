@@ -235,7 +235,7 @@ impl<'a> CommandHandler<'a> {
                     }
                 };
 
-                if Room::is_bridged(self.connection, rocketchat_server.id, channel.id.clone())? {
+                if Room::is_bridged_for_user(self.connection, rocketchat_server.id, channel.id.clone(), &event.user_id)? {
                     bail_error!(ErrorKind::RocketchatChannelAlreadyBridged(channel_name.to_string()),
                                 t!(["errors", "rocketchat_channel_already_bridged"])
                                     .with_vars(vec![("channel_name", channel_name.to_string())]));
@@ -302,8 +302,6 @@ impl<'a> CommandHandler<'a> {
         for channel in channels {
             let formatter =
                 if Room::is_bridged_for_user(self.connection, rocketchat_server_id, channel.id.clone(), matrix_user_id)? {
-                    "***"
-                } else if Room::is_bridged(self.connection, rocketchat_server_id, channel.id)? {
                     "**"
                 } else if channel.usernames.iter().any(|username| Some(username) == user.rocketchat_username.as_ref()) {
                     "*"

@@ -28,6 +28,7 @@ fn sucessfully_list_rocketchat_rooms() {
     let mut channels = HashMap::new();
     channels.insert("normal_channel", Vec::new());
     channels.insert("joined_channel", vec!["spec_user"]);
+    channels.insert("bridged_channel", vec!["spec_user"]);
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
 
     let test = Test::new()
@@ -50,11 +51,20 @@ fn sucessfully_list_rocketchat_rooms() {
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),
                                            UserId::try_from("@spec_user:localhost").unwrap(),
+                                           "bridge bridged_channel".to_string());
+
+    // discard bridge message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
                                            "list".to_string());
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("normal_channel"));
     assert!(message_received_by_matrix.contains("*joined_channel*"));
+    assert!(message_received_by_matrix.contains("**bridged_channel**"));
 }
 
 #[test]

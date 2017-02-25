@@ -250,28 +250,20 @@ impl<'a> CommandHandler<'a> {
                                     .with_vars(vec![("channel_name", channel_name.to_string())]));
                 }
 
-                let matrix_room_id = self.matrix_api.create_room(channel.name.clone(), event.user_id.clone())?;
-                let new_room = NewRoom {
-                    matrix_room_id: matrix_room_id,
-                    display_name: channel.name.clone(),
-                    rocketchat_server_id: Some(rocketchat_server.id),
-                    rocketchat_room_id: Some(channel.id.clone()),
-                    is_admin_room: false,
-                    is_bridged: true,
-                };
-
-                let room = Room::insert(self.connection, &new_room)?;
-                let user = user_on_rocketchat_server.user(self.connection)?;
-                let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
-
-                for matrix_user_id in vec![user.matrix_user_id, bot_matrix_user_id.clone()] {
-                    let new_user_in_room = NewUserInRoom {
-                        matrix_user_id: matrix_user_id,
-                        matrix_room_id: room.matrix_room_id.clone(),
+                let room =
+                    match Room::find_by_rocketchat_room_id(self.connection, rocketchat_server.id, channel.id.clone())? {
+                        Some(room) => room,
+                        None => self.create_room(channel, rocketchat_server.id, event.user_id.clone())?,
                     };
-                    UserInRoom::insert(self.connection, &new_user_in_room)?;
-                }
 
+                let user = user_on_rocketchat_server.user(self.connection)?;
+                let new_user_in_room = NewUserInRoom {
+                    matrix_user_id: user.matrix_user_id,
+                    matrix_room_id: room.matrix_room_id.clone(),
+                };
+                UserInRoom::insert(self.connection, &new_user_in_room)?;
+
+                let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
                 let message = t!(["admin_room", "room_successfully_bridged"])
                     .with_vars(vec![("channel_name", channel.name.clone())]);
                 self.matrix_api
@@ -324,5 +316,25 @@ impl<'a> CommandHandler<'a> {
                                 t!(["errors", "room_not_connected"])))
             }
         }
+    }
+
+    fn create_room(&self, channel: &Channel, rocketchat_server_id: i32, user_id: UserId) -> Result<Room> {
+        let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
+        let matrix_room_id = self.matrix_api.create_room(channel.name.clone(), user_id)?;
+        let new_room = NewRoom {
+            matrix_room_id: matrix_room_id.clone(),
+            display_name: channel.name.clone(),
+            rocketchat_server_id: Some(rocketchat_server_id),
+            rocketchat_room_id: Some(channel.id.clone()),
+            is_admin_room: false,
+            is_bridged: true,
+        };
+        let room = Room::insert(self.connection, &new_room)?;
+        let new_user_in_room = NewUserInRoom {
+            matrix_user_id: bot_matrix_user_id.clone(),
+            matrix_room_id: matrix_room_id,
+        };
+        UserInRoom::insert(self.connection, &new_user_in_room)?;
+        Ok(room)
     }
 }

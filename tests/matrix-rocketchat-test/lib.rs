@@ -7,6 +7,7 @@ extern crate lazy_static;
 extern crate matrix_rocketchat;
 extern crate r2d2;
 extern crate r2d2_diesel;
+extern crate rand;
 extern crate reqwest;
 extern crate ruma_client_api;
 extern crate ruma_events;

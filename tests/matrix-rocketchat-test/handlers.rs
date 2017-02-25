@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use rand::{Rng, thread_rng};
 
 use iron::prelude::*;
 use iron::{Handler, status};
@@ -32,23 +33,27 @@ pub struct RocketchatLogin {
 
 impl Handler for RocketchatLogin {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+
         let (status, payload) = match self.successful {
             true => {
+                let user_id: String = thread_rng().gen_ascii_chars().take(10).collect();
                 (status::Ok,
                  r#"{
                     "status": "success",
                     "data": {
                         "authToken": "spec_auth_token",
-                        "userId": "spec_user_id"
+                        "userId": "USER_ID"
                     }
-                 }"#)
+                 }"#
+                     .replace("USER_ID", &user_id))
             }
             false => {
                 (status::Unauthorized,
                  r#"{
                     "status": "error",
                     "message": "Unauthorized"
-                }"#)
+                }"#
+                     .to_string())
             }
         };
 

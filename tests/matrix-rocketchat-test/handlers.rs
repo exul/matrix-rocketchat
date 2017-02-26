@@ -1,8 +1,10 @@
 use std::collections::HashMap;
+use rand::{Rng, thread_rng};
 
 use iron::prelude::*;
 use iron::{Handler, status};
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
+use ruma_client_api::r0::room::create_room;
 use ruma_client_api::r0::sync::get_member_events;
 use ruma_events::EventType;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
@@ -31,23 +33,27 @@ pub struct RocketchatLogin {
 
 impl Handler for RocketchatLogin {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+
         let (status, payload) = match self.successful {
             true => {
+                let user_id: String = thread_rng().gen_ascii_chars().take(10).collect();
                 (status::Ok,
                  r#"{
                     "status": "success",
                     "data": {
                         "authToken": "spec_auth_token",
-                        "userId": "spec_user_id"
+                        "userId": "USER_ID"
                     }
-                 }"#)
+                 }"#
+                     .replace("USER_ID", &user_id))
             }
             false => {
                 (status::Unauthorized,
                  r#"{
                     "status": "error",
                     "message": "Unauthorized"
-                }"#)
+                }"#
+                     .to_string())
             }
         };
 
@@ -136,6 +142,19 @@ impl Handler for MatrixVersion {
         Ok(Response::with((status::Ok, payload)))
     }
 }
+
+pub struct MatrixCreateRoom {
+    pub room_id: RoomId,
+}
+
+impl Handler for MatrixCreateRoom {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let response = create_room::Response { room_id: self.room_id.clone() };
+        let payload = serde_json::to_string(&response).unwrap();
+        Ok(Response::with((status::Ok, payload)))
+    }
+}
+
 
 pub struct RoomMembers {
     pub members: Vec<UserId>,

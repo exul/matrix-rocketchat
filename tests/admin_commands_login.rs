@@ -51,7 +51,6 @@ fn sucessfully_login_via_chat_mesage() {
                                                                  rocketchat_server.id)
         .unwrap();
     assert_eq!(user_on_rocketchat_server.rocketchat_auth_token.unwrap(), "spec_auth_token");
-    assert_eq!(user_on_rocketchat_server.rocketchat_user_id.unwrap(), "spec_user_id");
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("You are logged in."));

@@ -43,6 +43,8 @@ pub struct NewRoom {
     pub matrix_room_id: RoomId,
     /// The rooms display name.
     pub display_name: String,
+    /// The Rocket.Chat server the room is connected to.
+    pub rocketchat_server_id: Option<i32>,
     /// The rooms unique id on the rocketchat server.
     pub rocketchat_room_id: Option<String>,
     /// A flag that indicates if the rooms is used as a admin room for the
@@ -102,10 +104,9 @@ impl Room {
                       rocketchat_server_id: i32,
                       rocketchat_room_id: String)
                       -> Result<bool> {
-        if let Some(room) = Room::find_by_rocketchat_room_id(connection, rocketchat_server_id, rocketchat_room_id)? {
-            Ok(room.is_bridged)
-        } else {
-            Ok(false)
+        match Room::find_by_rocketchat_room_id(connection, rocketchat_server_id, rocketchat_room_id)? {
+            Some(room) => Ok(room.is_bridged),
+            None => Ok(false),
         }
     }
 

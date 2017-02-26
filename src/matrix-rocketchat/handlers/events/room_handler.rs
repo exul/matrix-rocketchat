@@ -86,6 +86,7 @@ impl<'a> RoomHandler<'a> {
                 let room = NewRoom {
                     matrix_room_id: matrix_room_id.clone(),
                     display_name: display_name,
+                    rocketchat_server_id: None,
                     rocketchat_room_id: None,
                     is_admin_room: true,
                     is_bridged: false,

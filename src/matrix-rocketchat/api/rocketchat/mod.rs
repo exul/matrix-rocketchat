@@ -66,7 +66,7 @@ impl RocketchatApi {
             Err(err) => {
                 debug!(logger, err);
                 bail_error!(ErrorKind::RocketchatServerUnreachable(url.clone()),
-                            t!(["errors", "rocketchat_server_unreachable"]).with_vars(vec![("rocketchat_url", url)]))
+                            t!(["errors", "rocketchat_server_unreachable"]).with_vars(vec![("rocketchat_url", url)]));
             }
         };
 
@@ -80,7 +80,7 @@ impl RocketchatApi {
             Ok(rocketchat_info) => rocketchat_info,
             Err(err) => {
                 bail_error!(err,
-                            t!(["errors", "no_rocketchat_server"]).with_vars(vec![("rocketchat_url", url)]))
+                            t!(["errors", "no_rocketchat_server"]).with_vars(vec![("rocketchat_url", url)]));
             }
         };
 

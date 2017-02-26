@@ -5,6 +5,7 @@ use ruma_identifiers::UserId;
 
 use errors::*;
 use super::schema::users_on_rocketchat_servers;
+use super::User;
 
 /// A user on a Rocket.Chat server.
 #[derive(Debug, Queryable)]
@@ -103,5 +104,10 @@ impl UserOnRocketchatServer {
             .set(users_on_rocketchat_servers::rocketchat_username.eq(rocketchat_username)).execute(connection)
             .chain_err(|| ErrorKind::DBUpdateError)?;
         Ok(())
+    }
+
+    /// Get the `User` for a `UserOnRocketchatServer` record.
+    pub fn user(&self, connection: &SqliteConnection) -> Result<User> {
+        User::find(connection, &self.matrix_user_id)
     }
 }

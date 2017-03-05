@@ -31,6 +31,7 @@ fn homeserver_sends_mal_formatted_json() {
     let mut params = HashMap::new();
     params.insert("access_token", HS_TOKEN);
     let (_, status_code) = RestApi::call(Method::Put, &url, payload, &params, None).unwrap();
+
     assert_eq!(status_code, StatusCode::UnprocessableEntity)
 }
 
@@ -61,7 +62,7 @@ fn unknown_event_types_are_skipped() {
 
     // the user does not get a message, because the event is ignored
     // so the receiver never gets a message and times out
-    receiver.recv_timeout(default_timeout()).is_err();
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 
 #[test]
@@ -71,6 +72,7 @@ fn returns_unauthorized_when_the_hs_access_token_is_missing() {
     let params = HashMap::new();
 
     let (_, status) = RestApi::call(Method::Put, &url, "{}", &params, None).unwrap();
+
     assert_eq!(status, StatusCode::Unauthorized);
 }
 
@@ -82,6 +84,7 @@ fn returns_forbidden_when_the_hs_access_token_is_wrong() {
     params.insert("access_token", "wrong_token");
 
     let (_, status) = RestApi::call(Method::Put, &url, "{}", &params, None).unwrap();
+
     assert_eq!(status, StatusCode::Forbidden);
 }
 

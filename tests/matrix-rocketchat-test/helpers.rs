@@ -134,3 +134,9 @@ pub fn simulate_message_from_matrix(as_url: &str, payload: &str) -> (String, Sta
     params.insert("access_token", HS_TOKEN);
     RestApi::call(Method::Put, &url, payload, &params, None).unwrap()
 }
+
+pub fn simulate_message_from_rocketchat(as_url: &str, payload: &str) -> (String, StatusCode) {
+    let url = format!("{}/rocketchat", as_url);
+    let params = HashMap::new();
+    RestApi::call(Method::Post, &url, payload, &params, None).unwrap()
+}

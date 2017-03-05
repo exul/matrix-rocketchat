@@ -82,6 +82,17 @@ impl UserOnRocketchatServer {
         Ok(user_on_rocketchat_server)
     }
 
+    /// Find a `UserOnRocketchatServer` by his Rocket.Chat user ID. Returns `None`, if the `UserOnRocketchatServer` is not found.
+    pub fn find_by_rocketchat_user_id(connection: &SqliteConnection,
+                                      rocketchat_server_id: i32,
+                                      rocketchat_user_id: String)
+                                      -> Result<Option<UserOnRocketchatServer>> {
+        let users_on_rocketchat_servers = users_on_rocketchat_servers::table.filter(users_on_rocketchat_servers::rocketchat_server_id.eq(rocketchat_server_id).and(users_on_rocketchat_servers::rocketchat_user_id.eq(rocketchat_user_id)))
+            .load(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(users_on_rocketchat_servers.into_iter().next())
+    }
+
     /// Update the users credentials.
     pub fn set_credentials(&self,
                            connection: &SqliteConnection,

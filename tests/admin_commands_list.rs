@@ -48,11 +48,6 @@ fn sucessfully_list_rocketchat_rooms() {
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge bridged_channel".to_string());
-
     // discard bridge message
     receiver.recv_timeout(default_timeout()).unwrap();
 

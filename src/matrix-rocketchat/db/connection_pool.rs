@@ -19,7 +19,7 @@ impl ConnectionPool {
     }
 
     /// Extract a database connection from the pool stored in the request.
-    pub fn get_from_request(request: &mut Request) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {
+    pub fn from_request(request: &mut Request) -> Result<PooledConnection<ConnectionManager<SqliteConnection>>> {
         let mutex = request.get::<Write<ConnectionPool>>().chain_err(|| ErrorKind::ConnectionPoolExtractionError)?;
         let pool = match mutex.lock() {
             Ok(pool) => pool,

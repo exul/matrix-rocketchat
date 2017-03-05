@@ -1,6 +1,7 @@
 use diesel;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
+use iron::typemap::Key;
 
 use errors::*;
 use super::schema::rocketchat_servers;
@@ -66,4 +67,8 @@ impl RocketchatServer {
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rocketchat_servers.into_iter().next())
     }
+}
+
+impl Key for RocketchatServer {
+    type Value = RocketchatServer;
 }

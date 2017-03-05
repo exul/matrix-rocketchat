@@ -87,7 +87,7 @@ impl Handler for RocketchatChannelsList {
 
         for (channel_name, user_names) in self.channels.iter() {
             let channel = r#"{
-                "_id": "CHANNEL_ID",
+                "_id": "CHANNEL_NAME_id",
                 "name": "CHANNEL_NAME",
                 "t": "c",
                 "usernames": [
@@ -103,7 +103,6 @@ impl Handler for RocketchatChannelsList {
                 "sysMes": true,
                 "_updatedAt": "2017-02-12T13:20:22.092Z"
             }"#
-                .replace("CHANNEL_ID", channel_name)
                 .replace("CHANNEL_NAME", channel_name)
                 .replace("CHANNEL_USERNAMES", &user_names.join("\",\""));
             channels.push(channel);

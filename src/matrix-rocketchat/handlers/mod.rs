@@ -4,3 +4,5 @@
 pub mod iron;
 /// Event handlers
 pub mod events;
+/// Rocket.Chat handlers
+pub mod rocketchat;

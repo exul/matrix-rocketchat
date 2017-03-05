@@ -60,6 +60,8 @@ pub const DATABASE_NAME: &'static str = "test.db";
 const AS_TOKEN: &'static str = "at";
 /// Homeserver token used in the tests
 pub const HS_TOKEN: &'static str = "ht";
+/// Rocket.Chat token used in the tests
+pub const RS_TOKEN: &'static str = "rt";
 /// Number of threads that iron uses when running tests
 pub const IRON_THREADS: usize = 1;
 /// The version the mock Rocket.Chat server announces
@@ -217,6 +219,11 @@ impl Test {
             self.login_user();
         }
 
+        if let Some(bridged_room) = self.bridged_room {
+            let (room_name, _) = bridged_room;
+            self.bridge_room(room_name);
+        }
+
         self
     }
 
@@ -353,7 +360,7 @@ impl Test {
                 helpers::send_room_message_from_matrix(&self.config.as_url,
                                                        RoomId::try_from("!admin:localhost").unwrap(),
                                                        UserId::try_from("@spec_user:localhost").unwrap(),
-                                                       format!("connect {} spec_token", rocketchat_mock_url));
+                                                       format!("connect {} {}", rocketchat_mock_url, RS_TOKEN));
             }
             None => panic!("No Rocket.Chat mock present to connect to"),
         }
@@ -364,6 +371,13 @@ impl Test {
                                                RoomId::try_from("!admin:localhost").unwrap(),
                                                UserId::try_from("@spec_user:localhost").unwrap(),
                                                "login spec_user secret".to_string());
+    }
+
+    fn bridge_room(&self, room_name: &'static str) {
+        helpers::send_room_message_from_matrix(&self.config.as_url,
+                                               RoomId::try_from("!admin:localhost").unwrap(),
+                                               UserId::try_from("@spec_user:localhost").unwrap(),
+                                               format!("bridge {}", room_name));
     }
 }
 

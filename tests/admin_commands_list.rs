@@ -38,7 +38,7 @@ fn sucessfully_list_rocketchat_rooms() {
         .with_connected_admin_room()
         .with_logged_in_user()
         .with_custom_channel_list(channels)
-        .with_bridged_room(("bridged_room", "@spec_user:localhost"))
+        .with_bridged_room(("bridged_channel", "spec_user"))
         .run();
 
     // discard welcome message

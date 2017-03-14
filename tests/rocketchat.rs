@@ -18,6 +18,7 @@ use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, 
 use router::Router;
 use reqwest::{Method, StatusCode};
 use ruma_client_api::Endpoint;
+use ruma_client_api::r0::membership::invite_user::Endpoint as InviteUserEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json::to_string;
@@ -25,11 +26,13 @@ use serde_json::to_string;
 #[test]
 fn successfully_forwards_a_text_message_to_matrix() {
     let (message_forwarder, receiver) = MessageForwarder::new();
+    let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(InviteUserEndpoint::router_path(), invite_forwarder, "invite_user");
 
-    // let mut channels = HashMap::new();
-    // channels.insert("spec_channel", vec!["spec_user"]);
+    let mut channels = HashMap::new();
+    channels.insert("spec_channel", vec!["spec_user"]);
 
     let test = Test::new()
         .with_matrix_routes(matrix_router)
@@ -53,6 +56,10 @@ fn successfully_forwards_a_text_message_to_matrix() {
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
+    // receive the invite message
+    let invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(invite_message.contains("@rocketchat_new_user_id_1:localhost"));
+
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard connect message
@@ -63,7 +70,6 @@ fn successfully_forwards_a_text_message_to_matrix() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("MSG: {}", message_received_by_matrix);
     assert!(message_received_by_matrix.contains("spec_message"));
 
     let connection = test.connection_pool.get().unwrap();
@@ -77,9 +83,10 @@ fn successfully_forwards_a_text_message_to_matrix() {
     let users = bridged_room.users(&connection).unwrap();
     assert_eq!(users.len(), 3);
 
+    let bot_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
+    let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
     let users_iter = users.iter();
-    let user_ids = users_iter.filter_map(|u| if u.matrix_user_id != UserId::try_from("@rocketchat:localhost").unwrap() &&
-                           u.matrix_user_id != UserId::try_from("@spec_user@localhost").unwrap() {
+    let user_ids = users_iter.filter_map(|u| if u.matrix_user_id != bot_user_id && u.matrix_user_id != spec_user_id {
             Some(u.matrix_user_id.clone())
         } else {
             None
@@ -87,7 +94,7 @@ fn successfully_forwards_a_text_message_to_matrix() {
         .collect::<Vec<UserId>>();
     let new_user_id = user_ids.iter().next().unwrap();
 
-    // the virtual user was create with the Rocket.Chat user id
+    // the virtual user was create with the Rocket.Chat user ID
     let user_on_rocketchat = UserOnRocketchatServer::find(&connection, new_user_id, rocketchat_server_id).unwrap();
     assert_eq!(user_on_rocketchat.rocketchat_user_id.unwrap(), "new_user_id".to_string());
 }

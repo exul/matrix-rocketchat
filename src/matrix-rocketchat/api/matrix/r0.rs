@@ -5,6 +5,7 @@ use reqwest::StatusCode;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::{self, Endpoint as RegisterEndpoint};
 use ruma_client_api::r0::membership::forget_room::{self, Endpoint as ForgetRoomEndpoint};
+use ruma_client_api::r0::membership::invite_user::{self, Endpoint as InviteUserEndpoint};
 use ruma_client_api::r0::membership::join_room_by_id::{self, Endpoint as JoinRoomByIdEndpoint};
 use ruma_client_api::r0::membership::leave_room::{self, Endpoint as LeaveRoomEndpoint};
 use ruma_client_api::r0::room::create_room::{self, Endpoint as CreateRoomEndpoint, RoomPreset};
@@ -110,6 +111,25 @@ impl super::MatrixApi for MatrixApi {
                                                body))
             })?;
         Ok(room_member_events.chunk)
+    }
+
+    fn invite(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {
+        let path_params = invite_user::PathParams { room_id: matrix_room_id.clone() };
+        let endpoint = self.base_url.clone() + &InviteUserEndpoint::request_path(path_params);
+        let params = self.params_hash();
+        let body_params = invite_user::BodyParams { user_id: matrix_user_id.clone() };
+        let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize invite user params".to_string()))?;
+
+        let (body, status_code) = RestApi::call_matrix(InviteUserEndpoint::method(), &endpoint, &payload, &params)?;
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        debug!(self.logger,
+               "User {} successfully invited into room {}",
+               matrix_room_id,
+               matrix_user_id);
+        Ok(())
     }
 
     fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {

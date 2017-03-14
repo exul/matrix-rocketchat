@@ -84,6 +84,7 @@ impl<'a> EventDispatcher<'a> {
             msg = msg + " caused by: " + &format!("{}", err);
         }
 
+        debug!(self.logger, msg);
         self.matrix_api.send_text_message_event(room_id, matrix_bot_id, user_message.l(&language))
     }
 }

@@ -52,11 +52,11 @@ impl<'a> Forwarder<'a> {
                 };
 
 
-                if UserInRoom::find_by_matrix_user_id_and_matrix_room_id(self.connection,
-                                                                         &user_on_rocketchat_server.matrix_user_id,
-                                                                         &room.matrix_room_id)
-                    ?
-                    .is_none() {
+                let user_in_room =
+                    UserInRoom::find_by_matrix_user_id_and_matrix_room_id(self.connection,
+                                                                          &user_on_rocketchat_server.matrix_user_id,
+                                                                          &room.matrix_room_id)?;
+                if user_in_room.is_none() {
                     self.add_virtual_user_to_room(user_on_rocketchat_server.matrix_user_id.clone(),
                                                   room.matrix_room_id.clone())?;
                 }

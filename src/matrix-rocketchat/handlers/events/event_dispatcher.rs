@@ -65,8 +65,8 @@ impl<'a> EventDispatcher<'a> {
     /// Forward the error the notifier to send the corresponding message to the user
     pub fn handle_error(&self, err: Error, room_id: RoomId, user_id: &UserId) -> Result<()> {
         let error_notifier = ErrorNotifier {
-            config: &self.config,
-            connection: &self.connection,
+            config: self.config,
+            connection: self.connection,
             logger: &self.logger,
             matrix_api: &self.matrix_api,
         };

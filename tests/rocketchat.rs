@@ -1,5 +1,6 @@
 #![feature(try_from)]
 
+extern crate iron;
 extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
 extern crate reqwest;
@@ -11,10 +12,11 @@ extern crate serde_json;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
+use iron::status;
 use matrix_rocketchat::api::RestApi;
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::db::{Room, UserOnRocketchatServer};
-use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, helpers};
+use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
 use router::Router;
 use reqwest::{Method, StatusCode};
 use ruma_client_api::Endpoint;
@@ -39,7 +41,6 @@ fn successfully_forwards_a_text_message_to_matrix() {
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        //.with_custom_channel_list(channels)
         .with_bridged_room(("spec_channel", "spec_user"))
         .run();
 
@@ -113,10 +114,51 @@ fn rocketchat_sends_mal_formatted_json() {
 }
 
 #[test]
-fn the_user_gets_a_message_when_inviting_the_user_failes() {}
+fn no_message_is_forwarded_when_inviting_the_user_failes() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(InviteUserEndpoint::router_path(),
+                       handlers::MatrixErrorResponder {
+                           status: status::InternalServerError,
+                           message: "Could not invite user".to_string(),
+                       },
+                       "invite_user");
+    let mut channels = HashMap::new();
+    channels.insert("spec_channel", vec!["spec_user"]);
 
-#[test]
-fn the_user_gets_a_message_when_setting_the_users_display_name_failes() {}
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    let message = Message {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_channel_id".to_string(),
+        channel_name: "spec_channel".to_string(),
+        user_id: "new_user_id".to_string(),
+        user_name: "new_spec_user".to_string(),
+        text: "spec_message".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard room bridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
+}
 
 #[test]
 fn returns_unauthorized_when_the_rs_token_is_missing() {

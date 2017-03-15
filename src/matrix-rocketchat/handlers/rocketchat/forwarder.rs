@@ -8,8 +8,7 @@ use slog::Logger;
 use api::MatrixApi;
 use api::rocketchat::Message;
 use config::Config;
-use db::{NewUser, NewUserInRoom, NewUserOnRocketchatServer, RocketchatServer, Room, User, UserInRoom,
-         UserOnRocketchatServer};
+use db::{NewUser, NewUserInRoom, NewUserOnRocketchatServer, RocketchatServer, Room, User, UserInRoom, UserOnRocketchatServer};
 use errors::*;
 use i18n::DEFAULT_LANGUAGE;
 
@@ -33,15 +32,14 @@ impl<'a> Forwarder<'a> {
                 let user_on_rocketchat_server =
                     match UserOnRocketchatServer::find_by_rocketchat_user_id(self.connection,
                                                                              rocketchat_server.id,
-                                                                             message.user_id
-                                                                                 .clone())? {
+                                                                             message.user_id.clone())? {
                         Some(user_on_rocketchat_server) => user_on_rocketchat_server,
                         None => self.create_virtual_user_on_rocketchat_server(rocketchat_server.id, message)?,
                     };
 
                 let room = match Room::find_by_rocketchat_room_id(self.connection,
-                                                                  rocketchat_server.id,
-                                                                  message.channel_id.clone())? {
+                                                       rocketchat_server.id,
+                                                       message.channel_id.clone())? {
                     Some(room) => room,
                     None => {
                         debug!(self.logger,
@@ -92,7 +90,6 @@ impl<'a> Forwarder<'a> {
             rocketchat_user_id: Some(message.user_id.clone()),
             rocketchat_username: Some(message.user_name.clone()),
         };
-
         UserOnRocketchatServer::upsert(self.connection, &new_user_on_rocketchat_server)
     }
 

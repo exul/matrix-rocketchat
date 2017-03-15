@@ -98,6 +98,22 @@ fn successfully_forwards_a_text_message_to_matrix() {
     // the virtual user was create with the Rocket.Chat user ID
     let user_on_rocketchat = UserOnRocketchatServer::find(&connection, new_user_id, rocketchat_server_id).unwrap();
     assert_eq!(user_on_rocketchat.rocketchat_user_id.unwrap(), "new_user_id".to_string());
+
+    let second_message = Message {
+        message_id: "spec_id_2".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_channel_id".to_string(),
+        channel_name: "spec_channel".to_string(),
+        user_id: "new_user_id".to_string(),
+        user_name: "new_spec_user".to_string(),
+        text: "spec_message 2".to_string(),
+    };
+    let second_payload = to_string(&second_message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &second_payload);
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("spec_message 2"));
 }
 
 #[test]

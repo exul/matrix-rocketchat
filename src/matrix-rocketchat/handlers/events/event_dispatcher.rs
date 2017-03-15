@@ -5,11 +5,10 @@ use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
-use db::User;
 use errors::*;
+use handlers::ErrorNotifier;
 use super::room_handler::RoomHandler;
 use super::command_handler::CommandHandler;
-use i18n::*;
 
 /// Dispatches events to the corresponding handler.
 pub struct EventDispatcher<'a> {
@@ -63,28 +62,14 @@ impl<'a> EventDispatcher<'a> {
         Ok(())
     }
 
-    fn handle_error(&self, err: Error, room_id: RoomId, user_id: &UserId) -> Result<()> {
-        let matrix_bot_id = self.config.matrix_bot_user_id()?;
-        let language = match User::find_by_matrix_user_id(self.connection, user_id)? {
-            Some(user) => user.language,
-            None => DEFAULT_LANGUAGE.to_string(),
+    /// Forward the error the notifier to send the corresponding message to the user
+    pub fn handle_error(&self, err: Error, room_id: RoomId, user_id: &UserId) -> Result<()> {
+        let error_notifier = ErrorNotifier {
+            config: &self.config,
+            connection: &self.connection,
+            logger: &self.logger,
+            matrix_api: &self.matrix_api,
         };
-
-        let user_message = match err.user_message {
-            Some(ref user_message) => user_message,
-            None => {
-                let user_msg = t!(["defaults", "internal_error"]).l(&language);
-                self.matrix_api.send_text_message_event(room_id, matrix_bot_id, user_msg)?;
-                return Err(err);
-            }
-        };
-
-        let mut msg = format!("{}", &err);
-        for err in err.error_chain.iter().skip(1) {
-            msg = msg + " caused by: " + &format!("{}", err);
-        }
-
-        debug!(self.logger, msg);
-        self.matrix_api.send_text_message_event(room_id, matrix_bot_id, user_message.l(&language))
+        error_notifier.send_message_to_user(err, room_id, user_id)
     }
 }

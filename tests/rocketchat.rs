@@ -157,6 +157,47 @@ fn no_message_is_forwarded_when_inviting_the_user_failes() {
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
+    // no message is forwarded
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
+}
+
+#[test]
+fn ignore_messages_to_a_room_that_is_not_bridged() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+
+    let mut channels = HashMap::new();
+    channels.insert("not_bridged_channel", vec!["spec_user"]);
+
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .run();
+
+    let message = Message {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "not_bridged_channel_id".to_string(),
+        channel_name: "not_bridged_channel".to_string(),
+        user_id: "new_user_id".to_string(),
+        user_name: "new_spec_user".to_string(),
+        text: "spec_message".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    // no message is forwarded
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 

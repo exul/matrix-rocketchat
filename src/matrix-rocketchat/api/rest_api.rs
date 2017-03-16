@@ -70,9 +70,9 @@ impl RestApi {
     }
 
     fn encode_url(base: String, parameters: &HashMap<&str, &str>) -> Result<String> {
-        let query_string = parameters.iter()
-            .fold("?".to_string(),
-                  |init, (k, v)| [init, [k.to_string(), v.to_string()].join("=")].join("&"));
+        let query_string = parameters.iter().fold("?".to_string(), |init, (k, v)| {
+            [init, [k.to_string(), v.to_string()].join("=")].join("&")
+        });
         let url_string = [base, query_string].join("");
         let url = Url::parse(&url_string).chain_err(|| ErrorKind::ApiCallFailed(url_string))?;
         Ok(format!("{}", url))

@@ -25,7 +25,12 @@ fn sucessfully_login_via_chat_mesage() {
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(LOGIN_PATH, handlers::RocketchatLogin { successful: true }, "login");
+    rocketchat_router.post(LOGIN_PATH,
+                           handlers::RocketchatLogin {
+                               successful: true,
+                               rocketchat_user_id: None,
+                           },
+                           "login");
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "Spec user".to_string() }, "me");
     let test = Test::new()
         .with_matrix_routes(matrix_router)
@@ -49,7 +54,7 @@ fn sucessfully_login_via_chat_mesage() {
     let user_on_rocketchat_server = UserOnRocketchatServer::find(&connection,
                                                                  &UserId::try_from("@spec_user:localhost").unwrap(),
                                                                  rocketchat_server.id)
-        .unwrap();
+            .unwrap();
     assert_eq!(user_on_rocketchat_server.rocketchat_auth_token.unwrap(), "spec_auth_token");
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
@@ -62,7 +67,12 @@ fn wrong_password_when_logging_in_via_chat_mesage() {
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(LOGIN_PATH, handlers::RocketchatLogin { successful: false }, "login");
+    rocketchat_router.post(LOGIN_PATH,
+                           handlers::RocketchatLogin {
+                               successful: false,
+                               rocketchat_user_id: None,
+                           },
+                           "login");
     let test = Test::new()
         .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -90,7 +100,12 @@ fn login_multiple_times() {
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(LOGIN_PATH, handlers::RocketchatLogin { successful: true }, "login");
+    rocketchat_router.post(LOGIN_PATH,
+                           handlers::RocketchatLogin {
+                               successful: true,
+                               rocketchat_user_id: None,
+                           },
+                           "login");
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "Spec user".to_string() }, "me");
     let test = Test::new()
         .with_matrix_routes(matrix_router)
@@ -123,7 +138,12 @@ fn the_user_can_login_again_on_the_same_server_with_a_new_admin_room() {
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(LOGIN_PATH, handlers::RocketchatLogin { successful: true }, "login");
+    rocketchat_router.post(LOGIN_PATH,
+                           handlers::RocketchatLogin {
+                               successful: true,
+                               rocketchat_user_id: None,
+                           },
+                           "login");
     let test = Test::new()
         .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -172,7 +192,12 @@ fn server_does_not_respond_when_logging_in_via_chat_mesage() {
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(LOGIN_PATH, handlers::RocketchatLogin { successful: true }, "login");
+    rocketchat_router.post(LOGIN_PATH,
+                           handlers::RocketchatLogin {
+                               successful: true,
+                               rocketchat_user_id: None,
+                           },
+                           "login");
     let test = Test::new()
         .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -260,7 +285,12 @@ fn the_user_gets_a_message_when_the_me_response_cannot_be_deserialized() {
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(LOGIN_PATH, handlers::RocketchatLogin { successful: true }, "login");
+    rocketchat_router.post(LOGIN_PATH,
+                           handlers::RocketchatLogin {
+                               successful: true,
+                               rocketchat_user_id: None,
+                           },
+                           "login");
     rocketchat_router.get(ME_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "me");
     let test = Test::new()
         .with_matrix_routes(matrix_router)
@@ -290,7 +320,12 @@ fn the_user_gets_a_message_when_the_me_endpoint_returns_an_error() {
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(LOGIN_PATH, handlers::RocketchatLogin { successful: true }, "login");
+    rocketchat_router.post(LOGIN_PATH,
+                           handlers::RocketchatLogin {
+                               successful: true,
+                               rocketchat_user_id: None,
+                           },
+                           "login");
     rocketchat_router.get(ME_PATH,
                           handlers::RocketchatErrorResponder {
                               status: status::InternalServerError,
@@ -323,10 +358,7 @@ fn attempt_to_login_when_the_admin_room_is_not_connected() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
-        .with_admin_room()
-        .run();
+    let test = Test::new().with_matrix_routes(matrix_router).with_admin_room().run();
 
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),

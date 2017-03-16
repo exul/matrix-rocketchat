@@ -11,7 +11,7 @@ use api::MatrixApi;
 use config::Config;
 use db::{ConnectionPool, NewUser, User};
 use errors::*;
-use handlers::iron::{Transactions, Welcome};
+use handlers::iron::{Rocketchat, Transactions, Welcome};
 use i18n::*;
 use log::IronLogger;
 
@@ -55,8 +55,9 @@ impl<'a> Server<'a> {
         let mut router = Router::new();
         router.get("/", Welcome {}, "welcome");
         router.put("/transactions/:txn_id",
-                   Transactions::chain(self.config.clone(), matrix_api),
+                   Transactions::chain(self.config.clone(), matrix_api.clone()),
                    "transactions");
+        router.post("/rocketchat", Rocketchat::chain(self.config.clone(), matrix_api), "rocketchat");
 
         router
     }
@@ -84,7 +85,6 @@ impl<'a> Server<'a> {
                     matrix_user_id: matrix_bot_user_id.clone(),
                     display_name: matrix_bot_user_id.to_string(),
                     language: DEFAULT_LANGUAGE,
-                    is_virtual_user: false,
                 };
                 User::insert(connection, &new_user)?;
                 info!(self.logger, format!("Bot user {} successfully registered", matrix_bot_user_id));

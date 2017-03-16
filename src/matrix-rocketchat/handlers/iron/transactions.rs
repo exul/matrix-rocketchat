@@ -4,14 +4,13 @@ use iron::{Handler, status};
 use iron::prelude::*;
 use iron::request::Body;
 use serde_json;
-use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
 use db::ConnectionPool;
 use errors::*;
 use handlers::events::EventDispatcher;
-use log::IronLogger;
+use log::{self, IronLogger};
 use middleware::AccessToken;
 use models::Events;
 
@@ -43,16 +42,16 @@ impl Handler for Transactions {
         let events_batch = match deserialize_events(&mut request.body) {
             Ok(events_batch) => events_batch,
             Err(err) => {
-                log_error(logger, &err);
+                log::log_error(&logger, &err);
                 return Err(err.into());
             }
         };
 
-        let connection = ConnectionPool::get_from_request(request)?;
+        let connection = ConnectionPool::from_request(request)?;
 
         if let Err(err) = EventDispatcher::new(&self.config, &connection, logger.clone(), self.matrix_api.clone())
             .process(events_batch.events) {
-            log_error(logger, &err);
+            log::log_error(&logger, &err);
         }
 
         Ok(Response::with((status::Ok, "{}".to_string())))
@@ -69,12 +68,4 @@ fn deserialize_events(body: &mut Body) -> Result<Events> {
                                            payload))
         })
         .map_err(Error::from)
-}
-
-fn log_error(logger: Logger, err: &Error) {
-    let mut msg = format!("{}", err);
-    for err in err.error_chain.iter().skip(1) {
-        msg = msg + " caused by: " + &format!("{}", err);
-    }
-    error!(logger, msg);
 }

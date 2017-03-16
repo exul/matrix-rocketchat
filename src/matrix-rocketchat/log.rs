@@ -26,3 +26,12 @@ impl IronLogger {
 impl Key for IronLogger {
     type Value = Logger;
 }
+
+/// Log an error including all the chained errors
+pub fn log_error(logger: &Logger, err: &Error) {
+    let mut msg = format!("{}", err);
+    for err in err.error_chain.iter().skip(1) {
+        msg = msg + " caused by: " + &format!("{}", err);
+    }
+    error!(logger, msg);
+}

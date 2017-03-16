@@ -42,11 +42,22 @@ impl UserInRoom {
         UserInRoom::find(connection, &user_in_room.matrix_user_id, &user_in_room.matrix_room_id)
     }
 
-    /// Find a `UserInRoom` by its matrix user ID and its matrix room ID
+    /// Find a `UserInRoom` by its matrix user ID and its matrix room ID, return an error if the user is not found
     pub fn find(connection: &SqliteConnection, matrix_user_id: &UserId, matrix_room_id: &RoomId) -> Result<UserInRoom> {
         let user_in_room = users_in_rooms::table.find((matrix_user_id, matrix_room_id))
             .first(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(user_in_room)
+    }
+
+    /// Find a `UserInRoom` by its matrix user ID and its matrix room ID.
+    pub fn find_by_matrix_user_id_and_matrix_room_id(connection: &SqliteConnection,
+                                                     matrix_user_id: &UserId,
+                                                     matrix_room_id: &RoomId)
+                                                     -> Result<Option<UserInRoom>> {
+        let user_in_room = users_in_rooms::table.find((matrix_user_id, matrix_room_id))
+            .load(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(user_in_room.into_iter().next())
     }
 }

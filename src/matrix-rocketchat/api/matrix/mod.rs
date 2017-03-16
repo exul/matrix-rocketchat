@@ -23,6 +23,8 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()>;
     /// Get the list of members for this room.
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>>;
+    /// Invite a user to a room.
+    fn invite(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
     /// Join a room with a user.
     fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
     /// Leave a room.

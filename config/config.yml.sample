@@ -1,9 +1,10 @@
 # Token that the homeserver uses to talk to the application service.
 # This has to match the parameter `hs_token` in your  rocketchat_registration.yaml.
+# Choose a long random string.
 hs_token: "hs_secret_token"
 # Token that the application service uses to talk to the homeserver
-# Choose a long random string.
 # This has to match the parameter `as_token` in your  rocketchat_registration.yaml.
+# Choose a long random string.
 as_token: "as_secret_token"
 # The address to which the application service binds. If you run the
 # application service without a reverse proxy, this has to be a public IP
@@ -24,16 +25,17 @@ as_url: "https://example.com:8088"
 hs_url: "http://127.0.0.1:8008"
 # The domain of the homeserver. It is used to create the usernames (the part
 # after the colon).
-# This has to match the parameter `server_name` in your homeserver.yaml (if you are running synapse as your homeserver).
+# This has to match the parameter `server_name` in your homeserver.yaml
+# (if you are running synapse as your homeserver).
 hs_domain: "example.org"
-# The local part of you bot, the full name will be something like
+# The local part of your bot, the full name will be something like
 # @rocketchat:example.com This will also be the namespace that the application
 # service uses on the homeserver so no other application service/user will be
 # able to use username that starts with this string.
-# This has to match the parameter `sender_localpart` in your  rocketchat_registration.yaml.
+# This has to match the parameter `sender_localpart` in your rocketchat_registration.yaml.
 sender_localpart: "rocketchat"
 # The URL to the SQL-Lite database that the application service will use. You
-# can chooose any file path that he user you run the application service has
+# can choose any file path that the user you run the application service has
 # access to. The path can be absolute or relative.
 database_url: "./database.sqlite3"
 # Flag that indicates if the application service should output the log to the console
@@ -44,7 +46,7 @@ log_to_file: true
 log_file_path: "/path/to/file.log"
 # Flag that indicates if the application service should use SSL. It's highly
 # recommended that you use SSL if you expose the application service directly
-# (bind it to a public IP address). If you run the application service behinde
+# (bind it to a public IP address). If you run the application service behind
 # a reverse-proxy you can run it on localhost and let the proxy handle SSL.
 use_ssl: true
 # Path to the SSL certificate (this is only mandatory if you run the

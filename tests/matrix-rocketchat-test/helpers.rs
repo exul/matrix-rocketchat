@@ -93,9 +93,9 @@ pub fn leave_room(as_url: &str, room_id: RoomId, user_id: UserId) {
 pub fn send_room_message_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId, body: String) {
     let message_event = MessageEvent {
         content: MessageEventContent::Text(TextMessageEventContent {
-            body: body,
-            msgtype: MessageType::Text,
-        }),
+                                               body: body,
+                                               msgtype: MessageType::Text,
+                                           }),
         event_id: EventId::new("localhost").unwrap(),
         event_type: EventType::RoomMessage,
         room_id: room_id,
@@ -112,9 +112,9 @@ pub fn send_room_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Use
 pub fn send_emote_message_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId, body: String) {
     let message_event = MessageEvent {
         content: MessageEventContent::Text(TextMessageEventContent {
-            body: body,
-            msgtype: MessageType::Emote,
-        }),
+                                               body: body,
+                                               msgtype: MessageType::Emote,
+                                           }),
         event_id: EventId::new("localhost").unwrap(),
         event_type: EventType::RoomMessage,
         room_id: room_id,
@@ -133,4 +133,10 @@ pub fn simulate_message_from_matrix(as_url: &str, payload: &str) -> (String, Sta
     let mut params = HashMap::new();
     params.insert("access_token", HS_TOKEN);
     RestApi::call(Method::Put, &url, payload, &params, None).unwrap()
+}
+
+pub fn simulate_message_from_rocketchat(as_url: &str, payload: &str) -> (String, StatusCode) {
+    let url = format!("{}/rocketchat", as_url);
+    let params = HashMap::new();
+    RestApi::call(Method::Post, &url, payload, &params, None).unwrap()
 }

@@ -38,7 +38,7 @@ fn sucessfully_list_rocketchat_rooms() {
         .with_connected_admin_room()
         .with_logged_in_user()
         .with_custom_channel_list(channels)
-        .with_bridged_room(("bridged_room", "@spec_user:localhost"))
+        .with_bridged_room(("bridged_channel", "spec_user"))
         .run();
 
     // discard welcome message
@@ -47,11 +47,6 @@ fn sucessfully_list_rocketchat_rooms() {
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
-
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge bridged_channel".to_string());
 
     // discard bridge message
     receiver.recv_timeout(default_timeout()).unwrap();

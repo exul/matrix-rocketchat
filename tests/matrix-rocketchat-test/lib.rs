@@ -46,7 +46,6 @@ use r2d2_diesel::ConnectionManager;
 use router::Router;
 use ruma_identifiers::{RoomId, UserId};
 use ruma_client_api::Endpoint;
-use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinEndpoint;
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
 use slog::{DrainExt, Record};
@@ -60,6 +59,8 @@ pub const DATABASE_NAME: &'static str = "test.db";
 const AS_TOKEN: &'static str = "at";
 /// Homeserver token used in the tests
 pub const HS_TOKEN: &'static str = "ht";
+/// Rocket.Chat token used in the tests
+pub const RS_TOKEN: &'static str = "rt";
 /// Number of threads that iron uses when running tests
 pub const IRON_THREADS: usize = 1;
 /// The version the mock Rocket.Chat server announces
@@ -217,6 +218,11 @@ impl Test {
             self.login_user();
         }
 
+        if let Some(bridged_room) = self.bridged_room {
+            let (room_name, _) = bridged_room;
+            self.bridge_room(room_name);
+        }
+
         self
     }
 
@@ -242,7 +248,6 @@ impl Test {
                               UserId::try_from("@rocketchat:localhost").unwrap()],
             };
             router.get(GetMemberEventsEndpoint::router_path(), room_members, "room_members");
-            router.post(JoinEndpoint::router_path(), handlers::EmptyJson {}, "join");
         }
 
         if let Some(bridged_room) = self.bridged_room {
@@ -255,11 +260,11 @@ impl Test {
         }
 
         thread::spawn(move || {
-            let mut server = Iron::new(router);
-            server.threads = IRON_THREADS;
-            let listening = server.http(&hs_socket_addr).unwrap();
-            hs_tx.send(listening).unwrap();
-        });
+                          let mut server = Iron::new(router);
+                          server.threads = IRON_THREADS;
+                          let listening = server.http(&hs_socket_addr).unwrap();
+                          hs_tx.send(listening).unwrap();
+                      });
 
         let hs_listening = hs_rx.recv_timeout(default_timeout()).unwrap();
         self.hs_listening = Some(hs_listening);
@@ -279,7 +284,12 @@ impl Test {
                    "info");
 
         if self.with_logged_in_user {
-            router.post(LOGIN_PATH, handlers::RocketchatLogin { successful: true }, "login");
+            router.post(LOGIN_PATH,
+                        handlers::RocketchatLogin {
+                            successful: true,
+                            rocketchat_user_id: Some("spec_user_id".to_string()),
+                        },
+                        "login");
             router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
         }
 
@@ -303,11 +313,11 @@ impl Test {
         }
 
         thread::spawn(move || {
-            let mut server = Iron::new(router);
-            server.threads = IRON_THREADS;
-            let listening = server.http(&socket_addr).unwrap();
-            tx.send(listening).unwrap();
-        });
+                          let mut server = Iron::new(router);
+                          server.threads = IRON_THREADS;
+                          let listening = server.http(&socket_addr).unwrap();
+                          tx.send(listening).unwrap();
+                      });
         let listening = rx.recv_timeout(default_timeout() * 2).unwrap();
         self.rocketchat_listening = Some(listening);
         self.rocketchat_mock_url = Some(format!("http://{}", socket_addr));
@@ -353,7 +363,7 @@ impl Test {
                 helpers::send_room_message_from_matrix(&self.config.as_url,
                                                        RoomId::try_from("!admin:localhost").unwrap(),
                                                        UserId::try_from("@spec_user:localhost").unwrap(),
-                                                       format!("connect {} spec_token", rocketchat_mock_url));
+                                                       format!("connect {} {}", rocketchat_mock_url, RS_TOKEN));
             }
             None => panic!("No Rocket.Chat mock present to connect to"),
         }
@@ -364,6 +374,13 @@ impl Test {
                                                RoomId::try_from("!admin:localhost").unwrap(),
                                                UserId::try_from("@spec_user:localhost").unwrap(),
                                                "login spec_user secret".to_string());
+    }
+
+    fn bridge_room(&self, room_name: &'static str) {
+        helpers::send_room_message_from_matrix(&self.config.as_url,
+                                               RoomId::try_from("!admin:localhost").unwrap(),
+                                               UserId::try_from("@spec_user:localhost").unwrap(),
+                                               format!("bridge {}", room_name));
     }
 }
 

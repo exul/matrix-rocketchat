@@ -83,17 +83,32 @@ error_chain!{
     errors {
         InvalidAccessToken(token: String) {
             description("The provided access token is not valid")
-            display("Could not process request, the access token {} is not valid", token)
+            display("Could not process request, the access token `{}` is not valid", token)
         }
 
         MissingAccessToken {
-            description("The access token missing")
+            description("The access token is missing")
             display("Could not process request, no access token was provided")
+        }
+
+        InvalidRocketchatToken(token: String) {
+            description("The provided access token is not valid")
+            display("Could not process request, the access token `{}` did not match any bridged Rocket.Chat server", token)
+        }
+
+        MissingRocketchatToken {
+            description("The Rocket.Chat token is missing")
+            display("Could not process request, no Rocket.Chat token provided")
         }
 
         InvalidJSON(msg: String) {
             description("The provided JSON is not valid.")
             display("Could not process request, the submitted data is not valid JSON: {}", msg)
+        }
+
+        InvalidYAML(msg: String) {
+            description("The provided YAML is not valid.")
+            display("The submitted data is not valid YAML: {}", msg)
         }
 
         InvalidUserId(user_id: String) {
@@ -276,8 +291,10 @@ error_chain!{
 impl Error {
     pub fn status_code(&self) -> Status {
         match *self.error_chain {
-            ErrorKind::InvalidAccessToken(_) => Status::Forbidden,
-            ErrorKind::MissingAccessToken => Status::Unauthorized,
+            ErrorKind::InvalidAccessToken(_) |
+            ErrorKind::InvalidRocketchatToken(_) => Status::Forbidden,
+            ErrorKind::MissingAccessToken |
+            ErrorKind::MissingRocketchatToken => Status::Unauthorized,
             ErrorKind::InvalidJSON(_) => Status::UnprocessableEntity,
             _ => Status::InternalServerError,
         }

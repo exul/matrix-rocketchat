@@ -42,7 +42,7 @@ impl Config {
         let mut config_file = File::open(path).chain_err(|| ErrorKind::ReadFileError(path.to_string()))?;
         config_file.read_to_string(&mut config_content).chain_err(|| ErrorKind::ReadConfigError)?;
         let config: Config =
-            serde_yaml::from_str(&config_content).chain_err(|| ErrorKind::InvalidJSON("Could not serialize config".to_string()))?;
+            serde_yaml::from_str(&config_content).chain_err(|| ErrorKind::InvalidYAML("Could not serialize config".to_string()))?;
         Ok(config)
     }
 

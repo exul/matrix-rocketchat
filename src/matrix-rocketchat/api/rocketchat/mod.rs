@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use iron::typemap::Key;
 use reqwest::header::Headers;
 use reqwest::Method;
 use serde_json;
@@ -34,6 +35,25 @@ pub struct Channel {
     pub name: String,
     /// List of users in the room
     pub usernames: Vec<String>,
+}
+
+/// A Rocket.Chat message
+#[derive(Deserialize, Debug, Serialize)]
+pub struct Message {
+    /// ID of the message
+    pub message_id: String,
+    /// Rocket.Chat token
+    pub token: Option<String>,
+    /// ID of the channel from which the message was sent
+    pub channel_id: String,
+    /// Name of the channel from which the message was sent
+    pub channel_name: String,
+    /// ID of the user who sent the message
+    pub user_id: String,
+    /// Name of the user who sent the message
+    pub user_name: String,
+    /// Message content
+    pub text: String,
 }
 
 /// Rocket.Chat REST API
@@ -111,4 +131,8 @@ impl RocketchatApi {
                 .with_vars(vec![("min_version", min_version), ("version", version)])),
         })
     }
+}
+
+impl Key for Message {
+    type Value = Message;
 }

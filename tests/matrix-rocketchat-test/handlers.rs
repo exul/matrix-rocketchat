@@ -21,7 +21,7 @@ impl Handler for RocketchatInfo {
         let payload = r#"{
             "version": "VERSION"
         }"#
-            .replace("VERSION", self.version);
+                .replace("VERSION", self.version);
 
         Ok(Response::with((status::Ok, payload)))
     }
@@ -29,6 +29,7 @@ impl Handler for RocketchatInfo {
 
 pub struct RocketchatLogin {
     pub successful: bool,
+    pub rocketchat_user_id: Option<String>,
 }
 
 impl Handler for RocketchatLogin {
@@ -36,7 +37,8 @@ impl Handler for RocketchatLogin {
 
         let (status, payload) = match self.successful {
             true => {
-                let user_id: String = thread_rng().gen_ascii_chars().take(10).collect();
+                let user_id: String =
+                    self.rocketchat_user_id.clone().unwrap_or(thread_rng().gen_ascii_chars().take(10).collect());
                 (status::Ok,
                  r#"{
                     "status": "success",
@@ -45,7 +47,7 @@ impl Handler for RocketchatLogin {
                         "userId": "USER_ID"
                     }
                  }"#
-                     .replace("USER_ID", &user_id))
+                         .replace("USER_ID", &user_id))
             }
             false => {
                 (status::Unauthorized,
@@ -53,7 +55,7 @@ impl Handler for RocketchatLogin {
                     "status": "error",
                     "message": "Unauthorized"
                 }"#
-                     .to_string())
+                         .to_string())
             }
         };
 
@@ -70,7 +72,7 @@ impl Handler for RocketchatMe {
         let payload = r#"{
             "username": "USERNAME"
         }"#
-            .replace("USERNAME", &self.username);
+                .replace("USERNAME", &self.username);
 
         Ok(Response::with((status::Ok, payload)))
     }
@@ -103,8 +105,8 @@ impl Handler for RocketchatChannelsList {
                 "sysMes": true,
                 "_updatedAt": "2017-02-12T13:20:22.092Z"
             }"#
-                .replace("CHANNEL_NAME", channel_name)
-                .replace("CHANNEL_USERNAMES", &user_names.join("\",\""));
+                    .replace("CHANNEL_NAME", channel_name)
+                    .replace("CHANNEL_USERNAMES", &user_names.join("\",\""));
             channels.push(channel);
         }
 

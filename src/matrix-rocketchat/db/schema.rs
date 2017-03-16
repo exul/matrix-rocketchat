@@ -5,7 +5,6 @@ table! {
         matrix_user_id -> Text,
         display_name -> Text,
         language -> Text,
-        is_virtual_user -> Bool,
         last_message_sent -> BigInt,
         created_at -> Timestamp,
         updated_at -> Timestamp,
@@ -46,6 +45,7 @@ table! {
 
 table! {
     users_on_rocketchat_servers (matrix_user_id, rocketchat_server_id) {
+        is_virtual_user -> Bool,
         matrix_user_id -> Text,
         rocketchat_server_id -> Integer,
         rocketchat_user_id -> Nullable<Text>,

@@ -84,7 +84,12 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
                       "other_room_members");
 
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(LOGIN_PATH, handlers::RocketchatLogin { successful: true }, "login");
+    rocketchat_router.post(LOGIN_PATH,
+                           handlers::RocketchatLogin {
+                               successful: true,
+                               rocketchat_user_id: None,
+                           },
+                           "login");
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
 
     let mut channels = HashMap::new();

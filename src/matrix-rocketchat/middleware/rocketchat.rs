@@ -9,20 +9,25 @@ use errors::*;
 use log::*;
 
 /// Compares the supplied access token to the one that is in the config
-pub struct RocketchatToken {
-}
+pub struct RocketchatToken {}
 
 impl BeforeMiddleware for RocketchatToken {
     fn before(&self, request: &mut Request) -> IronResult<()> {
         let logger = IronLogger::from_request(request)?;
         let mut payload = String::new();
-        request.body.read_to_string(&mut payload).chain_err(|| ErrorKind::InternalServerError).map_err(Error::from)?;
-        let message = serde_json::from_str::<Message>(&payload).chain_err(|| {
-                ErrorKind::InvalidJSON(format!("Could not deserialize message that was sent to the rocketchat endpoint: \
-                                                `{}`",
-                                               payload))
-            })
+        request.body
+            .read_to_string(&mut payload)
+            .chain_err(|| ErrorKind::InternalServerError)
             .map_err(Error::from)?;
+        let message = match serde_json::from_str::<Message>(&payload) {
+            Ok(message) => message,
+            Err(err) => {
+                let json_err = simple_error!(ErrorKind::InvalidJSON(format!("Could not deserialize message that was sent to the rocketchat endpoint: `{}`",
+                                                                            payload)));
+                error!(logger, err);
+                return Err(json_err.into());
+            }
+        };
 
         let token = match message.token.clone() {
             Some(token) => token,

@@ -10,6 +10,8 @@ use super::User;
 /// A user on a Rocket.Chat server.
 #[derive(Debug, Queryable)]
 pub struct UserOnRocketchatServer {
+    /// Flag to indicate if the user is only used to send messages from Rocket.Chat
+    pub is_virtual_user: bool,
     /// The users unique id on the Rocket.Chat server.
     pub matrix_user_id: UserId,
     /// The unique id for the Rocket.Chat server
@@ -30,6 +32,8 @@ pub struct UserOnRocketchatServer {
 #[derive(Insertable)]
 #[table_name="users_on_rocketchat_servers"]
 pub struct NewUserOnRocketchatServer {
+    /// Flag to indicate if the user is only used to send messages from Rocket.Chat
+    pub is_virtual_user: bool,
     /// The users unique id on the Rocket.Chat server.
     pub matrix_user_id: UserId,
     /// The unique id for the Rocket.Chat server
@@ -47,9 +51,11 @@ impl UserOnRocketchatServer {
     pub fn upsert(connection: &SqliteConnection,
                   user_on_rocketchat_server: &NewUserOnRocketchatServer)
                   -> Result<UserOnRocketchatServer> {
-        let users_on_rocketchat_server: Vec<UserOnRocketchatServer> = users_on_rocketchat_servers::table
-            .find((&user_on_rocketchat_server.matrix_user_id, &user_on_rocketchat_server.rocketchat_server_id))
-            .load(connection).chain_err(|| ErrorKind::DBSelectError)?;
+        let users_on_rocketchat_server: Vec<UserOnRocketchatServer> =
+            users_on_rocketchat_servers::table.find((&user_on_rocketchat_server.matrix_user_id,
+                                                     &user_on_rocketchat_server.rocketchat_server_id))
+                .load(connection)
+                .chain_err(|| ErrorKind::DBSelectError)?;
 
         match users_on_rocketchat_server.into_iter().next() {
             Some(existing_user_on_rocketchat_server) => {
@@ -85,9 +91,10 @@ impl UserOnRocketchatServer {
     /// Find a `UserOnRocketchatServer` by his Rocket.Chat user ID. Returns `None`, if the `UserOnRocketchatServer` is not found.
     pub fn find_by_rocketchat_user_id(connection: &SqliteConnection,
                                       rocketchat_server_id: i32,
-                                      rocketchat_user_id: String)
+                                      rocketchat_user_id: String,
+                                      is_virtual_user: bool)
                                       -> Result<Option<UserOnRocketchatServer>> {
-        let users_on_rocketchat_servers = users_on_rocketchat_servers::table.filter(users_on_rocketchat_servers::rocketchat_server_id.eq(rocketchat_server_id).and(users_on_rocketchat_servers::rocketchat_user_id.eq(rocketchat_user_id)))
+        let users_on_rocketchat_servers = users_on_rocketchat_servers::table.filter(users_on_rocketchat_servers::rocketchat_server_id.eq(rocketchat_server_id).and(users_on_rocketchat_servers::rocketchat_user_id.eq(rocketchat_user_id)).and(users_on_rocketchat_servers::is_virtual_user.eq(is_virtual_user)))
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(users_on_rocketchat_servers.into_iter().next())

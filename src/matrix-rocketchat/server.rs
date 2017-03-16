@@ -85,7 +85,6 @@ impl<'a> Server<'a> {
                     matrix_user_id: matrix_bot_user_id.clone(),
                     display_name: matrix_bot_user_id.to_string(),
                     language: DEFAULT_LANGUAGE,
-                    is_virtual_user: false,
                 };
                 User::insert(connection, &new_user)?;
                 info!(self.logger, format!("Bot user {} successfully registered", matrix_bot_user_id));

@@ -24,7 +24,11 @@ impl Handler for MessageForwarder {
     fn handle(&self, request: &mut Request) -> IronResult<Response> {
         let mut payload = String::new();
         request.body.read_to_string(&mut payload).unwrap();
-        self.tx.lock().unwrap().send(payload).unwrap();
+        self.tx
+            .lock()
+            .unwrap()
+            .send(payload)
+            .unwrap();
 
         Ok(Response::with((status::Ok, "{}".to_string())))
     }

@@ -106,8 +106,8 @@ impl<'a> RoomHandler<'a> {
     fn handle_bot_join(&self, matrix_room_id: RoomId, matrix_bot_user_id: UserId) -> Result<()> {
         let room = Room::find(self.connection, &matrix_room_id)?;
         let users_in_room = room.users(self.connection)?;
-        let invitation_submitter = users_in_room.first()
-            .expect("There is always a user in the room, because this user invited the bot");
+        let invitation_submitter =
+            users_in_room.first().expect("There is always a user in the room, because this user invited the bot");
 
         if !self.is_private_room(matrix_room_id.clone())? {
             return self.handle_non_private_room(&room, invitation_submitter, matrix_bot_user_id);
@@ -156,7 +156,9 @@ impl<'a> RoomHandler<'a> {
     }
 
     fn is_private_room(&self, matrix_room_id: RoomId) -> Result<bool> {
-        Ok(self.matrix_api.get_room_members(matrix_room_id)?.len() <= 2)
+        Ok(self.matrix_api
+               .get_room_members(matrix_room_id)?
+               .len() <= 2)
     }
 
     fn handle_non_private_room(&self, room: &Room, invitation_submitter: &User, matrix_bot_user_id: UserId) -> Result<()> {
@@ -179,8 +181,10 @@ impl<'a> RoomHandler<'a> {
 
     fn admin_room_language(&self, room: &Room) -> Result<String> {
         let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
-        let users: Vec<User> =
-            room.users(self.connection)?.into_iter().filter(|user| user.matrix_user_id != matrix_bot_user_id).collect();
+        let users: Vec<User> = room.users(self.connection)?
+            .into_iter()
+            .filter(|user| user.matrix_user_id != matrix_bot_user_id)
+            .collect();
         let user = users.first().expect("An admin room always contains another user");
         Ok(user.language.clone())
     }

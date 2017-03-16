@@ -127,8 +127,8 @@ impl super::MatrixApi for MatrixApi {
 
         debug!(self.logger,
                "User {} successfully invited into room {}",
-               matrix_room_id,
-               matrix_user_id);
+               matrix_user_id,
+               matrix_room_id);
         Ok(())
     }
 
@@ -169,7 +169,7 @@ impl super::MatrixApi for MatrixApi {
         let body_params = register::BodyParams {
             bind_email: None,
             password: None,
-            username: Some(user_id_local_part),
+            username: Some(user_id_local_part.to_lowercase()),
             device_id: None,
             initial_device_display_name: None,
             auth: None,

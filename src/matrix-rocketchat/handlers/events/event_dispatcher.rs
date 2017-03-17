@@ -7,14 +7,13 @@ use api::MatrixApi;
 use config::Config;
 use errors::*;
 use handlers::ErrorNotifier;
-use super::room_handler::RoomHandler;
-use super::command_handler::CommandHandler;
+use super::{MessageHandler, RoomHandler};
 
 /// Dispatches events to the corresponding handler.
 pub struct EventDispatcher<'a> {
     config: &'a Config,
     connection: &'a SqliteConnection,
-    logger: Logger,
+    logger: &'a Logger,
     matrix_api: Box<MatrixApi>,
 }
 
@@ -22,7 +21,7 @@ impl<'a> EventDispatcher<'a> {
     /// Create a new `EventDispatcher` with an SQLite connection
     pub fn new(config: &'a Config,
                connection: &'a SqliteConnection,
-               logger: Logger,
+               logger: &'a Logger,
                matrix_api: Box<MatrixApi>)
                -> EventDispatcher<'a> {
         EventDispatcher {
@@ -43,16 +42,16 @@ impl<'a> EventDispatcher<'a> {
                                                        self.connection,
                                                        self.logger.clone(),
                                                        self.matrix_api.clone())
-                        .process(&member_event) {
+                               .process(&member_event) {
                         return self.handle_error(err, member_event.room_id, &member_event.user_id);
                     }
                 }
                 Event::RoomMessage(message_event) => {
-                    if let Err(err) = CommandHandler::new(self.config,
+                    if let Err(err) = MessageHandler::new(self.config,
                                                           self.connection,
-                                                          self.logger.clone(),
+                                                          self.logger,
                                                           self.matrix_api.clone())
-                        .process(&message_event) {
+                               .process(&message_event) {
                         return self.handle_error(err, message_event.room_id, &message_event.user_id);
                     }
                 }

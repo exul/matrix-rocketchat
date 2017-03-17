@@ -28,7 +28,7 @@ use ruma_identifiers::{RoomId, UserId};
 use serde_json::to_string;
 
 #[test]
-fn successfully_forwards_a_text_message_from_a_user_that_is_not_registered_on_matrix() {
+fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_is_not_registered_on_matrix() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     let (join_forwarder, join_receiver) = MessageForwarder::new();
@@ -136,7 +136,7 @@ fn successfully_forwards_a_text_message_from_a_user_that_is_not_registered_on_ma
 }
 
 #[test]
-fn successfully_forwards_a_text_message_from_a_user_that_is_registered_on_matrix() {
+fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_is_registered_on_matrix() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     let (join_forwarder, join_receiver) = MessageForwarder::new();

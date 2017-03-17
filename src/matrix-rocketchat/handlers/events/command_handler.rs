@@ -2,7 +2,7 @@ use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::message::MessageEvent;
 use ruma_events::room::message::MessageEventContent;
-use ruma_identifiers::{RoomId, UserId};
+use ruma_identifiers::UserId;
 use slog::Logger;
 
 use api::{MatrixApi, RocketchatApi};
@@ -17,16 +17,16 @@ use i18n::*;
 pub struct CommandHandler<'a> {
     config: &'a Config,
     connection: &'a SqliteConnection,
-    logger: Logger,
-    matrix_api: Box<MatrixApi>,
+    logger: &'a Logger,
+    matrix_api: &'a Box<MatrixApi>,
 }
 
 impl<'a> CommandHandler<'a> {
     /// Create a new `CommandHandler`.
     pub fn new(config: &'a Config,
                connection: &'a SqliteConnection,
-               logger: Logger,
-               matrix_api: Box<MatrixApi>)
+               logger: &'a Logger,
+               matrix_api: &'a Box<MatrixApi>)
                -> CommandHandler<'a> {
         CommandHandler {
             config: config,
@@ -37,7 +37,7 @@ impl<'a> CommandHandler<'a> {
     }
 
     /// Handles command messages from an admin room
-    pub fn process(&self, event: &MessageEvent) -> Result<()> {
+    pub fn process(&self, event: &MessageEvent, room: &Room) -> Result<()> {
         let message = match event.content {
             MessageEventContent::Text(ref text_content) => text_content.body.clone(),
             _ => {
@@ -57,17 +57,17 @@ impl<'a> CommandHandler<'a> {
         } else if message.starts_with("login") {
             debug!(self.logger, "Received login command");
 
-            let rocketchat_server = self.get_rocketchat_server(&event.room_id, &message)?;
+            let rocketchat_server = self.get_rocketchat_server(room, &message)?;
             self.login(event, &rocketchat_server, &message)?;
         } else if message == "list" {
             debug!(self.logger, "Received list command");
 
-            let rocketchat_server = self.get_rocketchat_server(&event.room_id, &message)?;
+            let rocketchat_server = self.get_rocketchat_server(room, &message)?;
             self.list_channels(event, &rocketchat_server)?;
         } else if message.starts_with("bridge") {
             debug!(self.logger, "Received bridge command");
 
-            let rocketchat_server = self.get_rocketchat_server(&event.room_id, &message)?;
+            let rocketchat_server = self.get_rocketchat_server(room, &message)?;
             self.bridge(event, &rocketchat_server, &message)?;
         } else if event.user_id == self.config.matrix_bot_user_id()? {
             debug!(self.logger, "Skipping event from bot user");
@@ -269,7 +269,10 @@ impl<'a> CommandHandler<'a> {
                 let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
                 let message =
                     t!(["admin_room", "room_successfully_bridged"]).with_vars(vec![("channel_name", channel.name.clone())]);
-                info!(self.logger, "Successfully bridged room {}", channel.id.clone());
+                info!(self.logger,
+                      "Successfully bridged room {} to {}",
+                      &channel.id,
+                      &room.matrix_room_id);
                 self.matrix_api.send_text_message_event(event.room_id.clone(),
                                                         bot_matrix_user_id,
                                                         message.l(&user.language))
@@ -312,12 +315,11 @@ impl<'a> CommandHandler<'a> {
         Ok(channel_list)
     }
 
-    fn get_rocketchat_server(&self, matrix_room_id: &RoomId, message: &str) -> Result<RocketchatServer> {
-        let room = Room::find(self.connection, matrix_room_id)?;
+    fn get_rocketchat_server(&self, room: &Room, message: &str) -> Result<RocketchatServer> {
         match room.rocketchat_server(self.connection)? {
             Some(rocketchat_server) => Ok(rocketchat_server),
             None => {
-                Err(user_error!(ErrorKind::RoomNotConnected(matrix_room_id.to_string(), message.to_string()),
+                Err(user_error!(ErrorKind::RoomNotConnected(room.matrix_room_id.to_string(), message.to_string()),
                                 t!(["errors", "room_not_connected"])))
             }
         }

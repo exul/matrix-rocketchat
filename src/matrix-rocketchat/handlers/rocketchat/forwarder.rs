@@ -50,6 +50,16 @@ impl<'a> Forwarder<'a> {
                 }
             };
 
+        if Some(message.user_name.clone()) != user_on_rocketchat_server.rocketchat_username.clone() {
+            self.connection
+                .transaction(|| {
+                                 user_on_rocketchat_server.set_rocketchat_username(self.connection,
+                                                                                   Some(message.user_name.clone()))?;
+                                 self.matrix_api.set_display_name(user_on_rocketchat_server.matrix_user_id.clone(),
+                                                                  message.user_name.clone())
+                             })?;
+        }
+
 
         let user_in_room =
             UserInRoom::find_by_matrix_user_id_and_matrix_room_id(self.connection,
@@ -91,6 +101,14 @@ impl<'a> Forwarder<'a> {
         let user_on_rocketchat_server = UserOnRocketchatServer::upsert(self.connection, &new_user_on_rocketchat_server)?;
 
         self.matrix_api.register(user_id_local_part.clone())?;
+        if let Err(err) = self.matrix_api.set_display_name(user_on_rocketchat_server.matrix_user_id.clone(),
+                                                           message.user_name.clone()) {
+            info!(self.logger,
+                  format!("Setting display name `{}`, for user `{}` failed with {}",
+                          &user_on_rocketchat_server.matrix_user_id,
+                          &message.user_name,
+                          err));
+        }
 
         Ok(user_on_rocketchat_server)
     }

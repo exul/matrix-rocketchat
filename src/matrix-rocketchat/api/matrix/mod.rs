@@ -33,6 +33,8 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn register(&self, user_id_local_part: String) -> Result<()>;
     /// Send a text message to a room.
     fn send_text_message_event(&self, matrix_room_id: RoomId, matrix_user_id: UserId, body: String) -> Result<()>;
+    /// Set the display name for a user
+    fn set_display_name(&self, matrix_user_id: UserId, name: String) -> Result<()>;
     /// Set the name for a room
     fn set_room_name(&self, matrix_room_id: RoomId, name: String) -> Result<()>;
 }

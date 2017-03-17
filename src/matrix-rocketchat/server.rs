@@ -83,7 +83,6 @@ impl<'a> Server<'a> {
                 matrix_api.register(self.config.sender_localpart.clone())?;
                 let new_user = NewUser {
                     matrix_user_id: matrix_bot_user_id.clone(),
-                    display_name: matrix_bot_user_id.to_string(),
                     language: DEFAULT_LANGUAGE,
                 };
                 User::insert(connection, &new_user)?;

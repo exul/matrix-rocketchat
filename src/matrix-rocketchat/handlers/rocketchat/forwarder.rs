@@ -84,7 +84,6 @@ impl<'a> Forwarder<'a> {
         let matrix_user_id = UserId::try_from(&user_id).chain_err(|| ErrorKind::InvalidUserId(user_id))?;
 
         let new_user = NewUser {
-            display_name: message.user_name.clone(),
             language: DEFAULT_LANGUAGE,
             matrix_user_id: matrix_user_id.clone(),
         };

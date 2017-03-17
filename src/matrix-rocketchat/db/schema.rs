@@ -3,7 +3,6 @@
 table! {
     users (matrix_user_id) {
         matrix_user_id -> Text,
-        display_name -> Text,
         language -> Text,
         last_message_sent -> BigInt,
         created_at -> Timestamp,

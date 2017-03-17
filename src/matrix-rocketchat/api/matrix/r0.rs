@@ -8,6 +8,7 @@ use ruma_client_api::r0::membership::forget_room::{self, Endpoint as ForgetRoomE
 use ruma_client_api::r0::membership::invite_user::{self, Endpoint as InviteUserEndpoint};
 use ruma_client_api::r0::membership::join_room_by_id::{self, Endpoint as JoinRoomByIdEndpoint};
 use ruma_client_api::r0::membership::leave_room::{self, Endpoint as LeaveRoomEndpoint};
+use ruma_client_api::r0::profile::set_display_name::{self, Endpoint as SetDisplayNameEndpoint};
 use ruma_client_api::r0::room::create_room::{self, Endpoint as CreateRoomEndpoint, RoomPreset};
 use ruma_client_api::r0::send::send_message_event::{self, Endpoint as SendMessageEventEndpoint};
 use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint as SendStateEventForEmptyKeyEndpoint};
@@ -231,6 +232,23 @@ impl super::MatrixApi for MatrixApi {
 
         let (body, status_code) =
             RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+        Ok(())
+    }
+
+    fn set_display_name(&self, matrix_user_id: UserId, name: String) -> Result<()> {
+        let path_params = set_display_name::PathParams { user_id: matrix_user_id.clone() };
+        let endpoint = self.base_url.clone() + &SetDisplayNameEndpoint::request_path(path_params);
+        let user_id = matrix_user_id.to_string();
+        let mut params = self.params_hash();
+        params.insert("user_id", &user_id);
+        let body_params = set_display_name::BodyParams { displayname: Some(name) };
+
+        let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize set display name body params".to_string()))?;
+
+        let (body, status_code) = RestApi::call_matrix(SetDisplayNameEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }

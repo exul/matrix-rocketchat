@@ -22,6 +22,7 @@ use reqwest::{Method, StatusCode};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::membership::invite_user::Endpoint as InviteUserEndpoint;
 use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinRoomByIdEndpoint;
+use ruma_client_api::r0::profile::set_display_name::Endpoint as SetDisplayNameEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json::to_string;
@@ -31,10 +32,14 @@ fn successfully_forwards_a_text_message_from_a_user_that_is_not_registered_on_ma
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     let (join_forwarder, join_receiver) = MessageForwarder::new();
+    let (set_display_name_forwarder, set_display_name_receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(InviteUserEndpoint::router_path(), invite_forwarder, "invite_user");
     matrix_router.post(JoinRoomByIdEndpoint::router_path(), join_forwarder, "join_room_id");
+    matrix_router.put(SetDisplayNameEndpoint::router_path(),
+                      set_display_name_forwarder,
+                      "set_display_name");
 
     let mut channels = HashMap::new();
     channels.insert("spec_channel", vec!["spec_user"]);
@@ -68,6 +73,9 @@ fn successfully_forwards_a_text_message_from_a_user_that_is_not_registered_on_ma
     join_receiver.recv_timeout(default_timeout()).unwrap();
     // receive the join message
     assert!(join_receiver.recv_timeout(default_timeout()).is_ok());
+
+    // receive set display name
+    assert!(set_display_name_receiver.recv_timeout(default_timeout()).is_ok());
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -120,6 +128,9 @@ fn successfully_forwards_a_text_message_from_a_user_that_is_not_registered_on_ma
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &second_payload);
 
+    // make sure the display name is only set once
+    assert!(set_display_name_receiver.recv_timeout(default_timeout()).is_err());
+
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("spec_message 2"));
 }
@@ -129,10 +140,15 @@ fn successfully_forwards_a_text_message_from_a_user_that_is_registered_on_matrix
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     let (join_forwarder, join_receiver) = MessageForwarder::new();
+    let (set_display_name_forwarder, set_display_name_receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(InviteUserEndpoint::router_path(), invite_forwarder, "invite_user");
     matrix_router.post(JoinRoomByIdEndpoint::router_path(), join_forwarder, "join_room_id");
+    matrix_router.put(SetDisplayNameEndpoint::router_path(),
+                      set_display_name_forwarder,
+                      "set_display_name");
+
 
     let mut channels = HashMap::new();
     channels.insert("spec_channel", vec!["spec_user"]);
@@ -166,6 +182,9 @@ fn successfully_forwards_a_text_message_from_a_user_that_is_registered_on_matrix
     join_receiver.recv_timeout(default_timeout()).unwrap();
     // receive the join message
     assert!(join_receiver.recv_timeout(default_timeout()).is_ok());
+
+    // receive set display name
+    assert!(set_display_name_receiver.recv_timeout(default_timeout()).is_ok());
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -212,15 +231,132 @@ fn successfully_forwards_a_text_message_from_a_user_that_is_registered_on_matrix
         channel_id: "spec_channel_id".to_string(),
         channel_name: "spec_channel".to_string(),
         user_id: "spec_user_id".to_string(),
-        user_name: "spec_spec_user".to_string(),
+        user_name: "spec_user".to_string(),
         text: "spec_message 2".to_string(),
     };
     let second_payload = to_string(&second_message).unwrap();
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &second_payload);
 
+    // make sure the display name is only set once
+    assert!(set_display_name_receiver.recv_timeout(default_timeout()).is_err());
+
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("spec_message 2"));
+}
+
+#[test]
+fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
+    let (set_display_name_forwarder, set_display_name_receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SetDisplayNameEndpoint::router_path(),
+                      set_display_name_forwarder,
+                      "set_display_name");
+
+
+    let mut channels = HashMap::new();
+    channels.insert("spec_channel", vec!["spec_user"]);
+
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    let message = Message {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_channel_id".to_string(),
+        channel_name: "spec_channel".to_string(),
+        user_id: "spec_user_id".to_string(),
+        user_name: "spec_user".to_string(),
+        text: "spec_message".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    let display_name_message = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(display_name_message.contains("spec_user"));
+
+    let second_message_with_new_username = Message {
+        message_id: "spec_id_2".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_channel_id".to_string(),
+        channel_name: "spec_channel".to_string(),
+        user_id: "spec_user_id".to_string(),
+        user_name: "spec_user_new".to_string(),
+        text: "spec_message 2".to_string(),
+    };
+    let second_payload_with_new_username = to_string(&second_message_with_new_username).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &second_payload_with_new_username);
+
+    let new_display_name_message = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(new_display_name_message.contains("spec_user_new"));
+
+    let connection = test.connection_pool.get().unwrap();
+    let admin_room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
+    let rocketchat_server_id = admin_room.rocketchat_server_id.unwrap();
+    let user_on_rocketchat_server = UserOnRocketchatServer::find_by_rocketchat_user_id(&connection,
+                                                                                       rocketchat_server_id,
+                                                                                       "spec_user_id".to_string(),
+                                                                                       true)
+            .unwrap()
+            .unwrap();
+    assert_eq!(user_on_rocketchat_server.rocketchat_username.unwrap(),
+               "spec_user_new".to_string());
+}
+
+#[test]
+fn message_is_forwarded_even_if_setting_the_display_name_failes() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.put(SetDisplayNameEndpoint::router_path(),
+                      handlers::MatrixErrorResponder {
+                          status: status::InternalServerError,
+                          message: "Could not set display name".to_string(),
+                      },
+                      "set_display_name");
+
+    let mut channels = HashMap::new();
+    channels.insert("spec_channel", vec!["spec_user"]);
+
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    let message = Message {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_channel_id".to_string(),
+        channel_name: "spec_channel".to_string(),
+        user_id: "spec_user_id".to_string(),
+        user_name: "spec_user".to_string(),
+        text: "spec_message".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard room bridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("spec_message"));
 }
 
 #[test]

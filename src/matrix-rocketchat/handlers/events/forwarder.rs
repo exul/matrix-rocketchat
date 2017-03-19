@@ -38,6 +38,12 @@ impl<'a> Forwarder<'a> {
                 let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url,
                                                         rocketchat_server.rocketchat_token,
                                                         self.logger.clone())?;
+
+                if user_on_rocketchat_server.is_virtual_user {
+                    debug!(self.logger, "Skipping event, because it was sent by a virtual user");
+                    return Ok(());
+                }
+
                 match event.content {
                     MessageEventContent::Text(ref text_content) => {
                         self.forward_text_message(text_content, &rocketchat_api, room, &user_on_rocketchat_server)?;

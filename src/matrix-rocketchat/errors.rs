@@ -60,9 +60,11 @@ pub struct MatrixErrorResponse {
 #[derive(Deserialize, Serialize)]
 pub struct RocketchatErrorResponse {
     /// Status returned by the Rocket.Chat API
-    pub status: String,
+    pub status: Option<String>,
     /// Error message returned by the Rocket.Chat API
-    pub message: String,
+    pub message: Option<String>,
+    /// The error that occured
+    pub error: Option<String>,
 }
 
 #[derive(Debug)]

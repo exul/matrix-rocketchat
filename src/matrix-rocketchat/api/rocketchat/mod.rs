@@ -82,8 +82,6 @@ impl RocketchatApi {
         let url = base_url.clone() + "/api/info";
         let params = HashMap::new();
 
-        debug!(logger, format!("Querying Rocket.Chat server {} for API versions", url));
-
         let (body, status_code) = match RestApi::call(Method::Get, &url, "", &params, None) {
             Ok((body, status_code)) => (body, status_code),
             Err(err) => {
@@ -102,12 +100,9 @@ impl RocketchatApi {
             match serde_json::from_str(&body).chain_err(|| ErrorKind::NoRocketchatServer(url.clone())) {
                 Ok(rocketchat_info) => rocketchat_info,
                 Err(err) => {
-                    bail_error!(err,
-                                t!(["errors", "no_rocketchat_server"]).with_vars(vec![("rocketchat_url", url)]));
+                    bail_error!(err, t!(["errors", "no_rocketchat_server"]).with_vars(vec![("rocketchat_url", url)]));
                 }
             };
-
-        debug!(logger, format!("Rocket.Chat version {:?}", rocketchat_info.version));
 
         RocketchatApi::get_max_supported_version_api(rocketchat_info.version, base_url, access_token, logger)
     }

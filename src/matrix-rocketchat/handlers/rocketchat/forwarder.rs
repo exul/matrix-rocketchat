@@ -1,4 +1,5 @@
 use std::convert::TryFrom;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
@@ -11,6 +12,8 @@ use config::Config;
 use db::{NewUser, NewUserInRoom, NewUserOnRocketchatServer, RocketchatServer, Room, User, UserInRoom, UserOnRocketchatServer};
 use errors::*;
 use i18n::DEFAULT_LANGUAGE;
+
+const RESEND_THRESHOLD_IN_SECONDS: i64 = 3;
 
 /// Forwards messages from Rocket.Chat to Matrix
 pub struct Forwarder<'a> {
@@ -38,6 +41,12 @@ impl<'a> Forwarder<'a> {
                     .transaction(|| self.create_virtual_user_on_rocketchat_server(rocketchat_server.id, message))?
             }
         };
+
+        if !self.is_sendable_message(&user_on_rocketchat_server)? {
+            debug!(self.logger,
+                   "Skipping message, because the message was just posted by the user Matrix and echoed back from Rocket.Chat");
+            return Ok(());
+        }
 
         let room =
             match Room::find_by_rocketchat_room_id(self.connection, rocketchat_server.id, message.channel_id.clone())? {
@@ -121,5 +130,25 @@ impl<'a> Forwarder<'a> {
         };
         UserInRoom::insert(self.connection, &new_user_in_room)?;
         Ok(())
+    }
+
+    fn is_sendable_message(&self, virtual_user_on_rocketchat_server: &UserOnRocketchatServer) -> Result<bool> {
+        match UserOnRocketchatServer::find_by_rocketchat_user_id(self.connection,
+                                                                 virtual_user_on_rocketchat_server.rocketchat_server_id,
+                                                                 virtual_user_on_rocketchat_server.rocketchat_user_id
+                                                                     .clone()
+                                                                     .unwrap_or_default(),
+                                                                 false)? {
+            Some(user_on_rocketchat_server) => {
+                let user = user_on_rocketchat_server.user(self.connection)?;
+                let now = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .chain_err(|| ErrorKind::InternalServerError)?
+                    .as_secs() as i64;
+                let last_sent = now - user.last_message_sent;
+                Ok(last_sent > RESEND_THRESHOLD_IN_SECONDS)
+            }
+            None => Ok(true),
+        }
     }
 }

@@ -44,9 +44,14 @@ impl<'a> Forwarder<'a> {
                     }
                     _ => info!(self.logger, format!("Forwarding the type {} is not implemented.", event.event_type)),
                 }
+
+                user_on_rocketchat_server.user(self.connection)?
+                    .set_last_message_sent(self.connection)?;
             }
             None => debug!(self.logger, "Skipping event, because the room is not bridged"),
         }
+
+        debug!(self.logger, "Successfully forwarded message to Rocket.Chat server");
         Ok(())
     }
 

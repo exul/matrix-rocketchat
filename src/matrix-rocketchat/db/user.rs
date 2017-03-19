@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use diesel;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
@@ -69,5 +71,17 @@ impl User {
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(users.into_iter().next())
+    }
+
+    /// Update last message sent.
+    pub fn set_last_message_sent(&self, connection: &SqliteConnection) -> Result<()> {
+        let last_message_sent = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .chain_err(|| ErrorKind::InternalServerError)?
+            .as_secs() as i64;
+        diesel::update(users::table.find(&self.matrix_user_id)).set(users::last_message_sent.eq(last_message_sent))
+            .execute(connection)
+            .chain_err(|| ErrorKind::DBUpdateError)?;
+        Ok(())
     }
 }

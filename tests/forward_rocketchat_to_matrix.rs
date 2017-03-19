@@ -15,7 +15,7 @@ use std::convert::TryFrom;
 use iron::status;
 use matrix_rocketchat::api::RestApi;
 use matrix_rocketchat::api::rocketchat::Message;
-use matrix_rocketchat::db::{Room, UserOnRocketchatServer};
+use matrix_rocketchat::db::{Room, User, UserOnRocketchatServer};
 use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
 use router::Router;
 use reqwest::{Method, StatusCode};
@@ -37,12 +37,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(InviteUserEndpoint::router_path(), invite_forwarder, "invite_user");
     matrix_router.post(JoinRoomByIdEndpoint::router_path(), join_forwarder, "join_room_id");
-    matrix_router.put(SetDisplayNameEndpoint::router_path(),
-                      set_display_name_forwarder,
-                      "set_display_name");
-
-    let mut channels = HashMap::new();
-    channels.insert("spec_channel", vec!["spec_user"]);
+    matrix_router.put(SetDisplayNameEndpoint::router_path(), set_display_name_forwarder, "set_display_name");
 
     let test = Test::new()
         .with_matrix_routes(matrix_router)
@@ -145,13 +140,8 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(InviteUserEndpoint::router_path(), invite_forwarder, "invite_user");
     matrix_router.post(JoinRoomByIdEndpoint::router_path(), join_forwarder, "join_room_id");
-    matrix_router.put(SetDisplayNameEndpoint::router_path(),
-                      set_display_name_forwarder,
-                      "set_display_name");
+    matrix_router.put(SetDisplayNameEndpoint::router_path(), set_display_name_forwarder, "set_display_name");
 
-
-    let mut channels = HashMap::new();
-    channels.insert("spec_channel", vec!["spec_user"]);
 
     let test = Test::new()
         .with_matrix_routes(matrix_router)
@@ -166,8 +156,8 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
         channel_name: "spec_channel".to_string(),
-        user_id: "spec_user_id".to_string(),
-        user_name: "spec_user".to_string(),
+        user_id: "virtual_spec_user_id".to_string(),
+        user_name: "virtual_spec_user".to_string(),
         text: "spec_message".to_string(),
     };
     let payload = to_string(&message).unwrap();
@@ -176,7 +166,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     // receive the invite message
     let invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(invite_message.contains("@rocketchat_spec_user_id_1:localhost"));
+    assert!(invite_message.contains("@rocketchat_virtual_spec_user_id_1:localhost"));
 
     // discard admin room join
     join_receiver.recv_timeout(default_timeout()).unwrap();
@@ -223,15 +213,15 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     // the virtual user was create with the Rocket.Chat user ID because the exiting matrix user
     // cannot be used since the application service can only impersonate virtual users.
     let user_on_rocketchat = UserOnRocketchatServer::find(&connection, new_user_id, rocketchat_server_id).unwrap();
-    assert_eq!(user_on_rocketchat.rocketchat_user_id.unwrap(), "spec_user_id".to_string());
+    assert_eq!(user_on_rocketchat.rocketchat_user_id.unwrap(), "virtual_spec_user_id".to_string());
 
     let second_message = Message {
         message_id: "spec_id_2".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
         channel_name: "spec_channel".to_string(),
-        user_id: "spec_user_id".to_string(),
-        user_name: "spec_user".to_string(),
+        user_id: "virtual_spec_user_id".to_string(),
+        user_name: "virtual_spec_user".to_string(),
         text: "spec_message 2".to_string(),
     };
     let second_payload = to_string(&second_message).unwrap();
@@ -249,13 +239,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
     let (set_display_name_forwarder, set_display_name_receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
-    matrix_router.put(SetDisplayNameEndpoint::router_path(),
-                      set_display_name_forwarder,
-                      "set_display_name");
-
-
-    let mut channels = HashMap::new();
-    channels.insert("spec_channel", vec!["spec_user"]);
+    matrix_router.put(SetDisplayNameEndpoint::router_path(), set_display_name_forwarder, "set_display_name");
 
     let test = Test::new()
         .with_matrix_routes(matrix_router)
@@ -270,8 +254,8 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
         channel_name: "spec_channel".to_string(),
-        user_id: "spec_user_id".to_string(),
-        user_name: "spec_user".to_string(),
+        user_id: "virtual_spec_user_id".to_string(),
+        user_name: "virtual_spec_user".to_string(),
         text: "spec_message".to_string(),
     };
     let payload = to_string(&message).unwrap();
@@ -286,8 +270,8 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
         channel_name: "spec_channel".to_string(),
-        user_id: "spec_user_id".to_string(),
-        user_name: "spec_user_new".to_string(),
+        user_id: "virtual_spec_user_id".to_string(),
+        user_name: "virtual_spec_user_new".to_string(),
         text: "spec_message 2".to_string(),
     };
     let second_payload_with_new_username = to_string(&second_message_with_new_username).unwrap();
@@ -302,12 +286,11 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
     let rocketchat_server_id = admin_room.rocketchat_server_id.unwrap();
     let user_on_rocketchat_server = UserOnRocketchatServer::find_by_rocketchat_user_id(&connection,
                                                                                        rocketchat_server_id,
-                                                                                       "spec_user_id".to_string(),
+                                                                                       "virtual_spec_user_id".to_string(),
                                                                                        true)
             .unwrap()
             .unwrap();
-    assert_eq!(user_on_rocketchat_server.rocketchat_username.unwrap(),
-               "spec_user_new".to_string());
+    assert_eq!(user_on_rocketchat_server.rocketchat_username.unwrap(), "virtual_spec_user_new".to_string());
 }
 
 #[test]
@@ -322,9 +305,6 @@ fn message_is_forwarded_even_if_setting_the_display_name_failes() {
                       },
                       "set_display_name");
 
-    let mut channels = HashMap::new();
-    channels.insert("spec_channel", vec!["spec_user"]);
-
     let test = Test::new()
         .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -338,8 +318,8 @@ fn message_is_forwarded_even_if_setting_the_display_name_failes() {
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
         channel_name: "spec_channel".to_string(),
-        user_id: "spec_user_id".to_string(),
-        user_name: "spec_user".to_string(),
+        user_id: "virtual_spec_user_id".to_string(),
+        user_name: "virtual_spec_user".to_string(),
         text: "spec_message".to_string(),
     };
     let payload = to_string(&message).unwrap();
@@ -383,8 +363,6 @@ fn no_message_is_forwarded_when_inviting_the_user_failes() {
                            message: "Could not invite user".to_string(),
                        },
                        "invite_user");
-    let mut channels = HashMap::new();
-    channels.insert("spec_channel", vec!["spec_user"]);
 
     let test = Test::new()
         .with_matrix_routes(matrix_router)
@@ -426,9 +404,6 @@ fn ignore_messages_to_a_room_that_is_not_bridged() {
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
 
-    let mut channels = HashMap::new();
-    channels.insert("not_bridged_channel", vec!["spec_user"]);
-
     let test = Test::new()
         .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -461,6 +436,51 @@ fn ignore_messages_to_a_room_that_is_not_bridged() {
 }
 
 #[test]
+fn ignore_messages_forwarded_from_rocketchat_if_the_non_virtual_user_just_sent_a_message_on_matrix_to_avoid_loops() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    let message = Message {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_channel_id".to_string(),
+        channel_name: "spec_channel".to_string(),
+        user_id: "spec_user_id".to_string(),
+        user_name: "spec_user".to_string(),
+        text: "spec_message".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard room bridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    // simulate that the user just sent a message
+    let connection = test.connection_pool.get().unwrap();
+    let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
+    let user = User::find(&connection, &spec_user_id).unwrap();
+    user.set_last_message_sent(&connection).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
+}
+
+#[test]
 fn returns_unauthorized_when_the_rs_token_is_missing() {
     let test = Test::new().run();
     let message = Message {
@@ -468,8 +488,8 @@ fn returns_unauthorized_when_the_rs_token_is_missing() {
         token: None,
         channel_id: "spec_channel_id".to_string(),
         channel_name: "spec_channel".to_string(),
-        user_id: "spec_user_id".to_string(),
-        user_name: "spec_user".to_string(),
+        user_id: "virtual_spec_user_id".to_string(),
+        user_name: "virtual_spec_user".to_string(),
         text: "spec_message".to_string(),
     };
     let payload = to_string(&message).unwrap();
@@ -490,8 +510,8 @@ fn returns_forbidden_when_the_rs_token_does_not_match_a_server() {
         token: Some("wrong_token".to_string()),
         channel_id: "spec_channel_id".to_string(),
         channel_name: "spec_channel".to_string(),
-        user_id: "spec_user_id".to_string(),
-        user_name: "spec_user".to_string(),
+        user_id: "virtual_spec_user_id".to_string(),
+        user_name: "virtual_spec_user".to_string(),
         text: "spec_message".to_string(),
     };
     let payload = to_string(&message).unwrap();

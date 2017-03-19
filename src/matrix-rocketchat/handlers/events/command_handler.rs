@@ -269,10 +269,7 @@ impl<'a> CommandHandler<'a> {
                 let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
                 let message =
                     t!(["admin_room", "room_successfully_bridged"]).with_vars(vec![("channel_name", channel.name.clone())]);
-                info!(self.logger,
-                      "Successfully bridged room {} to {}",
-                      &channel.id,
-                      &room.matrix_room_id);
+                info!(self.logger, "Successfully bridged room {} to {}", &channel.id, &room.matrix_room_id);
                 self.matrix_api.send_text_message_event(event.room_id.clone(),
                                                         bot_matrix_user_id,
                                                         message.l(&user.language))

@@ -54,9 +54,7 @@ impl<'a> Server<'a> {
         debug!(self.logger, "Setting up routes");
         let mut router = Router::new();
         router.get("/", Welcome {}, "welcome");
-        router.put("/transactions/:txn_id",
-                   Transactions::chain(self.config.clone(), matrix_api.clone()),
-                   "transactions");
+        router.put("/transactions/:txn_id", Transactions::chain(self.config.clone(), matrix_api.clone()), "transactions");
         router.post("/rocketchat", Rocketchat::chain(self.config.clone(), matrix_api), "rocketchat");
 
         router
@@ -77,8 +75,7 @@ impl<'a> Server<'a> {
                 debug!(self.logger, format!("Bot user {} exists, skipping", user.matrix_user_id));
             }
             None => {
-                debug!(self.logger,
-                       format!("Bot user {} doesn't exists, starting registration", matrix_bot_user_id));
+                debug!(self.logger, format!("Bot user {} doesn't exists, starting registration", matrix_bot_user_id));
 
                 matrix_api.register(self.config.sender_localpart.clone())?;
                 let new_user = NewUser {

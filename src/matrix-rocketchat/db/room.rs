@@ -80,7 +80,7 @@ impl Room {
                                       rocketchat_room_id: String)
                                       -> Result<Option<Room>> {
         let rooms = rooms::table.filter(rooms::rocketchat_server_id.eq(rocketchat_server_id)
-                .and(rooms::rocketchat_room_id.eq(rocketchat_room_id)))
+                                            .and(rooms::rocketchat_room_id.eq(rocketchat_room_id)))
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rooms.into_iter().next())
@@ -146,9 +146,11 @@ impl Room {
 
     /// Returns all `User`s in the room.
     pub fn users(&self, connection: &SqliteConnection) -> Result<Vec<User>> {
-        let users: Vec<User>=
-            users::table.filter(users::matrix_user_id.eq_any(UserInRoom::belonging_to(self).select(users_in_rooms::matrix_user_id)))
-                .load(connection).chain_err(|| ErrorKind::DBSelectError)?;
+        let users: Vec<User> =
+            users::table.filter(users::matrix_user_id.eq_any(UserInRoom::belonging_to(self)
+                                                                 .select(users_in_rooms::matrix_user_id)))
+                .load(connection)
+                .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(users)
     }
 

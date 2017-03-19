@@ -57,7 +57,6 @@ impl<'a> Forwarder<'a> {
             None => debug!(self.logger, "Skipping event, because the room is not bridged"),
         }
 
-        debug!(self.logger, "Successfully forwarded message to Rocket.Chat server");
         Ok(())
     }
 

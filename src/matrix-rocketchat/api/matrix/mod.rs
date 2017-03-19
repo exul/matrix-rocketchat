@@ -83,8 +83,7 @@ impl MatrixApi {
                                                 endpoint: `{}`",
                                                body))
             })?;
-        debug!(logger,
-               format!("Homeserver supports versions {:?}", supported_versions.versions));
+        debug!(logger, format!("Homeserver supports versions {:?}", supported_versions.versions));
         MatrixApi::get_max_supported_version_api(supported_versions.versions, config, logger)
     }
 

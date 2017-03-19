@@ -132,9 +132,7 @@ impl<'a> RoomHandler<'a> {
     fn handle_user_join(&self, matrix_room_id: RoomId) -> Result<()> {
         let room = Room::find(self.connection, &matrix_room_id)?;
         if room.is_admin_room {
-            info!(self.logger,
-                  "Another user join the admin room {}, bot user is leaving",
-                  matrix_room_id);
+            info!(self.logger, "Another user join the admin room {}, bot user is leaving", matrix_room_id);
             let admin_room_language = self.admin_room_language(&room)?;
             let body = t!(["errors", "other_user_joined"]).l(&admin_room_language);
             self.matrix_api.send_text_message_event(matrix_room_id, self.config.matrix_bot_user_id()?, body)?;
@@ -156,15 +154,12 @@ impl<'a> RoomHandler<'a> {
     }
 
     fn is_private_room(&self, matrix_room_id: RoomId) -> Result<bool> {
-        Ok(self.matrix_api
-               .get_room_members(matrix_room_id)?
-               .len() <= 2)
+        Ok(self.matrix_api.get_room_members(matrix_room_id)?.len() <= 2)
     }
 
     fn handle_non_private_room(&self, room: &Room, invitation_submitter: &User, matrix_bot_user_id: UserId) -> Result<()> {
         info!(self.logger,
-              format!("Room {} has more then two members and cannot be used as admin room",
-                      room.matrix_room_id));
+              format!("Room {} has more then two members and cannot be used as admin room", room.matrix_room_id));
         let body = t!(["errors", "too_many_members_in_room"]).l(&invitation_submitter.language);
         self.matrix_api.send_text_message_event(room.matrix_room_id.clone(), matrix_bot_user_id, body)?;
         self.matrix_api.leave_room(room.matrix_room_id.clone())?;
@@ -181,10 +176,8 @@ impl<'a> RoomHandler<'a> {
 
     fn admin_room_language(&self, room: &Room) -> Result<String> {
         let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
-        let users: Vec<User> = room.users(self.connection)?
-            .into_iter()
-            .filter(|user| user.matrix_user_id != matrix_bot_user_id)
-            .collect();
+        let users: Vec<User> =
+            room.users(self.connection)?.into_iter().filter(|user| user.matrix_user_id != matrix_bot_user_id).collect();
         let user = users.first().expect("An admin room always contains another user");
         Ok(user.language.clone())
     }

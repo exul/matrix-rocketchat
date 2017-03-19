@@ -25,6 +25,7 @@ pub trait Endpoint {
     fn headers(&self) -> Option<Headers>;
 }
 
+//TODO: Move this into v1, because those structs are depending on the api version as well
 /// A Rocket.Chat channel
 #[derive(Deserialize, Debug)]
 pub struct Channel {
@@ -64,6 +65,8 @@ pub trait RocketchatApi {
     fn username(&self, user_id: String, auth_token: String) -> Result<String>;
     /// List of channels on the Rocket.Chat server
     fn channels_list(&self, user_id: String, auth_token: String) -> Result<Vec<Channel>>;
+    /// Post a chat message
+    fn post_chat_message(&self, user_id: String, auth_token: String, text: &str, room_id: &str) -> Result<()>;
 }
 
 /// Response format when querying the Rocket.Chat info endpoint
@@ -79,8 +82,6 @@ impl RocketchatApi {
         let url = base_url.clone() + "/api/info";
         let params = HashMap::new();
 
-        debug!(logger, format!("Querying Rocket.Chat server {} for API versions", url));
-
         let (body, status_code) = match RestApi::call(Method::Get, &url, "", &params, None) {
             Ok((body, status_code)) => (body, status_code),
             Err(err) => {
@@ -95,16 +96,13 @@ impl RocketchatApi {
                         t!(["errors", "no_rocketchat_server"]).with_vars(vec![("rocketchat_url", url.clone())]));
         }
 
-        let rocketchat_info: GetInfoResponse = match serde_json::from_str(&body)
-            .chain_err(|| ErrorKind::NoRocketchatServer(url.clone())) {
-            Ok(rocketchat_info) => rocketchat_info,
-            Err(err) => {
-                bail_error!(err,
-                            t!(["errors", "no_rocketchat_server"]).with_vars(vec![("rocketchat_url", url)]));
-            }
-        };
-
-        debug!(logger, format!("Rocket.Chat version {:?}", rocketchat_info.version));
+        let rocketchat_info: GetInfoResponse =
+            match serde_json::from_str(&body).chain_err(|| ErrorKind::NoRocketchatServer(url.clone())) {
+                Ok(rocketchat_info) => rocketchat_info,
+                Err(err) => {
+                    bail_error!(err, t!(["errors", "no_rocketchat_server"]).with_vars(vec![("rocketchat_url", url)]));
+                }
+            };
 
         RocketchatApi::get_max_supported_version_api(rocketchat_info.version, base_url, access_token, logger)
     }
@@ -126,10 +124,12 @@ impl RocketchatApi {
 
         let min_version = "0.49".to_string();
         Err(Error {
-            error_chain: ErrorKind::UnsupportedRocketchatApiVersion(min_version.clone(), version.clone()).into(),
-            user_message: Some(t!(["errors", "unsupported_rocketchat_api_version"])
-                .with_vars(vec![("min_version", min_version), ("version", version)])),
-        })
+                error_chain: ErrorKind::UnsupportedRocketchatApiVersion(min_version.clone(), version.clone()).into(),
+                user_message: Some(t!(["errors", "unsupported_rocketchat_api_version"]).with_vars(vec![("min_version",
+                                                                                                        min_version),
+                                                                                                       ("version",
+                                                                                                        version)])),
+            })
     }
 }
 

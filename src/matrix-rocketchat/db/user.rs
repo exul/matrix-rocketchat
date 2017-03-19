@@ -1,3 +1,5 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use diesel;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
@@ -35,18 +37,13 @@ pub struct NewUser<'a> {
 impl User {
     /// Insert a new `User` into the database.
     pub fn insert(connection: &SqliteConnection, user: &NewUser) -> Result<User> {
-        diesel::insert(user).into(users::table)
-            .execute(connection)
-            .chain_err(|| ErrorKind::DBInsertError)?;
+        diesel::insert(user).into(users::table).execute(connection).chain_err(|| ErrorKind::DBInsertError)?;
         User::find(connection, &user.matrix_user_id)
     }
 
     /// Find a `User` by his matrix user ID, return an error if the user is not found
     pub fn find(connection: &SqliteConnection, matrix_user_id: &UserId) -> Result<User> {
-        users::table.find(matrix_user_id)
-            .first(connection)
-            .chain_err(|| ErrorKind::DBSelectError)
-            .map_err(Error::from)
+        users::table.find(matrix_user_id).first(connection).chain_err(|| ErrorKind::DBSelectError).map_err(Error::from)
     }
 
     /// Find or create `User` with a given Matrix user ID.
@@ -65,9 +62,17 @@ impl User {
 
     /// Find a `User` by his matrix user ID. Returns `None`, if the user is not found.
     pub fn find_by_matrix_user_id(connection: &SqliteConnection, matrix_user_id: &UserId) -> Result<Option<User>> {
-        let users = users::table.find(matrix_user_id)
-            .load(connection)
-            .chain_err(|| ErrorKind::DBSelectError)?;
+        let users = users::table.find(matrix_user_id).load(connection).chain_err(|| ErrorKind::DBSelectError)?;
         Ok(users.into_iter().next())
+    }
+
+    /// Update last message sent.
+    pub fn set_last_message_sent(&self, connection: &SqliteConnection) -> Result<()> {
+        let last_message_sent =
+            SystemTime::now().duration_since(UNIX_EPOCH).chain_err(|| ErrorKind::InternalServerError)?.as_secs() as i64;
+        diesel::update(users::table.find(&self.matrix_user_id)).set(users::last_message_sent.eq(last_message_sent))
+            .execute(connection)
+            .chain_err(|| ErrorKind::DBUpdateError)?;
+        Ok(())
     }
 }

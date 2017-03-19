@@ -31,11 +31,7 @@ impl RestApi {
     /// Call a Rocket.Chat API endpoint
     pub fn call_rocketchat(endpoint: &Endpoint) -> Result<(String, StatusCode)> {
         let query_params = HashMap::new();
-        RestApi::call(endpoint.method(),
-                      &endpoint.url(),
-                      &endpoint.payload()?,
-                      &query_params,
-                      endpoint.headers())
+        RestApi::call(endpoint.method(), &endpoint.url(), &endpoint.payload()?, &query_params, endpoint.headers())
     }
 
     /// Call a REST API endpoint

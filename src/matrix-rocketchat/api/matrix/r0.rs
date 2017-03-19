@@ -104,8 +104,7 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        debug!(self.logger,
-               format!("List of room members for room {} successfully received", matrix_room_id));
+        debug!(self.logger, format!("List of room members for room {} successfully received", matrix_room_id));
 
         let room_member_events: get_member_events::Response = serde_json::from_str(&body).chain_err(|| {
                 ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix members API endpoint: `{}`",
@@ -126,10 +125,7 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        debug!(self.logger,
-               "User {} successfully invited into room {}",
-               matrix_user_id,
-               matrix_room_id);
+        debug!(self.logger, "User {} successfully invited into room {}", matrix_user_id, matrix_room_id);
         Ok(())
     }
 
@@ -145,10 +141,7 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        debug!(self.logger,
-               "User {} successfully joined room {}",
-               matrix_room_id,
-               matrix_user_id);
+        debug!(self.logger, "User {} successfully joined room {}", matrix_room_id, matrix_user_id);
         Ok(())
     }
 
@@ -211,10 +204,7 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        debug!(self.logger,
-               "User {} successfully sent a message to room {}",
-               matrix_user_id,
-               matrix_room_id);
+        debug!(self.logger, "User {} successfully sent a message to room {}", matrix_user_id, matrix_room_id);
         Ok(())
     }
 

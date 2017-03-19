@@ -14,6 +14,8 @@ pub const LOGIN_PATH: &'static str = "/api/v1/login";
 pub const ME_PATH: &'static str = "/api/v1/me";
 /// Channels list endpoint path
 pub const CHANNELS_LIST_PATH: &'static str = "/api/v1/channels.list";
+/// Post chat message endpoint path
+pub const POST_CHAT_MESSAGE_PATH: &'static str = "/api/v1/chat.postMessage";
 
 /// V1 login endpoint
 pub struct LoginEndpoint<'a> {
@@ -105,6 +107,45 @@ impl Endpoint for ChannelsListEndpoint {
     }
 }
 
+/// V1 post chat message endpoint
+pub struct PostChatMessageEndpoint<'a> {
+    base_url: String,
+    user_id: String,
+    auth_token: String,
+    payload: PostChatMessagePayload<'a>,
+}
+
+/// Payload of the post chat message endpoint
+#[derive(Serialize)]
+pub struct PostChatMessagePayload<'a> {
+    #[serde(rename = "roomId")]
+    room_id: &'a str,
+    text: Option<&'a str>,
+}
+
+impl<'a> Endpoint for PostChatMessageEndpoint<'a> {
+    fn method(&self) -> Method {
+        Method::Post
+    }
+
+    fn url(&self) -> String {
+        self.base_url.clone() + POST_CHAT_MESSAGE_PATH
+    }
+
+    fn payload(&self) -> Result<String> {
+        let payload = serde_json::to_string(&self.payload).chain_err(|| ErrorKind::InvalidJSON("Could not serialize post chat message payload".to_string()))?;
+        Ok(payload)
+    }
+
+    fn headers(&self) -> Option<Headers> {
+        let mut headers = Headers::new();
+        headers.set(ContentType::json());
+        headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
+        headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
+        Some(headers)
+    }
+}
+
 #[derive(Deserialize)]
 /// Response payload from the Rocket.Chat login endpoint.
 pub struct LoginResponse {
@@ -163,6 +204,8 @@ impl RocketchatApi {
 
 impl super::RocketchatApi for RocketchatApi {
     fn login(&self, username: &str, password: &str) -> Result<(String, String)> {
+        debug!(self.logger, format!("Logging in user with username {} on Rocket.Chat server {}", username, &self.base_url));
+
         let login_endpoint = LoginEndpoint {
             base_url: self.base_url.clone(),
             payload: LoginPayload {
@@ -184,6 +227,8 @@ impl super::RocketchatApi for RocketchatApi {
     }
 
     fn username(&self, user_id: String, auth_token: String) -> Result<String> {
+        debug!(self.logger, format!("Querying username for user_id {} on Rocket.Chat server {}", user_id, &self.base_url));
+
         let me_endpoint = MeEndpoint {
             base_url: self.base_url.clone(),
             user_id: user_id,
@@ -204,6 +249,8 @@ impl super::RocketchatApi for RocketchatApi {
     }
 
     fn channels_list(&self, user_id: String, auth_token: String) -> Result<Vec<Channel>> {
+        debug!(self.logger, format!("Getting channel list from Rocket.Chat server {}", &self.base_url));
+
         let channels_list_endpoint = ChannelsListEndpoint {
             base_url: self.base_url.clone(),
             user_id: user_id,
@@ -223,6 +270,27 @@ impl super::RocketchatApi for RocketchatApi {
 
         Ok(channels_list_response.channels)
     }
+
+    fn post_chat_message(&self, user_id: String, auth_token: String, text: &str, room_id: &str) -> Result<()> {
+        debug!(self.logger, format!("Forwarding message to to Rocket.Chat room {}", room_id));
+
+        let post_chat_message_endpoint = PostChatMessageEndpoint {
+            base_url: self.base_url.clone(),
+            user_id: user_id,
+            auth_token: auth_token,
+            payload: PostChatMessagePayload {
+                text: Some(text),
+                room_id: room_id,
+            },
+        };
+
+        let (body, status_code) = RestApi::call_rocketchat(&post_chat_message_endpoint)?;
+        if !status_code.is_success() {
+            return Err(build_error(post_chat_message_endpoint.url(), &body, &status_code));
+        }
+
+        Ok(())
+    }
 }
 
 fn build_error(endpoint: String, body: &str, status_code: &StatusCode) -> Error {
@@ -241,10 +309,11 @@ fn build_error(endpoint: String, body: &str, status_code: &StatusCode) -> Error 
 
     if *status_code == StatusCode::Unauthorized {
         return Error {
-                   error_chain: ErrorKind::AuthenticationFailed(rocketchat_error_resp.message).into(),
+                   error_chain: ErrorKind::AuthenticationFailed(rocketchat_error_resp.message.unwrap_or_default()).into(),
                    user_message: Some(t!(["errors", "authentication_failed"])),
                };
     }
 
-    Error::from(ErrorKind::RocketchatError(rocketchat_error_resp.message))
+    let msg = rocketchat_error_resp.message.unwrap_or(rocketchat_error_resp.error.unwrap_or(body.to_string()));
+    Error::from(ErrorKind::RocketchatError(msg))
 }

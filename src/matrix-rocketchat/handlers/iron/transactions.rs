@@ -49,8 +49,8 @@ impl Handler for Transactions {
 
         let connection = ConnectionPool::from_request(request)?;
 
-        if let Err(err) = EventDispatcher::new(&self.config, &connection, logger.clone(), self.matrix_api.clone())
-            .process(events_batch.events) {
+        if let Err(err) = EventDispatcher::new(&self.config, &connection, &logger, self.matrix_api.clone())
+               .process(events_batch.events) {
             log::log_error(&logger, &err);
         }
 

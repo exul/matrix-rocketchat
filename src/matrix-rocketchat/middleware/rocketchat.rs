@@ -15,10 +15,7 @@ impl BeforeMiddleware for RocketchatToken {
     fn before(&self, request: &mut Request) -> IronResult<()> {
         let logger = IronLogger::from_request(request)?;
         let mut payload = String::new();
-        request.body
-            .read_to_string(&mut payload)
-            .chain_err(|| ErrorKind::InternalServerError)
-            .map_err(Error::from)?;
+        request.body.read_to_string(&mut payload).chain_err(|| ErrorKind::InternalServerError).map_err(Error::from)?;
         let message = match serde_json::from_str::<Message>(&payload) {
             Ok(message) => message,
             Err(err) => {

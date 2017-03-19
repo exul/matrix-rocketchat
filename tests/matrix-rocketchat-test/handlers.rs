@@ -124,8 +124,9 @@ pub struct RocketchatErrorResponder {
 impl Handler for RocketchatErrorResponder {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
         let error_response = RocketchatErrorResponse {
-            status: "error".to_string(),
-            message: self.message.clone(),
+            status: Some("error".to_string()),
+            message: Some(self.message.clone()),
+            error: None,
         };
         let payload = serde_json::to_string(&error_response).unwrap();
         Ok(Response::with((self.status, payload)))

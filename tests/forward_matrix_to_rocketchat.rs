@@ -39,3 +39,25 @@ fn successfully_forwards_a_text_message_from_matrix_to_rocketchat() {
     assert!(message_received_by_rocketchat.contains("spec message"));
     assert!(message_received_by_rocketchat.contains("spec_channel"));
 }
+
+#[test]
+fn do_not_forward_messages_from_the_bot_user_to_avoid_loops() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut rocketchat_router = Router::new();
+    rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
+
+    let test = Test::new()
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+                                           UserId::try_from("@rocketchat:localhost").unwrap(),
+                                           "spec message".to_string());
+
+    receiver.recv_timeout(default_timeout()).is_err();
+}

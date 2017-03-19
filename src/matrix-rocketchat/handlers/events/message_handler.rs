@@ -38,7 +38,7 @@ impl<'a> MessageHandler<'a> {
                 CommandHandler::new(self.config, self.connection, &self.logger, &self.matrix_api).process(event, room)?;
             }
             Some(ref room) => {
-                Forwarder::new(self.connection, &self.logger).process(event, room)?;
+                Forwarder::new(self.connection, &self.config, &self.logger).process(event, room)?;
             }
             None => debug!(self.logger, "Skipping event, because the room is not bridged"),
         }

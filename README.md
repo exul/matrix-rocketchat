@@ -9,14 +9,16 @@ This is an application service that bridges [Matrix](https://matrix.org) to
 **Warning: This application service is still in development. Do not use it!
 There will be breaking changs!**
 
+![matrix-rocketchat](https://cloud.githubusercontent.com/assets/1886214/24167507/457d5ea2-0e77-11e7-8102-c14e4c04e4dd.png)
+
+
 ## Compiling from Source
 
 To compile the application service you need Rust nightly (I know that's bad,
 sorry).
 
-This will change, once [serde](https://serde.rs), [diesel.rs](http://diesel.rs)
-and [ruma-identifiers](https://github.com/ruma/ruma-identifiers) are working on
-stable rust.
+This will change, once [ruma-identifiers](https://github.com/ruma/ruma-identifiers)
+is working on stable rust.
 
 It's highly recommended that you use [rustup](https://www.rustup.rs).
 

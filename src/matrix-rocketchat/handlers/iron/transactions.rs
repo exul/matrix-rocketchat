@@ -43,7 +43,7 @@ impl Handler for Transactions {
             Ok(events_batch) => events_batch,
             Err(err) => {
                 log::log_error(&logger, &err);
-                return Err(err.into());
+                return Ok(Response::with((status::Ok, "{}".to_string())));
             }
         };
 

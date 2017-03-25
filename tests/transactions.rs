@@ -23,7 +23,7 @@ use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json::to_string;
 
 #[test]
-fn homeserver_sends_mal_formatted_json() {
+fn homeserver_sends_malformated_json() {
     let test = Test::new().run();
     let payload = "bad_json";
 
@@ -32,7 +32,9 @@ fn homeserver_sends_mal_formatted_json() {
     params.insert("access_token", HS_TOKEN);
     let (_, status_code) = RestApi::call(Method::Put, &url, payload, &params, None).unwrap();
 
-    assert_eq!(status_code, StatusCode::UnprocessableEntity)
+    // the application service does not return an error, because the homeserver would resend the
+    // message which doesn't help, because the message will still be malformated.
+    assert_eq!(status_code, StatusCode::Ok)
 }
 
 #[test]

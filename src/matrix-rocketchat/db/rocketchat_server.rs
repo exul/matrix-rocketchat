@@ -7,7 +7,7 @@ use errors::*;
 use super::schema::rocketchat_servers;
 
 /// A Rocket.Chat server.
-#[derive(Debug, Identifiable, Queryable)]
+#[derive(Associations, Debug, Identifiable, Queryable)]
 #[table_name="rocketchat_servers"]
 pub struct RocketchatServer {
     /// The unique id for the Rocket.Chat server

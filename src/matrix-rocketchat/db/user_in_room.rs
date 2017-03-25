@@ -10,8 +10,8 @@ use super::schema::users_in_rooms;
 /// Join table for users that participate in a room.
 #[derive(Associations, Debug, Identifiable, Queryable)]
 #[belongs_to(Room, foreign_key = "matrix_room_id")]
-#[table_name="users_in_rooms"]
 #[primary_key(matrix_user_id, matrix_room_id)]
+#[table_name="users_in_rooms"]
 pub struct UserInRoom {
     /// The users unique id on the Matrix server.
     pub matrix_user_id: UserId,
@@ -36,9 +36,7 @@ pub struct NewUserInRoom {
 impl UserInRoom {
     /// Insert a new `UserInRoom` into the database.
     pub fn insert(connection: &SqliteConnection, user_in_room: &NewUserInRoom) -> Result<UserInRoom> {
-        diesel::insert(user_in_room).into(users_in_rooms::table)
-            .execute(connection)
-            .chain_err(|| ErrorKind::DBInsertError)?;
+        diesel::insert(user_in_room).into(users_in_rooms::table).execute(connection).chain_err(|| ErrorKind::DBInsertError)?;
         UserInRoom::find(connection, &user_in_room.matrix_user_id, &user_in_room.matrix_room_id)
     }
 
@@ -59,5 +57,17 @@ impl UserInRoom {
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(user_in_room.into_iter().next())
+    }
+
+    /// Delete a user_in_room.
+    pub fn delete(&self, connection: &SqliteConnection) -> Result<()> {
+        diesel::delete(
+            users_in_rooms::table.filter(
+                users_in_rooms::matrix_user_id.eq(&self.matrix_user_id).and(users_in_rooms::matrix_room_id.eq(&self.matrix_room_id))
+            )
+        ).execute(connection).chain_err(|| ErrorKind::DBDeleteError)?;
+
+        Ok(())
+
     }
 }

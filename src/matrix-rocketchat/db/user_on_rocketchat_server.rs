@@ -5,10 +5,13 @@ use ruma_identifiers::UserId;
 
 use errors::*;
 use super::schema::users_on_rocketchat_servers;
-use super::User;
+use super::{RocketchatServer, User};
 
 /// A user on a Rocket.Chat server.
-#[derive(Debug, Queryable)]
+#[derive(Associations, Debug, Identifiable, Queryable)]
+#[belongs_to(RocketchatServer, foreign_key = "rocketchat_server_id")]
+#[primary_key(matrix_user_id, rocketchat_server_id)]
+#[table_name="users_on_rocketchat_servers"]
 pub struct UserOnRocketchatServer {
     /// Flag to indicate if the user is only used to send messages from Rocket.Chat
     pub is_virtual_user: bool,

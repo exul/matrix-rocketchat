@@ -16,6 +16,7 @@ use matrix_rocketchat::db::Room;
 use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout, handlers, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
+use ruma_client_api::r0::membership::invite_user::Endpoint as InviteEndpoint;
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::sync::get_member_events::{self, Endpoint as GetMemberEventsEndpoint};
@@ -73,6 +74,7 @@ fn successfully_bridge_a_rocketchat_room() {
 #[test]
 fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     let (message_forwarder, receiver) = MessageForwarder::new();
+    let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(CreateRoomEndpoint::router_path(),
@@ -84,6 +86,7 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     };
     let path_params = get_member_events::PathParams { room_id: RoomId::try_from("!other_admin:localhost").unwrap() };
     matrix_router.get(GetMemberEventsEndpoint::request_path(path_params), other_room_members, "other_room_members");
+    matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
 
     let mut rocketchat_router = Router::new();
     rocketchat_router.post(LOGIN_PATH,
@@ -131,10 +134,14 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
                                            "login other_user secret".to_string());
 
     helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           "bridge joined_channel".to_string());
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!other_admin:localhost").unwrap(),
                                            UserId::try_from("@other_user:localhost").unwrap(),
                                            "bridge joined_channel".to_string());
-
 
     // discard welcome message for spec user
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -149,11 +156,6 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard login message for other user
     receiver.recv_timeout(default_timeout()).unwrap();
-
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge joined_channel".to_string());
 
     // spec user received success message
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
@@ -173,6 +175,9 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
                   RoomId::try_from("!joined_channel_id:localhost").unwrap(),
                   UserId::try_from("@other_user:localhost").unwrap());
 
+    let invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(invite_received_by_matrix.contains("@other_user:localhost"));
+
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();
     assert_eq!(room.display_name, "joined_channel");
@@ -186,8 +191,10 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
 #[test]
 fn successfully_bridge_a_rocketchat_room_that_was_unbridged_before() {
     let (message_forwarder, receiver) = MessageForwarder::new();
+    let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
 
     let test = Test::new()
         .with_matrix_routes(matrix_router)
@@ -229,6 +236,9 @@ fn successfully_bridge_a_rocketchat_room_that_was_unbridged_before() {
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("joined_channel is now bridged."));
+
+    let invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(invite_received_by_matrix.contains("@spec_user:localhost"));
 
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();

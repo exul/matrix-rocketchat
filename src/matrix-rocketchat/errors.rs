@@ -213,6 +213,16 @@ error_chain!{
             display("Bridging the channel {} failed, because the user hasn't joined it on Rocket.Chat", channel_name)
         }
 
+        UnbridgeOfNotBridgedRoom(display_name: String) {
+            description("Room with the given display name could not be found")
+            display("No room with display_name {} found", display_name)
+        }
+
+        RoomNotEmpty(display_name: String, users: String) {
+            description("Non virtual users are in the room")
+            display("The room {} has matrix users ({}) in it, cannot unbridge", display_name, users)
+        }
+
         ReadConfigError {
             description("Error when reading the config content to a string")
             display("Could not read config content to string")
@@ -353,10 +363,7 @@ impl From<Error> for IronError {
 
 impl<'a> Modifier<Response> for &'a Error {
     fn modify(self, response: &mut Response) {
-        let mut causes = Vec::with_capacity(self.error_chain.iter().count() - 1);
-        for err in self.error_chain.iter().skip(1) {
-            causes.push(format!("{}", err));
-        }
+        let causes = self.error_chain.iter().skip(1).map(|e| format!("{}", e)).collect();
 
         let resp = ErrorResponse {
             error: format!("{}", self),

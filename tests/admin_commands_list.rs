@@ -106,9 +106,7 @@ fn the_user_gets_a_message_when_the_room_list_cannot_be_deserialized() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
-    rocketchat_router.get(CHANNELS_LIST_PATH,
-                          handlers::InvalidJsonResponse { status: status::Ok },
-                          "channels_list");
+    rocketchat_router.get(CHANNELS_LIST_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "channels_list");
     let test = Test::new()
         .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -138,10 +136,7 @@ fn attempt_to_list_rooms_when_the_admin_room_is_not_connected() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
-        .with_admin_room()
-        .run();
+    let test = Test::new().with_matrix_routes(matrix_router).with_admin_room().run();
 
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),

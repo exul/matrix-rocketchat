@@ -10,7 +10,9 @@ use i18n::*;
 use super::schema::users;
 
 /// A Matrix `User`.
-#[derive(Debug, Queryable)]
+#[derive(Associations, Debug, Identifiable, Queryable)]
+#[primary_key(matrix_user_id)]
+#[table_name="users"]
 pub struct User {
     /// The users unique id on the Matrix server.
     pub matrix_user_id: UserId,

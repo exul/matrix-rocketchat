@@ -236,9 +236,7 @@ impl Test {
             None => Router::new(),
         };
 
-        router.get("/_matrix/client/versions",
-                   handlers::MatrixVersion { versions: default_matrix_api_versions() },
-                   "versions");
+        router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "versions");
         router.post("*", handlers::EmptyJson {}, "default_post");
         router.put("*", handlers::EmptyJson {}, "default_put");
         if self.with_admin_room || self.with_connected_admin_room {
@@ -279,9 +277,7 @@ impl Test {
             None => Router::new(),
         };
 
-        router.get("/api/info",
-                   handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION },
-                   "info");
+        router.get("/api/info", handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION }, "info");
 
         if self.with_logged_in_user {
             router.post(LOGIN_PATH,
@@ -381,6 +377,11 @@ impl Test {
                                                RoomId::try_from("!admin:localhost").unwrap(),
                                                UserId::try_from("@spec_user:localhost").unwrap(),
                                                format!("bridge {}", room_name));
+
+        // spec_user accepts invite from bot user
+        helpers::join(&self.config.as_url,
+                      RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap(),
+                      UserId::try_from("@spec_user:localhost").unwrap());
     }
 }
 

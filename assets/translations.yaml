@@ -41,6 +41,7 @@ en:
 
       ${channel_list}
     room_successfully_bridged: "${channel_name} is now bridged."
+    room_successfully_unbridged: "${channel_name} is now unbridged."
   defaults:
     admin_room_display_name: "Admin Room (Rocket.Chat)"
     internal_error: "An internal error occurred"
@@ -50,6 +51,7 @@ en:
     authentication_failed: "Authentication failed!"
     internal: "An internal error occurred"
     no_rocketchat_server: "No Rocket.Chat server found when querying ${rocketchat_url} (version information is missing from the response)"
+    other_user_joined: "Another user join the admin room, leaving, please create a new admin room."
     rocketchat_channel_already_bridged: "The channel ${channel_name} is already bridged."
     rocketchat_channel_not_found: "No channel with the name ${channel_name} found."
     rocketchat_token_missing: "A token is needed to connect new Rocket.Chat servers"
@@ -58,7 +60,8 @@ en:
     rocketchat_join_first: "You have to join the channel ${channel_name} on the Rocket.Chat server before you can bridge it."
     room_already_connected: "This room is already connected"
     room_not_connected: "This room is not connected to a Rocket.Chat server, you have to connect it first to be able to execute the command, type `help` for further instructions on how to connect this room"
+    room_not_empty: "Cannot unbdrige room ${channel_name}, because Matrix users (${users}) are still using the room."
     token_already_in_use: "The token ${token} is already in use, please use another token."
-    unsupported_rocketchat_api_version: "No supported API version (>= ${min_version}) found for the Rocket.Chat server, found version: ${version}"
     too_many_members_in_room: "Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."
-    other_user_joined: "Another user join the admin room, leaving, please create a new admin room."
+    unsupported_rocketchat_api_version: "No supported API version (>= ${min_version}) found for the Rocket.Chat server, found version: ${version}"
+    unbridge_of_not_bridged_room: "The channel ${channel_name} is not bridged, cannot unbridge it."

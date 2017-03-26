@@ -4,10 +4,8 @@ use diesel::sqlite::SqliteConnection;
 use ruma_identifiers::{RoomId, UserId};
 
 use errors::*;
-use super::schema::{rocketchat_servers, rooms, users, users_in_rooms};
-use super::RocketchatServer;
-use super::user::User;
-use super::user_in_room::UserInRoom;
+use super::schema::{rocketchat_servers, rooms, users, users_in_rooms, users_on_rocketchat_servers};
+use super::{RocketchatServer, User, UserInRoom, UserOnRocketchatServer};
 
 /// A room that is managed by the application service. This can be either a bridged room or an
 /// admin room.
@@ -86,6 +84,20 @@ impl Room {
         Ok(rooms.into_iter().next())
     }
 
+    /// Find a `Room` by its display name. It also requires the server id, because the
+    /// display name might not be unique across servers.
+    /// Returns `None`, if the room is not found.
+    pub fn find_by_display_name(connection: &SqliteConnection,
+                                rocketchat_server_id: i32,
+                                display_name: String)
+                                -> Result<Option<Room>> {
+        let rooms = rooms::table.filter(rooms::rocketchat_server_id.eq(rocketchat_server_id)
+                                            .and(rooms::display_name.eq(display_name)))
+            .load(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(rooms.into_iter().next())
+    }
+
     /// Indicates if the room is bridged for a given user.
     pub fn is_bridged_for_user(connection: &SqliteConnection,
                                rocketchat_server_id: i32,
@@ -100,10 +112,7 @@ impl Room {
     }
 
     /// Indicates if a room is bridged.
-    pub fn is_bridged(connection: &SqliteConnection,
-                      rocketchat_server_id: i32,
-                      rocketchat_room_id: String)
-                      -> Result<bool> {
+    pub fn is_bridged(connection: &SqliteConnection, rocketchat_server_id: i32, rocketchat_room_id: String) -> Result<bool> {
         match Room::find_by_rocketchat_room_id(connection, rocketchat_server_id, rocketchat_room_id)? {
             Some(room) => Ok(room.is_bridged),
             None => Ok(false),
@@ -152,6 +161,35 @@ impl Room {
                 .load(connection)
                 .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(users)
+    }
+
+    /// Returns all `Users`s in the room that are not virtual users.
+    pub fn non_virtual_users(&self, connection: &SqliteConnection) -> Result<Vec<User>> {
+        let rocketchat_server = match self.rocketchat_server(connection)? {
+            Some(rocketchat_server) => rocketchat_server,
+            None => {
+                return self.users(connection);
+            }
+        };
+
+        let users: Vec<User> =
+            users::table.filter(
+                users::matrix_user_id.eq_any(
+                    UserInRoom::belonging_to(self).select(users_in_rooms::matrix_user_id)
+                ).and(users::matrix_user_id.eq_any(
+                    UserOnRocketchatServer::belonging_to(&rocketchat_server).filter(
+                        users_on_rocketchat_servers::is_virtual_user.eq(false)
+                    ).select(users_on_rocketchat_servers::matrix_user_id)
+                ))).load(connection).chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(users)
+    }
+
+    /// Update the is_bridged flag for the room.
+    pub fn set_is_bridged(&self, connection: &SqliteConnection, is_bridged: bool) -> Result<()> {
+        diesel::update(rooms::table.find(&self.matrix_room_id)).set(rooms::is_bridged.eq(is_bridged))
+            .execute(connection)
+            .chain_err(|| ErrorKind::DBUpdateError)?;
+        Ok(())
     }
 
     /// Delete a room, this also deletes any users_in_rooms relations for that room.

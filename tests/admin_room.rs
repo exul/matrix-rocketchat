@@ -38,8 +38,7 @@ fn successfully_create_an_admin_room() {
     matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {}, "join");
     let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").unwrap(),
-        members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
-                      UserId::try_from("@rocketchat:localhost").unwrap()],
+        members: vec![UserId::try_from("@spec_user:localhost").unwrap(), UserId::try_from("@rocketchat:localhost").unwrap()],
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
@@ -93,21 +92,19 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
     let spec_user_in_room_error = UserInRoom::find(&connection,
                                                    &UserId::try_from("@spec_user:localhost").unwrap(),
                                                    &RoomId::try_from("!admin:localhost").unwrap())
-        .err()
-        .unwrap();
+            .err()
+            .unwrap();
     let spec_user_in_room_diesel_error = spec_user_in_room_error.error_chain.iter().nth(1).unwrap();
-    assert_eq!(format!("{}", spec_user_in_room_diesel_error),
-               format!("{}", DieselError::NotFound));
+    assert_eq!(format!("{}", spec_user_in_room_diesel_error), format!("{}", DieselError::NotFound));
 
     let bot_user_in_room_error = UserInRoom::find(&connection,
                                                   &UserId::try_from("@rocketchat:localhost").unwrap(),
                                                   &RoomId::try_from("!admin:localhost").unwrap())
-        .err()
-        .unwrap();
+            .err()
+            .unwrap();
 
     let bot_user_in_room_diesel_error = bot_user_in_room_error.error_chain.iter().nth(1).unwrap();
-    assert_eq!(format!("{}", bot_user_in_room_diesel_error),
-               format!("{}", DieselError::NotFound));
+    assert_eq!(format!("{}", bot_user_in_room_diesel_error), format!("{}", DieselError::NotFound));
 }
 
 #[test]
@@ -137,20 +134,18 @@ fn bot_leaves_and_forgets_the_room_when_the_user_leaves_it() {
     let spec_user_in_room_error = UserInRoom::find(&connection,
                                                    &UserId::try_from("@spec_user:localhost").unwrap(),
                                                    &RoomId::try_from("!admin:localhost").unwrap())
-        .err()
-        .unwrap();
+            .err()
+            .unwrap();
     let spec_user_in_room_diesel_error = spec_user_in_room_error.error_chain.iter().nth(1).unwrap();
-    assert_eq!(format!("{}", spec_user_in_room_diesel_error),
-               format!("{}", DieselError::NotFound));
+    assert_eq!(format!("{}", spec_user_in_room_diesel_error), format!("{}", DieselError::NotFound));
 
     let bot_user_in_room_error = UserInRoom::find(&connection,
                                                   &UserId::try_from("@rocketchat:localhost").unwrap(),
                                                   &RoomId::try_from("!admin:localhost").unwrap())
-        .err()
-        .unwrap();
+            .err()
+            .unwrap();
     let bot_user_in_room_diesel_error = bot_user_in_room_error.error_chain.iter().nth(1).unwrap();
-    assert_eq!(format!("{}", bot_user_in_room_diesel_error),
-               format!("{}", DieselError::NotFound));
+    assert_eq!(format!("{}", bot_user_in_room_diesel_error), format!("{}", DieselError::NotFound));
 }
 
 #[test]
@@ -183,8 +178,7 @@ fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
     matrix_router.post(JoinEndpoint::router_path(), error_responder, "join");
     let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").unwrap(),
-        members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
-                      UserId::try_from("@rocketchat:localhost").unwrap()],
+        members: vec![UserId::try_from("@spec_user:localhost").unwrap(), UserId::try_from("@rocketchat:localhost").unwrap()],
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
@@ -267,13 +261,10 @@ fn the_user_gets_a_message_when_setting_the_room_display_name_fails() {
         status: status::InternalServerError,
         message: "Could not set display name for room".to_string(),
     };
-    matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(),
-                      error_responder,
-                      "send_state_event_for_empty_key");
+    matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(), error_responder, "send_state_event_for_empty_key");
     let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").unwrap(),
-        members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
-                      UserId::try_from("@rocketchat:localhost").unwrap()],
+        members: vec![UserId::try_from("@spec_user:localhost").unwrap(), UserId::try_from("@rocketchat:localhost").unwrap()],
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
@@ -369,8 +360,7 @@ fn bot_leaves_when_a_third_user_joins_the_admin_room() {
     matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {}, "join");
     let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").unwrap(),
-        members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
-                      UserId::try_from("@rocketchat:localhost").unwrap()],
+        members: vec![UserId::try_from("@spec_user:localhost").unwrap(), UserId::try_from("@rocketchat:localhost").unwrap()],
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");

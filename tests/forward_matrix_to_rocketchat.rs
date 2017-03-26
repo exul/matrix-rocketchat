@@ -61,7 +61,7 @@ fn do_not_forward_messages_from_the_bot_user_to_avoid_loops() {
                                            UserId::try_from("@rocketchat:localhost").unwrap(),
                                            "spec message".to_string());
 
-    receiver.recv_timeout(default_timeout()).is_err();
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 
 #[test]

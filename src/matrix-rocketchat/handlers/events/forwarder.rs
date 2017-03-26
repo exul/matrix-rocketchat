@@ -26,11 +26,6 @@ impl<'a> Forwarder<'a> {
 
     /// Forwards messages to Rocket.Chat
     pub fn process(&self, event: &MessageEvent, room: &Room) -> Result<()> {
-        if event.user_id == self.config.matrix_bot_user_id()? {
-            debug!(self.logger, "Skipping event, because it was sent by the bot user");
-            return Ok(());
-        }
-
         match room.rocketchat_server(self.connection)? {
             Some(rocketchat_server) => {
                 let user_on_rocketchat_server =

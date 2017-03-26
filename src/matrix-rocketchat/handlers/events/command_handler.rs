@@ -74,8 +74,6 @@ impl<'a> CommandHandler<'a> {
 
             let rocketchat_server = self.get_rocketchat_server(room, &message)?;
             self.unbridge(event, &rocketchat_server, &message)?;
-        } else if event.user_id == self.config.matrix_bot_user_id()? {
-            debug!(self.logger, "Skipping event from bot user");
         } else {
             let msg = format!("Skipping event, don't know how to handle command `{}`", message);
             debug!(self.logger, msg);
@@ -268,7 +266,10 @@ impl<'a> CommandHandler<'a> {
                 }
 
                 let room = match Room::find_by_rocketchat_room_id(self.connection, rocketchat_server.id, channel.id.clone())? {
-                    Some(room) => room,
+                    Some(room) => {
+                        self.matrix_api.invite(room.matrix_room_id.clone(), event.user_id.clone())?;
+                        room
+                    }
                     None => self.create_room(channel, rocketchat_server.id, event.user_id.clone())?,
                 };
 

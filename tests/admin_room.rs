@@ -435,3 +435,23 @@ fn unkown_membership_states_are_skipped() {
     // so the receiver never gets a message and times out
     receiver.recv_timeout(default_timeout()).is_err();
 }
+
+#[test]
+fn ignore_messages_from_the_bot_user() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+
+    let test = Test::new().with_admin_room().with_matrix_routes(matrix_router).run();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@rocketchat:localhost").unwrap(),
+                                           "help".to_string());
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    // no command is executed, so we get a timeout
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
+}

@@ -74,8 +74,6 @@ impl<'a> CommandHandler<'a> {
 
             let rocketchat_server = self.get_rocketchat_server(room, &message)?;
             self.unbridge(event, &rocketchat_server, &message)?;
-        } else if event.user_id == self.config.matrix_bot_user_id()? {
-            debug!(self.logger, "Skipping event from bot user");
         } else {
             let msg = format!("Skipping event, don't know how to handle command `{}`", message);
             debug!(self.logger, msg);

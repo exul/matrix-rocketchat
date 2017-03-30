@@ -3,22 +3,19 @@ use ruma_events::room::message::{MessageEvent, MessageEventContent, TextMessageE
 use slog::Logger;
 
 use api::RocketchatApi;
-use config::Config;
 use db::{Room, UserOnRocketchatServer};
 use errors::*;
 
 /// Forwards messages
 pub struct Forwarder<'a> {
-    config: &'a Config,
     connection: &'a SqliteConnection,
     logger: &'a Logger,
 }
 
 impl<'a> Forwarder<'a> {
     /// Create a new `Forwarder`.
-    pub fn new(connection: &'a SqliteConnection, config: &'a Config, logger: &'a Logger) -> Forwarder<'a> {
+    pub fn new(connection: &'a SqliteConnection, logger: &'a Logger) -> Forwarder<'a> {
         Forwarder {
-            config: config,
             connection: connection,
             logger: logger,
         }

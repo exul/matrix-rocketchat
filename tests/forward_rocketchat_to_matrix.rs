@@ -87,9 +87,8 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let connection = test.connection_pool.get().unwrap();
     let admin_room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
     let rocketchat_server_id = admin_room.rocketchat_server_id.unwrap();
-    let bridged_room = Room::find_by_rocketchat_room_id(&connection, rocketchat_server_id, "spec_channel_id".to_string())
-        .unwrap()
-        .unwrap();
+    let bridged_room =
+        Room::find_by_rocketchat_room_id(&connection, rocketchat_server_id, "spec_channel_id".to_string()).unwrap().unwrap();
 
     // the bot, the user who bridged the channel and the virtual user are in the channel
     let users = bridged_room.users(&connection).unwrap();
@@ -191,9 +190,8 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let connection = test.connection_pool.get().unwrap();
     let admin_room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
     let rocketchat_server_id = admin_room.rocketchat_server_id.unwrap();
-    let bridged_room = Room::find_by_rocketchat_room_id(&connection, rocketchat_server_id, "spec_channel_id".to_string())
-        .unwrap()
-        .unwrap();
+    let bridged_room =
+        Room::find_by_rocketchat_room_id(&connection, rocketchat_server_id, "spec_channel_id".to_string()).unwrap().unwrap();
 
     // the bot, the user who bridged the channel and the virtual user are in the channel
     let users = bridged_room.users(&connection).unwrap();
@@ -476,6 +474,62 @@ fn ignore_messages_forwarded_from_rocketchat_if_the_non_virtual_user_just_sent_a
     user.set_last_message_sent(&connection).unwrap();
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
+}
+
+#[test]
+fn do_not_forward_messages_when_the_channel_was_bridged_but_is_unbridged_now() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.put(SetDisplayNameEndpoint::router_path(),
+                      handlers::MatrixErrorResponder {
+                          status: status::InternalServerError,
+                          message: "Could not set display name".to_string(),
+                      },
+                      "set_display_name");
+
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    helpers::leave_room(&test.config.as_url,
+                        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+                        UserId::try_from("@spec_user:localhost").unwrap());
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           "unbridge spec_channel".to_string());
+
+    let message = Message {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_channel_id".to_string(),
+        channel_name: "spec_channel".to_string(),
+        user_id: "virtual_spec_user_id".to_string(),
+        user_name: "virtual_spec_user".to_string(),
+        text: "spec_message".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard room bridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard room unbridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
 
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }

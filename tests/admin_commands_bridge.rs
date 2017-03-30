@@ -243,6 +243,7 @@ fn successfully_bridge_a_rocketchat_room_that_was_unbridged_before() {
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();
     assert_eq!(room.display_name, "joined_channel");
+    assert!(room.is_bridged);
 
     let users_in_room = room.users(&connection).unwrap();
     assert!(users_in_room.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat:localhost").unwrap()));

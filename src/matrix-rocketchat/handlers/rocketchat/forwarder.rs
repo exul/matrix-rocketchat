@@ -32,13 +32,11 @@ impl<'a> Forwarder<'a> {
     pub fn send(&self, rocketchat_server: &RocketchatServer, message: &Message) -> Result<()> {
         let user_on_rocketchat_server = match UserOnRocketchatServer::find_by_rocketchat_user_id(self.connection,
                                                                  rocketchat_server.id,
-                                                                 message.user_id
-                                                                     .clone(),
+                                                                 message.user_id.clone(),
                                                                  true)? {
             Some(user_on_rocketchat_server) => user_on_rocketchat_server,
             None => {
-                self.connection
-                    .transaction(|| self.create_virtual_user_on_rocketchat_server(rocketchat_server.id, message))?
+                self.connection.transaction(|| self.create_virtual_user_on_rocketchat_server(rocketchat_server.id, message))?
             }
         };
 
@@ -48,10 +46,10 @@ impl<'a> Forwarder<'a> {
             return Ok(());
         }
 
-        let room =
+        let matrix_room_id =
             match Room::find_by_rocketchat_room_id(self.connection, rocketchat_server.id, message.channel_id.clone())? {
-                Some(room) => room,
-                None => {
+                Some(ref room) if room.is_bridged => room.matrix_room_id.clone(),
+                _ => {
                     debug!(self.logger,
                            "Ignoring message from Rocket.Chat channel `{}`, because the channel is not bridged.",
                            message.channel_id);
@@ -70,17 +68,14 @@ impl<'a> Forwarder<'a> {
         }
 
 
-        let user_in_room =
-            UserInRoom::find_by_matrix_user_id_and_matrix_room_id(self.connection,
-                                                                  &user_on_rocketchat_server.matrix_user_id,
-                                                                  &room.matrix_room_id)?;
+        let user_in_room = UserInRoom::find_by_matrix_user_id_and_matrix_room_id(self.connection,
+                                                                                 &user_on_rocketchat_server.matrix_user_id,
+                                                                                 &matrix_room_id)?;
         if user_in_room.is_none() {
-            self.add_virtual_user_to_room(user_on_rocketchat_server.matrix_user_id.clone(), room.matrix_room_id.clone())?;
+            self.add_virtual_user_to_room(user_on_rocketchat_server.matrix_user_id.clone(), matrix_room_id.clone())?;
         }
 
-        self.matrix_api.send_text_message_event(room.matrix_room_id,
-                                                user_on_rocketchat_server.matrix_user_id,
-                                                message.text.clone())
+        self.matrix_api.send_text_message_event(matrix_room_id, user_on_rocketchat_server.matrix_user_id, message.text.clone())
     }
 
     fn create_virtual_user_on_rocketchat_server(&self,
@@ -141,10 +136,8 @@ impl<'a> Forwarder<'a> {
                                                                  false)? {
             Some(user_on_rocketchat_server) => {
                 let user = user_on_rocketchat_server.user(self.connection)?;
-                let now = SystemTime::now()
-                    .duration_since(UNIX_EPOCH)
-                    .chain_err(|| ErrorKind::InternalServerError)?
-                    .as_secs() as i64;
+                let now =
+                    SystemTime::now().duration_since(UNIX_EPOCH).chain_err(|| ErrorKind::InternalServerError)?.as_secs() as i64;
                 let last_sent = now - user.last_message_sent;
                 Ok(last_sent > RESEND_THRESHOLD_IN_SECONDS)
             }

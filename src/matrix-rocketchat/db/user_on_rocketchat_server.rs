@@ -63,8 +63,8 @@ impl UserOnRocketchatServer {
         match users_on_rocketchat_server.into_iter().next() {
             Some(existing_user_on_rocketchat_server) => {
                 existing_user_on_rocketchat_server.set_credentials(connection,
-                                     user_on_rocketchat_server.rocketchat_user_id.clone(),
-                                     user_on_rocketchat_server.rocketchat_auth_token.clone())?;
+                                                                   user_on_rocketchat_server.rocketchat_user_id.clone(),
+                                                                   user_on_rocketchat_server.rocketchat_auth_token.clone())?;
             }
             None => {
                 diesel::insert(user_on_rocketchat_server).into(users_on_rocketchat_servers::table)
@@ -117,10 +117,7 @@ impl UserOnRocketchatServer {
     }
 
     /// Update the users Rocket.Chat username.
-    pub fn set_rocketchat_username(&self,
-                                   connection: &SqliteConnection,
-                                   rocketchat_username: Option<String>)
-                                   -> Result<()> {
+    pub fn set_rocketchat_username(&self, connection: &SqliteConnection, rocketchat_username: Option<String>) -> Result<()> {
         diesel::update(users_on_rocketchat_servers::table.find((&self.matrix_user_id, self.rocketchat_server_id)))
             .set(users_on_rocketchat_servers::rocketchat_username.eq(rocketchat_username)).execute(connection)
             .chain_err(|| ErrorKind::DBUpdateError)?;
@@ -130,5 +127,11 @@ impl UserOnRocketchatServer {
     /// Get the `User` for a `UserOnRocketchatServer` record.
     pub fn user(&self, connection: &SqliteConnection) -> Result<User> {
         User::find(connection, &self.matrix_user_id)
+    }
+
+    /// Returns true if the user is logged in on the Rocket.Chat server via the application
+    /// serivce, and false otherwise.
+    pub fn is_logged_in(&self) -> bool {
+        self.rocketchat_auth_token.is_some()
     }
 }

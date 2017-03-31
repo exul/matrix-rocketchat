@@ -164,9 +164,15 @@ impl<'a> CommandHandler<'a> {
         let room = Room::find(self.connection, &event.room_id)?;
         let user = User::find(self.connection, &event.user_id)?;
 
-        let body = match room.rocketchat_url(self.connection)? {
-            Some(rocketchat_url) => {
-                t!(["admin_room", "login_instructions"]).with_vars(vec![("rocketchat_url", rocketchat_url)])
+        let body = match room.rocketchat_server(self.connection)? {
+            Some(rocketchat_server) => {
+                if UserOnRocketchatServer::find(self.connection, &user.matrix_user_id, rocketchat_server.id)?.is_logged_in() {
+                    t!(["admin_room", "usage_instructions"]).with_vars(vec![("rocketchat_url",
+                                                                             rocketchat_server.rocketchat_url)])
+                } else {
+                    t!(["admin_room", "login_instructions"]).with_vars(vec![("rocketchat_url",
+                                                                             rocketchat_server.rocketchat_url)])
+                }
             }
             None => t!(["admin_room", "connection_instructions"]).with_vars(vec![("as_url", self.config.as_url.clone())]),
         };
@@ -174,7 +180,7 @@ impl<'a> CommandHandler<'a> {
         let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
         self.matrix_api.send_text_message_event(event.room_id.clone(), bot_matrix_user_id, body.l(&user.language))?;
 
-        Ok(info!(self.logger, "Successfully executed login command for user {}", user.matrix_user_id))
+        Ok(info!(self.logger, "Successfully executed help command for user {}", user.matrix_user_id))
     }
 
     fn login(&self, event: &MessageEvent, rocketchat_server: &RocketchatServer, message: &str) -> Result<()> {
@@ -199,7 +205,7 @@ impl<'a> CommandHandler<'a> {
         user_on_rocketchat_server.set_rocketchat_username(self.connection, Some(username.clone()))?;
 
         let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
-        let message = t!(["admin_room", "bridge_instructions"]);
+        let message = t!(["admin_room", "usage_instructions"]);
         self.matrix_api.send_text_message_event(event.room_id.clone(), bot_matrix_user_id, message.l(&user.language))?;
 
         Ok(info!(self.logger,

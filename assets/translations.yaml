@@ -33,7 +33,16 @@ en:
       **Warning**: This will store your password *unecrypted* in the database of your homeserver
 
       1. Login via curl: `curl AS_URL/login -d '{"rocketchat_server_url": "${rocketchat_url}", "matrix_user_id": "${matrix_user_id}", "username": "rocketchat_user", "password": "mysecret"}'`
-    bridge_instructions: "You are logged in."
+    usage_instructions: |
+      You are logged in.
+
+      You are connected to ${rocketchat_url}.
+
+      `list` Lists all public rooms from the Rocket.Chat server
+
+      `bridge rocketchatroomnname` Bridge a Rocket.Chat room
+
+      `unbridge rocketchatroomnname` Unbridge a Rocket.Chat room (messages are no longer forwarded)
     list_channels: |
       Rooms are written in *italic* when you joined them on the Rocket.Chat server, you can `bridge` such a room.
 
@@ -60,7 +69,7 @@ en:
     rocketchat_join_first: "You have to join the channel ${channel_name} on the Rocket.Chat server before you can bridge it."
     room_already_connected: "This room is already connected"
     room_not_connected: "This room is not connected to a Rocket.Chat server, you have to connect it first to be able to execute the command, type `help` for further instructions on how to connect this room"
-    room_not_empty: "Cannot unbdrige room ${channel_name}, because Matrix users (${users}) are still using the room."
+    room_not_empty: "Cannot unbdrige room ${channel_name}, because Matrix users (${users}) are still using the room. All Matrix users have to leave a room before it can be unbridged."
     token_already_in_use: "The token ${token} is already in use, please use another token."
     too_many_members_in_room: "Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."
     unsupported_rocketchat_api_version: "No supported API version (>= ${min_version}) found for the Rocket.Chat server, found version: ${version}"

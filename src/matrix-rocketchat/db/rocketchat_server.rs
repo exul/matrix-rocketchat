@@ -67,6 +67,14 @@ impl RocketchatServer {
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rocketchat_servers.into_iter().next())
     }
+
+    /// Get all connected servers.
+    pub fn find_connected_servers(connection: &SqliteConnection) -> Result<Vec<RocketchatServer>> {
+        let rocketchat_servers = rocketchat_servers::table.filter(rocketchat_servers::rocketchat_token.is_not_null())
+            .load::<RocketchatServer>(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(rocketchat_servers)
+    }
 }
 
 impl Key for RocketchatServer {

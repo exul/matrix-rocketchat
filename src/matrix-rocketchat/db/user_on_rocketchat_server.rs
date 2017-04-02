@@ -61,7 +61,7 @@ impl UserOnRocketchatServer {
                 .chain_err(|| ErrorKind::DBSelectError)?;
 
         match users_on_rocketchat_server.into_iter().next() {
-            Some(existing_user_on_rocketchat_server) => {
+            Some(mut existing_user_on_rocketchat_server) => {
                 existing_user_on_rocketchat_server.set_credentials(connection,
                                                                    user_on_rocketchat_server.rocketchat_user_id.clone(),
                                                                    user_on_rocketchat_server.rocketchat_auth_token.clone())?;
@@ -104,11 +104,13 @@ impl UserOnRocketchatServer {
     }
 
     /// Update the users credentials.
-    pub fn set_credentials(&self,
+    pub fn set_credentials(&mut self,
                            connection: &SqliteConnection,
                            rocketchat_user_id: Option<String>,
                            rocketchat_auth_token: Option<String>)
                            -> Result<()> {
+        self.rocketchat_user_id = rocketchat_user_id.clone();
+        self.rocketchat_auth_token = rocketchat_auth_token.clone();
         diesel::update(users_on_rocketchat_servers::table.find((&self.matrix_user_id, self.rocketchat_server_id)))
                 .set((users_on_rocketchat_servers::rocketchat_user_id.eq(rocketchat_user_id),
                       users_on_rocketchat_servers::rocketchat_auth_token.eq(rocketchat_auth_token))).execute(connection)
@@ -117,7 +119,11 @@ impl UserOnRocketchatServer {
     }
 
     /// Update the users Rocket.Chat username.
-    pub fn set_rocketchat_username(&self, connection: &SqliteConnection, rocketchat_username: Option<String>) -> Result<()> {
+    pub fn set_rocketchat_username(&mut self,
+                                   connection: &SqliteConnection,
+                                   rocketchat_username: Option<String>)
+                                   -> Result<()> {
+        self.rocketchat_username = rocketchat_username.clone();
         diesel::update(users_on_rocketchat_servers::table.find((&self.matrix_user_id, self.rocketchat_server_id)))
             .set(users_on_rocketchat_servers::rocketchat_username.eq(rocketchat_username)).execute(connection)
             .chain_err(|| ErrorKind::DBUpdateError)?;

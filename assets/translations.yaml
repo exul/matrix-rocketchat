@@ -3,7 +3,7 @@ en:
     connection_instructions: |
       Hi, I'm the Rocket.Chat application service
 
-      You have to connect this room to a Rocket.Chat server.
+      You have to connect this room to a Rocket.Chat server. To do so you can either use an already connected server (if there is one) or connect to a new server.
 
       **Connect to a new server**
 
@@ -24,6 +24,18 @@ en:
       A sample message could look like this:
 
       `connect https://chat.example.com z44cwkD86P5PmdkEv7nHX7KB`
+
+      **Already connected servers**
+
+      ${server_list}
+
+      To use an already connected server, you can use the Rocket.Chat URL in the list:
+
+      `connect rocketchaturl`
+
+      A sample message could look like this:
+
+      `connect https://chat.example.com`
     login_instructions: |
       You are connected to ${rocketchat_url}.
 
@@ -33,6 +45,7 @@ en:
       **Warning**: This will store your password *unecrypted* in the database of your homeserver
 
       1. Login via curl: `curl AS_URL/login -d '{"rocketchat_server_url": "${rocketchat_url}", "matrix_user_id": "${matrix_user_id}", "username": "rocketchat_user", "password": "mysecret"}'`
+    no_rocketchat_server_connected: "No Rocket.Chat server is connected yet."
     usage_instructions: |
       You are logged in.
 

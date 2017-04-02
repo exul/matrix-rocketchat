@@ -11,6 +11,7 @@ use config::Config;
 use db::{NewRoom, NewUserInRoom, Room, User, UserInRoom};
 use errors::*;
 use i18n::*;
+use super::CommandHandler;
 
 /// Handles room events
 pub struct RoomHandler<'a> {
@@ -115,12 +116,11 @@ impl<'a> RoomHandler<'a> {
 
         let user_in_room = NewUserInRoom {
             matrix_user_id: matrix_bot_user_id.clone(),
-            matrix_room_id: room.matrix_room_id,
+            matrix_room_id: room.matrix_room_id.clone(),
         };
         UserInRoom::insert(self.connection, &user_in_room)?;
-        let body = t!(["admin_room", "connection_instructions"])
-            .with_vars(vec![("as_url", self.config.as_url.clone())])
-            .l(&invitation_submitter.language);
+        let body =
+            CommandHandler::build_help_message(self.connection, self.config.as_url.clone(), &room, &invitation_submitter)?;
         self.matrix_api.send_text_message_event(matrix_room_id.clone(), matrix_bot_user_id, body)?;
 
         let room_name = t!(["defaults", "admin_room_display_name"]).l(&invitation_submitter.language);

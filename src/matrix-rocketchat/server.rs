@@ -33,7 +33,7 @@ impl<'a> Server<'a> {
     }
 
     /// Runs the application service bridge.
-    pub fn run(&self) -> Result<Listening> {
+    pub fn run(&self, threads: usize) -> Result<Listening> {
         self.prepare_database()?;
         let connection_pool = ConnectionPool::create(&self.config.database_url)?;
         let connection = connection_pool.get().chain_err(|| ErrorKind::ConnectionPoolExtractionError)?;
@@ -47,7 +47,9 @@ impl<'a> Server<'a> {
         chain.link_before(State::<IronLogger>::one::<Logger>(self.logger.clone()));
 
         info!(self.logger, "Starting server"; "address" => format!("{:?}", self.config.as_address));
-        Iron::new(chain).http(self.config.as_address).chain_err(|| ErrorKind::ServerStartupError).map_err(Error::from)
+        let mut server = Iron::new(chain);
+        server.threads = threads;
+        server.http(self.config.as_address).chain_err(|| ErrorKind::ServerStartupError).map_err(Error::from)
     }
 
     fn setup_routes(&self, matrix_api: Box<MatrixApi>) -> Router {

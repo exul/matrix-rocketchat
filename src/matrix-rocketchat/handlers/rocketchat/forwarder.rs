@@ -30,9 +30,10 @@ pub struct Forwarder<'a> {
 impl<'a> Forwarder<'a> {
     /// Send a message to the Matrix channel.
     pub fn send(&self, rocketchat_server: &RocketchatServer, message: &Message) -> Result<()> {
-        let user_on_rocketchat_server = match UserOnRocketchatServer::find_by_rocketchat_user_id(self.connection,
+        let mut user_on_rocketchat_server = match UserOnRocketchatServer::find_by_rocketchat_user_id(self.connection,
                                                                  rocketchat_server.id,
-                                                                 message.user_id.clone(),
+                                                                 message.user_id
+                                                                     .clone(),
                                                                  true)? {
             Some(user_on_rocketchat_server) => user_on_rocketchat_server,
             None => {

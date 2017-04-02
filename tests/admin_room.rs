@@ -51,6 +51,8 @@ fn successfully_create_an_admin_room() {
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("Hi, I'm the Rocket.Chat application service"));
+    assert!(message_received_by_matrix.contains("You have to connect this room to a Rocket.Chat server. To do so you can either use an already connected server (if there is one) or connect to a new server."));
+    assert!(message_received_by_matrix.contains("No Rocket.Chat server is connected yet."));
 
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();

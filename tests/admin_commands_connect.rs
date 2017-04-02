@@ -13,8 +13,8 @@ use std::thread;
 
 use iron::{Iron, Listening, status};
 use matrix_rocketchat::db::{RocketchatServer, UserOnRocketchatServer};
-use matrix_rocketchat_test::{IRON_THREADS, MessageForwarder, RS_TOKEN, Test, default_timeout, get_free_socket_addr,
-                             handlers, helpers};
+use matrix_rocketchat_test::{IRON_THREADS, MessageForwarder, RS_TOKEN, Test, default_timeout, get_free_socket_addr, handlers,
+                             helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -31,16 +31,17 @@ fn successfully_connect_rocketchat_server() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains(&format!("You are connected to {}",test.rocketchat_mock_url.clone().unwrap())));
+    println!("MSG: {}", message_received_by_matrix);
+    assert!(message_received_by_matrix.contains(&format!("You are connected to {}",
+                                                         test.rocketchat_mock_url.clone().unwrap())));
 
     let connection = test.connection_pool.get().unwrap();
     let rocketchat_server =
         RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap().unwrap();
     assert_eq!(rocketchat_server.rocketchat_token.unwrap(), RS_TOKEN.to_string());
 
-    let users_on_rocketchat_server = UserOnRocketchatServer::find(&connection,
-                                                                  &UserId::try_from("@spec_user:localhost").unwrap(),
-                                                                  rocketchat_server.id);
+    let users_on_rocketchat_server =
+        UserOnRocketchatServer::find(&connection, &UserId::try_from("@spec_user:localhost").unwrap(), rocketchat_server.id);
     assert!(users_on_rocketchat_server.is_ok())
 }
 
@@ -64,11 +65,7 @@ fn attempt_to_connect_to_an_incompatible_rocketchat_server_version() {
     let mut listening = rx.recv_timeout(default_timeout() * 2).unwrap();
     let rocketchat_mock_url = format!("http://{}", socket_addr);
 
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_admin_room()
-        .run();
+    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
 
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),
@@ -103,11 +100,7 @@ fn attempt_to_connect_to_a_non_rocketchat_server() {
     let mut listening = rx.recv_timeout(default_timeout() * 2).unwrap();
     let rocketchat_mock_url = format!("http://{}", socket_addr);
 
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_admin_room()
-        .run();
+    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
 
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),
@@ -143,11 +136,7 @@ fn attempt_to_connect_to_a_server_with_the_correct_endpoint_but_an_incompatible_
     let mut listening = rx.recv_timeout(default_timeout() * 2).unwrap();
     let rocketchat_mock_url = format!("http://{}", socket_addr);
 
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_admin_room()
-        .run();
+    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
 
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),
@@ -173,11 +162,7 @@ fn attempt_to_connect_to_non_existing_server() {
     let socket_addr = get_free_socket_addr();
     let rocketchat_mock_url = format!("http://{}", socket_addr);
 
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_admin_room()
-        .run();
+    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
 
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),

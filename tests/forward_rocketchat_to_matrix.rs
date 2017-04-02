@@ -470,7 +470,7 @@ fn ignore_messages_forwarded_from_rocketchat_if_the_non_virtual_user_just_sent_a
     // simulate that the user just sent a message
     let connection = test.connection_pool.get().unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
-    let user = User::find(&connection, &spec_user_id).unwrap();
+    let mut user = User::find(&connection, &spec_user_id).unwrap();
     user.set_last_message_sent(&connection).unwrap();
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);

@@ -141,7 +141,8 @@ impl Room {
     }
 
     /// Set the Rocket.Chat id for a room.
-    pub fn set_rocketchat_server_id(&self, connection: &SqliteConnection, rocketchat_server_id: i32) -> Result<()> {
+    pub fn set_rocketchat_server_id(&mut self, connection: &SqliteConnection, rocketchat_server_id: i32) -> Result<()> {
+        self.rocketchat_server_id = Some(rocketchat_server_id);
         diesel::update(rooms::table.find(&self.matrix_room_id)).set(rooms::rocketchat_server_id.eq(rocketchat_server_id))
             .execute(connection)
             .chain_err(|| ErrorKind::DBUpdateError)?;
@@ -185,7 +186,8 @@ impl Room {
     }
 
     /// Update the is_bridged flag for the room.
-    pub fn set_is_bridged(&self, connection: &SqliteConnection, is_bridged: bool) -> Result<()> {
+    pub fn set_is_bridged(&mut self, connection: &SqliteConnection, is_bridged: bool) -> Result<()> {
+        self.is_bridged = is_bridged;
         diesel::update(rooms::table.find(&self.matrix_room_id)).set(rooms::is_bridged.eq(is_bridged))
             .execute(connection)
             .chain_err(|| ErrorKind::DBUpdateError)?;

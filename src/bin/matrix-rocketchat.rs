@@ -6,6 +6,7 @@
 extern crate clap;
 extern crate iron;
 extern crate matrix_rocketchat;
+extern crate num_cpus;
 #[macro_use]
 extern crate slog;
 extern crate slog_json;
@@ -40,7 +41,8 @@ fn run() -> Result<Listening> {
     let log_file_path =
         matches.value_of("log_file").expect("Log file path is always present (default value is set)").to_string();
     let log = build_logger(&log_file_path);
-    Server::new(&config, log).run()
+    let threads = num_cpus::get() * 8;
+    Server::new(&config, log).run(threads)
 }
 
 fn build_logger(log_file_path: &str) -> slog::Logger {

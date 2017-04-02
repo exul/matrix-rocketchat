@@ -328,7 +328,7 @@ impl Test {
                                          o!("version" => env!("CARGO_PKG_VERSION"),
                                             "place" => file_line_logger_format));
             debug!(DEFAULT_LOGGER, "config: {:?}", server_config);
-            let listening = match Server::new(&server_config, log).run() {
+            let listening = match Server::new(&server_config, log).run(IRON_THREADS) {
                 Ok(listening) => listening,
                 Err(err) => {
                     error!(DEFAULT_LOGGER, "error: {}", err);

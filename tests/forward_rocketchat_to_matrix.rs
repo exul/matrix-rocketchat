@@ -60,9 +60,11 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
-    // receive the invite message
-    let invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(invite_message.contains("@rocketchat_new_user_id_1:localhost"));
+    // receive the invite messages
+    let spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(spec_user_invite_message.contains("@spec_user:localhost"));
+    let new_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(new_user_invite_message.contains("@rocketchat_new_user_id_1:localhost"));
 
     // discard admin room join
     join_receiver.recv_timeout(default_timeout()).unwrap();
@@ -163,9 +165,11 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
-    // receive the invite message
-    let invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(invite_message.contains("@rocketchat_virtual_spec_user_id_1:localhost"));
+    // receive the invite messages
+    let spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(spec_user_invite_message.contains("@spec_user:localhost"));
+    let virtual_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(virtual_user_invite_message.contains("@rocketchat_virtual_spec_user_id_1:localhost"));
 
     // discard admin room join
     join_receiver.recv_timeout(default_timeout()).unwrap();
@@ -356,9 +360,10 @@ fn no_message_is_forwarded_when_inviting_the_user_failes() {
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(InviteUserEndpoint::router_path(),
-                       handlers::MatrixErrorResponder {
+                       handlers::MatrixConditionalErrorResponder {
                            status: status::InternalServerError,
                            message: "Could not invite user".to_string(),
+                           conditional_content: "new_user",
                        },
                        "invite_user");
 

@@ -48,6 +48,10 @@ fn successfully_unbridge_a_rocketchat_room() {
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
+                  UserId::try_from("@rocketchat_new_user_id_1:localhost").unwrap());
+
     helpers::leave_room(&test.config.as_url,
                         RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
                         UserId::try_from("@spec_user:localhost").unwrap());

@@ -60,6 +60,10 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+                  UserId::try_from("@rocketchat_new_user_id_1:localhost").unwrap());
+
     // receive the invite messages
     let spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_invite_message.contains("@spec_user:localhost"));
@@ -164,6 +168,10 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let payload = to_string(&message).unwrap();
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+                  UserId::try_from("@rocketchat_virtual_spec_user_id_1:localhost").unwrap());
 
     // receive the invite messages
     let spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();

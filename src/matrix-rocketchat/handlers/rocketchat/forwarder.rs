@@ -9,7 +9,7 @@ use slog::Logger;
 use api::MatrixApi;
 use api::rocketchat::Message;
 use config::Config;
-use db::{NewUser, NewUserInRoom, NewUserOnRocketchatServer, RocketchatServer, Room, User, UserInRoom, UserOnRocketchatServer};
+use db::{NewUser, NewUserOnRocketchatServer, RocketchatServer, Room, User, UserInRoom, UserOnRocketchatServer};
 use errors::*;
 use i18n::DEFAULT_LANGUAGE;
 
@@ -120,11 +120,6 @@ impl<'a> Forwarder<'a> {
     fn add_virtual_user_to_room(&self, matrix_user_id: UserId, matrix_room_id: RoomId) -> Result<()> {
         self.matrix_api.invite(matrix_room_id.clone(), matrix_user_id.clone())?;
         self.matrix_api.join(matrix_room_id.clone(), matrix_user_id.clone())?;
-        let new_user_in_room = NewUserInRoom {
-            matrix_user_id: matrix_user_id,
-            matrix_room_id: matrix_room_id,
-        };
-        UserInRoom::insert(self.connection, &new_user_in_room)?;
         Ok(())
     }
 

@@ -19,7 +19,7 @@ use ruma_events::room::message::MessageType;
 use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json::Map;
 use slog::Logger;
-use serde_json;
+use serde_json::{self, Value};
 
 use api::RestApi;
 use config::Config;
@@ -54,11 +54,11 @@ impl MatrixApi {
 }
 
 impl super::MatrixApi for MatrixApi {
-    fn create_room(&self, room_name: String, matrix_user_id: UserId) -> Result<RoomId> {
+    fn create_room(&self, room_name: String) -> Result<RoomId> {
         let endpoint = self.base_url.clone() + &CreateRoomEndpoint::request_path(());
         let body_params = create_room::BodyParams {
             creation_content: None,
-            invite: vec![matrix_user_id],
+            invite: vec![],
             name: Some(room_name),
             preset: Some(RoomPreset::PrivateChat),
             room_alias_name: None,
@@ -208,17 +208,24 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn set_room_name(&self, matrix_room_id: RoomId, name: String) -> Result<()> {
+    fn set_default_powerlevels(&self, matrix_room_id: RoomId, bot_user_id: UserId) -> Result<()> {
         let path_params = send_state_event_for_empty_key::PathParams {
             room_id: matrix_room_id,
-            event_type: EventType::RoomName,
+            event_type: EventType::RoomPowerLevels,
         };
         let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
         let params = self.params_hash();
         let mut body_params = serde_json::Map::new();
-        body_params.insert("name", name);
+        let mut users = serde_json::Map::new();
+        users.insert(bot_user_id.to_string(), Value::I64(100));
+        body_params.insert("invite", Value::I64(50));
+        body_params.insert("kick", Value::I64(50));
+        body_params.insert("ban", Value::I64(50));
+        body_params.insert("redact", Value::I64(50));
+        body_params.insert("users", Value::Object(users));
+        body_params.insert("events", Value::Object(serde_json::Map::new()));
 
-        let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize account body params".to_string()))?;
+        let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize power levels body params".to_string()))?;
 
         let (body, status_code) =
             RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
@@ -239,6 +246,26 @@ impl super::MatrixApi for MatrixApi {
         let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize set display name body params".to_string()))?;
 
         let (body, status_code) = RestApi::call_matrix(SetDisplayNameEndpoint::method(), &endpoint, &payload, &params)?;
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+        Ok(())
+    }
+
+    fn set_room_name(&self, matrix_room_id: RoomId, name: String) -> Result<()> {
+        let path_params = send_state_event_for_empty_key::PathParams {
+            room_id: matrix_room_id,
+            event_type: EventType::RoomName,
+        };
+        let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
+        let params = self.params_hash();
+        let mut body_params = serde_json::Map::new();
+        body_params.insert("name", name);
+
+        let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize room name body params".to_string()))?;
+
+        let (body, status_code) =
+            RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }

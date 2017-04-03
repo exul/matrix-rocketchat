@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Read;
 use rand::{Rng, thread_rng};
 
 use iron::prelude::*;
@@ -213,6 +214,30 @@ impl Handler for MatrixErrorResponder {
         };
         let payload = serde_json::to_string(&error_response).unwrap();
         Ok(Response::with((self.status, payload)))
+    }
+}
+
+pub struct MatrixConditionalErrorResponder {
+    pub status: status::Status,
+    pub message: String,
+    pub conditional_content: &'static str,
+}
+
+impl Handler for MatrixConditionalErrorResponder {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        let mut request_payload = String::new();
+        request.body.read_to_string(&mut request_payload).unwrap();
+
+        if request_payload.contains(self.conditional_content) {
+            let error_response = MatrixErrorResponse {
+                errcode: "1234".to_string(),
+                error: self.message.clone(),
+            };
+            let payload = serde_json::to_string(&error_response).unwrap();
+            Ok(Response::with((self.status, payload)))
+        } else {
+            Ok(Response::with((status::Ok, "{}".to_string())))
+        }
     }
 }
 

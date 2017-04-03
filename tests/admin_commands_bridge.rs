@@ -19,6 +19,7 @@ use ruma_client_api::Endpoint;
 use ruma_client_api::r0::membership::invite_user::Endpoint as InviteEndpoint;
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
+use ruma_client_api::r0::send::send_state_event_for_empty_key::Endpoint as SendStateEventForEmptyKeyEndpoint;
 use ruma_client_api::r0::sync::get_member_events::{self, Endpoint as GetMemberEventsEndpoint};
 use ruma_identifiers::{RoomId, UserId};
 
@@ -26,11 +27,15 @@ use ruma_identifiers::{RoomId, UserId};
 #[test]
 fn successfully_bridge_a_rocketchat_room() {
     let (message_forwarder, receiver) = MessageForwarder::new();
+    let (invite_forwarder, invite_receiver) = MessageForwarder::new();
+    let (state_forwarder, state_receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(CreateRoomEndpoint::router_path(),
                        handlers::MatrixCreateRoom { room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap() },
                        "create_room");
+    matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(), state_forwarder, "send_state_event_for_key");
+    matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
     let mut channels = HashMap::new();
     channels.insert("joined_channel", vec!["spec_user"]);
 
@@ -54,8 +59,22 @@ fn successfully_bridge_a_rocketchat_room() {
                                            UserId::try_from("@spec_user:localhost").unwrap(),
                                            "bridge joined_channel".to_string());
 
+    let invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(invite_received_by_matrix.contains("@spec_user:localhost"));
+
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("joined_channel is now bridged."));
+
+    let set_room_name_received_by_matrix = state_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(set_room_name_received_by_matrix.contains("Admin Room (Rocket.Chat)"));
+
+    // only moderators and admins can invite other users
+    let power_levels_received_by_matrix = state_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(power_levels_received_by_matrix.contains("\"invite\":50"));
+    assert!(power_levels_received_by_matrix.contains("\"kick\":50"));
+    assert!(power_levels_received_by_matrix.contains("\"ban\":50"));
+    assert!(power_levels_received_by_matrix.contains("\"redact\":50"));
+    assert!(power_levels_received_by_matrix.contains("@rocketchat:localhost"));
 
     // spec_user accepts invite from bot user
     helpers::join(&test.config.as_url,
@@ -175,8 +194,11 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
                   RoomId::try_from("!joined_channel_id:localhost").unwrap(),
                   UserId::try_from("@other_user:localhost").unwrap());
 
-    let invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(invite_received_by_matrix.contains("@other_user:localhost"));
+    let spec_user_invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(spec_user_invite_received_by_matrix.contains("@spec_user:localhost"));
+
+    let other_user_invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(other_user_invite_received_by_matrix.contains("@other_user:localhost"));
 
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();
@@ -372,6 +394,87 @@ fn the_user_gets_a_message_when_creating_the_room_failes() {
                            message: "Could not create room".to_string(),
                        },
                        "create_room");
+    let mut channels = HashMap::new();
+    channels.insert("joined_channel", vec!["spec_user"]);
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_custom_channel_list(channels)
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           "bridge joined_channel".to_string());
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
+}
+
+#[test]
+fn the_user_gets_a_message_when_setting_the_powerlevels_failes() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(CreateRoomEndpoint::router_path(),
+                       handlers::MatrixCreateRoom { room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap() },
+                       "create_room");
+    matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(),
+                      handlers::MatrixConditionalErrorResponder {
+                          status: status::InternalServerError,
+                          message: "Could not set power levels".to_string(),
+                          conditional_content: "invite",
+                      },
+                      "set_power_levels");
+    let mut channels = HashMap::new();
+    channels.insert("joined_channel", vec!["spec_user"]);
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_custom_channel_list(channels)
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           "bridge joined_channel".to_string());
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
+}
+
+#[test]
+fn the_user_gets_a_message_when_inviting_the_user_failes() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(CreateRoomEndpoint::router_path(),
+                       handlers::MatrixCreateRoom { room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap() },
+                       "create_room");
+    matrix_router.post(InviteEndpoint::router_path(),
+                       handlers::MatrixErrorResponder {
+                           status: status::InternalServerError,
+                           message: "Could not invite user".to_string(),
+                       },
+                       "invite");
     let mut channels = HashMap::new();
     channels.insert("joined_channel", vec!["spec_user"]);
     let test = Test::new()

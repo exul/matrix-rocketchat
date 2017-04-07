@@ -2,7 +2,7 @@ use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::message::MessageEvent;
 use ruma_events::room::message::MessageEventContent;
-use ruma_identifiers::UserId;
+use ruma_identifiers::{RoomId, UserId};
 use slog::Logger;
 
 use api::{MatrixApi, RocketchatApi};
@@ -11,6 +11,7 @@ use config::Config;
 use db::{NewRocketchatServer, NewRoom, NewUserInRoom, NewUserOnRocketchatServer, RocketchatServer, Room, User, UserInRoom,
          UserOnRocketchatServer};
 use errors::*;
+use handlers::rocketchat::VirtualUserHandler;
 use i18n::*;
 
 /// Handles command messages from the admin room
@@ -148,7 +149,7 @@ impl<'a> CommandHandler<'a> {
         }
 
         // see if we can reach the server and if the server has a supported API version
-        RocketchatApi::new(rocketchat_url.clone(), Some(token.clone()), self.logger.clone())?;
+        RocketchatApi::new(rocketchat_url.clone(), self.logger.clone())?;
 
         let new_rocketchat_server = NewRocketchatServer {
             rocketchat_url: rocketchat_url,
@@ -179,16 +180,15 @@ impl<'a> CommandHandler<'a> {
         let username = command.by_ref().nth(1).unwrap_or_default();
         let password = command.by_ref().fold("".to_string(), |acc, x| acc + x);
 
-        let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(),
-                                                rocketchat_server.rocketchat_token.clone(),
-                                                self.logger.clone())?;
+        let mut rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())?;
 
         let (rocketchat_user_id, rocketchat_auth_token) = rocketchat_api.login(username, &password)?;
         user_on_rocketchat_server.set_credentials(self.connection,
                                                   Some(rocketchat_user_id.clone()),
                                                   Some(rocketchat_auth_token.clone()))?;
 
-        let username = rocketchat_api.username(rocketchat_user_id, rocketchat_auth_token)?;
+        rocketchat_api = rocketchat_api.with_credentials(rocketchat_user_id, rocketchat_auth_token);
+        let username = rocketchat_api.current_username()?;
         user_on_rocketchat_server.set_rocketchat_username(self.connection, Some(username.clone()))?;
 
         let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
@@ -206,12 +206,11 @@ impl<'a> CommandHandler<'a> {
         let user = User::find(self.connection, &event.user_id)?;
 
         let user_on_rocketchat_server = UserOnRocketchatServer::find(self.connection, &event.user_id, rocketchat_server.id)?;
-        let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(),
-                                                rocketchat_server.rocketchat_token.clone(),
-                                                self.logger.clone())?;
-        let channels =
-            rocketchat_api.channels_list(user_on_rocketchat_server.rocketchat_user_id.unwrap_or_default(),
-                                         user_on_rocketchat_server.rocketchat_auth_token.unwrap_or_default())?;
+        let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())
+            ?
+            .with_credentials(user_on_rocketchat_server.rocketchat_user_id.unwrap_or_default(),
+                              user_on_rocketchat_server.rocketchat_auth_token.unwrap_or_default());
+        let channels = rocketchat_api.channels_list()?;
 
         let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
         let channels_list = self.build_channels_list(rocketchat_server.id, &event.user_id, channels)?;
@@ -226,13 +225,13 @@ impl<'a> CommandHandler<'a> {
             .transaction(|| {
                 let user_on_rocketchat_server =
                     UserOnRocketchatServer::find(self.connection, &event.user_id, rocketchat_server.id)?;
-                let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(),
-                                                        rocketchat_server.rocketchat_token.clone(),
-                                                        self.logger.clone())?;
+                let rocketchat_api =
+                    RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())
+                        ?
+                        .with_credentials(user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
+                                          user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default());
 
-                let channels =
-                    rocketchat_api.channels_list(user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
-                                                 user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default())?;
+                let channels = rocketchat_api.channels_list()?;
 
                 let mut command = message.split_whitespace().collect::<Vec<&str>>().into_iter();
                 let channel_name = command.by_ref().nth(1).unwrap_or_default();
@@ -265,7 +264,14 @@ impl<'a> CommandHandler<'a> {
                         room.set_is_bridged(self.connection, true)?;
                         room
                     }
-                    None => self.create_room(channel, rocketchat_server.id, event.user_id.clone())?,
+                    None => {
+                        let room = self.create_room(channel, rocketchat_server.id, event.user_id.clone())?;
+                        self.add_virtual_users_to_room(rocketchat_api,
+                                                       channel,
+                                                       rocketchat_server.id,
+                                                       room.matrix_room_id.clone())?;
+                        room
+                    }
                 };
 
                 let user = user_on_rocketchat_server.user(self.connection)?;
@@ -372,7 +378,39 @@ impl<'a> CommandHandler<'a> {
             matrix_room_id: matrix_room_id,
         };
         UserInRoom::insert(self.connection, &new_user_in_room)?;
+
         Ok(room)
+    }
+
+    /// Add all users that are in a Rocket.Chat room to the Matrix room.
+    pub fn add_virtual_users_to_room(&self,
+                                     rocketchat_api: Box<RocketchatApi>,
+                                     channel: &Channel,
+                                     rocketchat_server_id: i32,
+                                     matrix_room_id: RoomId)
+                                     -> Result<()> {
+        debug!(self.logger, "Starting to add virtual usres to room {}", matrix_room_id);
+
+        let virtual_user_handler = VirtualUserHandler {
+            config: self.config,
+            connection: self.connection,
+            logger: self.logger,
+            matrix_api: self.matrix_api,
+        };
+
+        //TODO: Check if a max number of users per channel has to be defined to avoid problems when
+        //there are several thousand users in a channel.
+        for username in channel.usernames.iter() {
+            debug!(self.logger, username);
+            let rocketchat_user = rocketchat_api.users_info(&username)?;
+            let user_on_rocketchat_server =
+                virtual_user_handler.register(rocketchat_server_id, rocketchat_user.id, username.to_string())?;
+            virtual_user_handler.add_to_room(user_on_rocketchat_server.matrix_user_id, matrix_room_id.clone())?;
+        }
+
+        debug!(self.logger, "Successfully added {} virtual users to room {}", channel.usernames.len(), matrix_room_id);
+
+        Ok(())
     }
 
     /// Build the help message depending on the status of the admin room (connected, user logged

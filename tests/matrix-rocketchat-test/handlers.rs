@@ -3,6 +3,7 @@ use std::io::Read;
 use rand::{Rng, thread_rng};
 
 use iron::prelude::*;
+use iron::url::Url;
 use iron::{Handler, status};
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
 use ruma_client_api::r0::room::create_room;
@@ -114,6 +115,45 @@ impl Handler for RocketchatChannelsList {
         let payload = "{ \"channels\": [".to_string() + &channels.join(",") + "], \"success\": true }";
 
         Ok(Response::with((self.status, payload)))
+    }
+}
+
+pub struct RocketchatUsersInfo {}
+
+impl Handler for RocketchatUsersInfo {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        let url: Url = request.url.clone().into();
+        let mut query_pairs = url.query_pairs();
+
+        let (status, payload) = match query_pairs.find(|&(ref key, _)| key == "username") {
+            Some((_, ref username)) => {
+                (status::Ok,
+                 r#"{
+                    "user": {
+                        "name": "Name USERNAME",
+                        "username": "USERNAME",
+                        "status": "online",
+                        "utcOffset": 1,
+                        "type": "user",
+                        "active": true,
+                        "_id": "USERNAME_id"
+                    },
+                    "success": true
+                }"#
+                         .replace("USERNAME", username))
+            }
+            None => {
+                (status::BadRequest,
+                 r#"{
+                    "success": false,
+                    "error": "The required \"userId\" or \"username\" param was not provided [error-user-param-not-provided]",
+                    "errorType": "error-user-param-not-provided"
+                    }"#
+                         .to_string())
+            }
+        };
+
+        Ok(Response::with((status, payload)))
     }
 }
 

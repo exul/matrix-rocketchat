@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use reqwest::header::{ContentType, Headers};
 use reqwest::{Method, StatusCode};
 use serde_json;
@@ -6,16 +8,53 @@ use slog::Logger;
 use api::RestApi;
 use errors::*;
 use i18n::*;
-use super::{Channel, Endpoint};
+use super::{Channel, Endpoint, User};
 
 /// Login endpoint path
 pub const LOGIN_PATH: &'static str = "/api/v1/login";
 /// Me endpoint path
 pub const ME_PATH: &'static str = "/api/v1/me";
+/// Users list endpoint path
+pub const USERS_INFO_PATH: &'static str = "/api/v1/users.info";
 /// Channels list endpoint path
 pub const CHANNELS_LIST_PATH: &'static str = "/api/v1/channels.list";
 /// Post chat message endpoint path
 pub const POST_CHAT_MESSAGE_PATH: &'static str = "/api/v1/chat.postMessage";
+
+/// V1 get endpoints that require authentication
+pub struct GetWithAuthEndpoint<'a> {
+    base_url: String,
+    path: &'static str,
+    user_id: String,
+    auth_token: String,
+    query_params: HashMap<&'static str, &'a str>,
+}
+
+impl<'a> Endpoint for GetWithAuthEndpoint<'a> {
+    fn method(&self) -> Method {
+        Method::Get
+    }
+
+    fn url(&self) -> String {
+        self.base_url.clone() + self.path
+    }
+
+    fn payload(&self) -> Result<String> {
+        Ok("".to_string())
+    }
+
+    fn headers(&self) -> Option<Headers> {
+        let mut headers = Headers::new();
+        headers.set(ContentType::json());
+        headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
+        headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
+        Some(headers)
+    }
+
+    fn query_params(&self) -> HashMap<&'static str, &str> {
+        self.query_params.clone()
+    }
+}
 
 /// V1 login endpoint
 pub struct LoginEndpoint<'a> {
@@ -46,64 +85,6 @@ impl<'a> Endpoint for LoginEndpoint<'a> {
 
     fn headers(&self) -> Option<Headers> {
         None
-    }
-}
-
-/// V1 me endpoint
-pub struct MeEndpoint {
-    base_url: String,
-    user_id: String,
-    auth_token: String,
-}
-
-impl Endpoint for MeEndpoint {
-    fn method(&self) -> Method {
-        Method::Get
-    }
-
-    fn url(&self) -> String {
-        self.base_url.clone() + ME_PATH
-    }
-
-    fn payload(&self) -> Result<String> {
-        Ok("".to_string())
-    }
-
-    fn headers(&self) -> Option<Headers> {
-        let mut headers = Headers::new();
-        headers.set(ContentType::json());
-        headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
-        headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
-        Some(headers)
-    }
-}
-
-/// V1 channels list endpoint
-pub struct ChannelsListEndpoint {
-    base_url: String,
-    user_id: String,
-    auth_token: String,
-}
-
-impl Endpoint for ChannelsListEndpoint {
-    fn method(&self) -> Method {
-        Method::Get
-    }
-
-    fn url(&self) -> String {
-        self.base_url.clone() + CHANNELS_LIST_PATH
-    }
-
-    fn payload(&self) -> Result<String> {
-        Ok("".to_string())
-    }
-
-    fn headers(&self) -> Option<Headers> {
-        let mut headers = Headers::new();
-        headers.set(ContentType::json());
-        headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
-        headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
-        Some(headers)
     }
 }
 
@@ -146,13 +127,11 @@ impl<'a> Endpoint for PostChatMessageEndpoint<'a> {
     }
 }
 
+/// Response payload from the Rocket.Chat channels.list endpoint.
 #[derive(Deserialize)]
-/// Response payload from the Rocket.Chat login endpoint.
-pub struct LoginResponse {
-    /// Status of the response (success, error)
-    pub status: String,
-    /// Data of the response
-    pub data: Credentials,
+pub struct ChannelsListResponse {
+    /// A list of channels on the Rocket.Chat server
+    pub channels: Vec<Channel>,
 }
 
 /// User credentials.
@@ -166,6 +145,15 @@ pub struct Credentials {
     pub user_id: String,
 }
 
+#[derive(Deserialize)]
+/// Response payload from the Rocket.Chat login endpoint.
+pub struct LoginResponse {
+    /// Status of the response (success, error)
+    pub status: String,
+    /// Data of the response
+    pub data: Credentials,
+}
+
 /// Response payload from the Rocket.Chat me endpoint.
 #[derive(Deserialize)]
 pub struct MeResponse {
@@ -173,11 +161,11 @@ pub struct MeResponse {
     pub username: String,
 }
 
-/// Response payload from the Rocket.Chat channels.list endpoint.
+/// Response payload from the Rocket.Chat users.info endpoint.
 #[derive(Deserialize)]
-pub struct ChannelsListResponse {
-    /// A list of channels on the Rocket.Chat server
-    pub channels: Vec<Channel>,
+pub struct UsersInfoResponse {
+    /// A user on the Rocket.Chat server
+    pub user: User,
 }
 
 #[derive(Clone)]
@@ -185,24 +173,76 @@ pub struct ChannelsListResponse {
 pub struct RocketchatApi {
     /// URL to call the API
     pub base_url: String,
-    /// Access token for authentication
-    pub access_token: Option<String>,
     /// Logger passed to the Rocketchat API
     logger: Logger,
+    /// The user id that is passed to the auth header
+    user_id: String,
+    /// The auth token that is passed to the auth header
+    auth_token: String,
 }
 
 impl RocketchatApi {
     /// Create a new `RocketchatApi`.
-    pub fn new(base_url: String, access_token: Option<String>, logger: Logger) -> RocketchatApi {
+    pub fn new(base_url: String, logger: Logger) -> RocketchatApi {
         RocketchatApi {
             base_url: base_url,
-            access_token: access_token,
             logger: logger,
+            user_id: "".to_string(),
+            auth_token: "".to_string(),
         }
     }
 }
 
 impl super::RocketchatApi for RocketchatApi {
+    fn channels_list(&self) -> Result<Vec<Channel>> {
+        debug!(self.logger, format!("Getting channel list from Rocket.Chat server {}", &self.base_url));
+
+        let channels_list_endpoint = GetWithAuthEndpoint {
+            base_url: self.base_url.clone(),
+            user_id: self.user_id.clone(),
+            auth_token: self.auth_token.clone(),
+            path: CHANNELS_LIST_PATH,
+            query_params: HashMap::new(),
+        };
+
+        let (body, status_code) = RestApi::call_rocketchat(&channels_list_endpoint)?;
+        if !status_code.is_success() {
+            return Err(build_error(channels_list_endpoint.url(), &body, &status_code));
+        }
+
+        let channels_list_response: ChannelsListResponse = serde_json::from_str(&body).chain_err(|| {
+                           ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat channels.list API \
+                                                endpoint: `{}`",
+                                                          body))
+                       })?;
+
+        Ok(channels_list_response.channels)
+    }
+
+    fn current_username(&self) -> Result<String> {
+        debug!(self.logger, format!("Querying username for user_id {} on Rocket.Chat server {}", self.user_id, &self.base_url));
+
+        let me_endpoint = GetWithAuthEndpoint {
+            base_url: self.base_url.clone(),
+            user_id: self.user_id.clone(),
+            auth_token: self.auth_token.clone(),
+            path: ME_PATH,
+            query_params: HashMap::new(),
+        };
+
+        let (body, status_code) = RestApi::call_rocketchat(&me_endpoint)?;
+        if !status_code.is_success() {
+            return Err(build_error(me_endpoint.url(), &body, &status_code));
+        }
+
+        let me_response: MeResponse = serde_json::from_str(&body).chain_err(|| {
+                ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat me API endpoint: `{}`",
+                                               body))
+            })?;
+
+        Ok(me_response.username)
+    }
+
     fn login(&self, username: &str, password: &str) -> Result<(String, String)> {
         debug!(self.logger, format!("Logging in user with username {} on Rocket.Chat server {}", username, &self.base_url));
 
@@ -226,58 +266,13 @@ impl super::RocketchatApi for RocketchatApi {
         Ok((login_response.data.user_id, login_response.data.auth_token))
     }
 
-    fn username(&self, user_id: String, auth_token: String) -> Result<String> {
-        debug!(self.logger, format!("Querying username for user_id {} on Rocket.Chat server {}", user_id, &self.base_url));
-
-        let me_endpoint = MeEndpoint {
-            base_url: self.base_url.clone(),
-            user_id: user_id,
-            auth_token: auth_token,
-        };
-
-        let (body, status_code) = RestApi::call_rocketchat(&me_endpoint)?;
-        if !status_code.is_success() {
-            return Err(build_error(me_endpoint.url(), &body, &status_code));
-        }
-
-        let me_response: MeResponse = serde_json::from_str(&body).chain_err(|| {
-                ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat me API endpoint: `{}`",
-                                               body))
-            })?;
-
-        Ok(me_response.username)
-    }
-
-    fn channels_list(&self, user_id: String, auth_token: String) -> Result<Vec<Channel>> {
-        debug!(self.logger, format!("Getting channel list from Rocket.Chat server {}", &self.base_url));
-
-        let channels_list_endpoint = ChannelsListEndpoint {
-            base_url: self.base_url.clone(),
-            user_id: user_id,
-            auth_token: auth_token,
-        };
-
-        let (body, status_code) = RestApi::call_rocketchat(&channels_list_endpoint)?;
-        if !status_code.is_success() {
-            return Err(build_error(channels_list_endpoint.url(), &body, &status_code));
-        }
-
-        let channels_list_response: ChannelsListResponse = serde_json::from_str(&body).chain_err(|| {
-                ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat channels.list API \
-                                                endpoint: `{}`",
-                                               body))
-            })?;
-
-        Ok(channels_list_response.channels)
-    }
-
-    fn post_chat_message(&self, user_id: String, auth_token: String, text: &str, room_id: &str) -> Result<()> {
+    fn post_chat_message(&self, text: &str, room_id: &str) -> Result<()> {
         debug!(self.logger, format!("Forwarding message to to Rocket.Chat room {}", room_id));
 
         let post_chat_message_endpoint = PostChatMessageEndpoint {
             base_url: self.base_url.clone(),
-            user_id: user_id,
-            auth_token: auth_token,
+            user_id: self.user_id.clone(),
+            auth_token: self.auth_token.clone(),
             payload: PostChatMessagePayload {
                 text: Some(text),
                 room_id: room_id,
@@ -290,6 +285,38 @@ impl super::RocketchatApi for RocketchatApi {
         }
 
         Ok(())
+    }
+
+    fn users_info(&self, username: &str) -> Result<User> {
+        debug!(self.logger, format!("Querying user info for user {} on Rocket.Chat server {}", &username, &self.base_url));
+
+        let mut query_params = HashMap::new();
+        query_params.insert("username", username);
+        let users_info_endpoint = GetWithAuthEndpoint {
+            base_url: self.base_url.clone(),
+            user_id: self.user_id.clone(),
+            auth_token: self.auth_token.clone(),
+            path: USERS_INFO_PATH,
+            query_params: query_params,
+        };
+
+        let (body, status_code) = RestApi::call_rocketchat(&users_info_endpoint)?;
+        if !status_code.is_success() {
+            return Err(build_error(users_info_endpoint.url(), &body, &status_code));
+        }
+
+        let users_info_response: UsersInfoResponse = serde_json::from_str(&body).chain_err(|| {
+                ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat users.info API endpoint: `{}`",
+                                               body))
+            })?;
+
+        Ok(users_info_response.user)
+    }
+
+    fn with_credentials(mut self: Box<Self>, user_id: String, auth_token: String) -> Box<super::RocketchatApi> {
+        self.user_id = user_id;
+        self.auth_token = auth_token;
+        self
     }
 }
 

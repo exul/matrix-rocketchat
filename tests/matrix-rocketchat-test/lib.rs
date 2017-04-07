@@ -39,7 +39,7 @@ use std::time::Duration;
 use diesel::sqlite::SqliteConnection;
 use iron::{Iron, Listening, status};
 use matrix_rocketchat::{Config, Server};
-use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, LOGIN_PATH, ME_PATH};
+use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, LOGIN_PATH, ME_PATH, USERS_INFO_PATH};
 use matrix_rocketchat::db::ConnectionPool;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
@@ -287,6 +287,7 @@ impl Test {
                         },
                         "login");
             router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
+            router.get(USERS_INFO_PATH, handlers::RocketchatUsersInfo {}, "users_info");
         }
 
         let mut channels = match self.channels.clone() {

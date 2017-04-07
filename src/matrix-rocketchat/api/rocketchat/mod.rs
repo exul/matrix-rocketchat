@@ -23,6 +23,10 @@ pub trait Endpoint {
     fn payload(&self) -> Result<String>;
     /// Headers that are sent to the server
     fn headers(&self) -> Option<Headers>;
+    /// The query parameters that are used when sending the request
+    fn query_params(&self) -> HashMap<&'static str, &str> {
+        HashMap::new()
+    }
 }
 
 //TODO: Move this into v1, because those structs are depending on the api version as well
@@ -57,16 +61,30 @@ pub struct Message {
     pub text: String,
 }
 
+/// A Rocket.Chat user
+#[derive(Deserialize, Debug, Serialize)]
+pub struct User {
+    /// ID of the Rocket.Chat user
+    #[serde(rename = "_id")]
+    pub id: String,
+    /// Name that is displayed in Rocket.Chat
+    pub username: String,
+}
+
 /// Rocket.Chat REST API
 pub trait RocketchatApi {
+    /// List of channels on the Rocket.Chat server
+    fn channels_list(&self) -> Result<Vec<Channel>>;
+    /// Get the logged in users username
+    fn current_username(&self) -> Result<String>;
     /// Login a user on the Rocket.Chat server
     fn login(&self, username: &str, password: &str) -> Result<(String, String)>;
-    /// Get the logged in users username
-    fn username(&self, user_id: String, auth_token: String) -> Result<String>;
-    /// List of channels on the Rocket.Chat server
-    fn channels_list(&self, user_id: String, auth_token: String) -> Result<Vec<Channel>>;
     /// Post a chat message
-    fn post_chat_message(&self, user_id: String, auth_token: String, text: &str, room_id: &str) -> Result<()>;
+    fn post_chat_message(&self, text: &str, room_id: &str) -> Result<()>;
+    /// Get information like user_id, status, etc. about a user
+    fn users_info(&self, username: &str) -> Result<User>;
+    /// Set credentials that are used for all API calls that need authentication
+    fn with_credentials(self: Box<Self>, user_id: String, auth_token: String) -> Box<RocketchatApi>;
 }
 
 /// Response format when querying the Rocket.Chat info endpoint
@@ -78,7 +96,7 @@ pub struct GetInfoResponse {
 impl RocketchatApi {
     /// Creates a new Rocket.Chat API depending on the version of the API.
     /// It returns a `RocketchatApi` trait, because for each version a different API is created.
-    pub fn new(base_url: String, access_token: Option<String>, logger: Logger) -> Result<Box<RocketchatApi>> {
+    pub fn new(base_url: String, logger: Logger) -> Result<Box<RocketchatApi>> {
         let url = base_url.clone() + "/api/info";
         let params = HashMap::new();
 
@@ -104,21 +122,17 @@ impl RocketchatApi {
                 }
             };
 
-        RocketchatApi::get_max_supported_version_api(rocketchat_info.version, base_url, access_token, logger)
+        RocketchatApi::get_max_supported_version_api(rocketchat_info.version, base_url, logger)
     }
 
-    fn get_max_supported_version_api(version: String,
-                                     base_url: String,
-                                     access_token: Option<String>,
-                                     logger: Logger)
-                                     -> Result<Box<RocketchatApi>> {
+    fn get_max_supported_version_api(version: String, base_url: String, logger: Logger) -> Result<Box<RocketchatApi>> {
         let version_string = version.clone();
         let mut versions = version_string.split('.').into_iter();
         let major: i32 = versions.next().unwrap_or("0").parse().unwrap_or(0);
         let minor: i32 = versions.next().unwrap_or("0").parse().unwrap_or(0);
 
         if major == 0 && minor >= 49 {
-            let rocketchat_api = v1::RocketchatApi::new(base_url, access_token, logger);
+            let rocketchat_api = v1::RocketchatApi::new(base_url, logger);
             return Ok(Box::new(rocketchat_api));
         }
 
@@ -127,8 +141,7 @@ impl RocketchatApi {
                 error_chain: ErrorKind::UnsupportedRocketchatApiVersion(min_version.clone(), version.clone()).into(),
                 user_message: Some(t!(["errors", "unsupported_rocketchat_api_version"]).with_vars(vec![("min_version",
                                                                                                         min_version),
-                                                                                                       ("version",
-                                                                                                        version)])),
+                                                                                                       ("version", version)])),
             })
     }
 }

@@ -1,17 +1,15 @@
-use std::convert::TryFrom;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
-use ruma_identifiers::{RoomId, UserId};
 use slog::Logger;
 
 use api::MatrixApi;
 use api::rocketchat::Message;
 use config::Config;
-use db::{NewUser, NewUserOnRocketchatServer, RocketchatServer, Room, User, UserInRoom, UserOnRocketchatServer};
+use db::{RocketchatServer, Room, UserInRoom, UserOnRocketchatServer};
 use errors::*;
-use i18n::DEFAULT_LANGUAGE;
+use handlers::rocketchat::VirtualUserHandler;
 
 const RESEND_THRESHOLD_IN_SECONDS: i64 = 3;
 
@@ -30,6 +28,13 @@ pub struct Forwarder<'a> {
 impl<'a> Forwarder<'a> {
     /// Send a message to the Matrix channel.
     pub fn send(&self, rocketchat_server: &RocketchatServer, message: &Message) -> Result<()> {
+        let virtual_user_handler = VirtualUserHandler {
+            config: self.config,
+            connection: self.connection,
+            logger: self.logger,
+            matrix_api: self.matrix_api,
+        };
+
         let mut user_on_rocketchat_server = match UserOnRocketchatServer::find_by_rocketchat_user_id(self.connection,
                                                                  rocketchat_server.id,
                                                                  message.user_id
@@ -37,7 +42,12 @@ impl<'a> Forwarder<'a> {
                                                                  true)? {
             Some(user_on_rocketchat_server) => user_on_rocketchat_server,
             None => {
-                self.connection.transaction(|| self.create_virtual_user_on_rocketchat_server(rocketchat_server.id, message))?
+                self.connection
+                    .transaction(|| {
+                                     virtual_user_handler.register(rocketchat_server.id,
+                                                                   message.user_id.clone(),
+                                                                   message.user_name.clone())
+                                 })?
             }
         };
 
@@ -73,54 +83,10 @@ impl<'a> Forwarder<'a> {
                                                                                  &user_on_rocketchat_server.matrix_user_id,
                                                                                  &matrix_room_id)?;
         if user_in_room.is_none() {
-            self.add_virtual_user_to_room(user_on_rocketchat_server.matrix_user_id.clone(), matrix_room_id.clone())?;
+            virtual_user_handler.add_to_room(user_on_rocketchat_server.matrix_user_id.clone(), matrix_room_id.clone())?;
         }
 
         self.matrix_api.send_text_message_event(matrix_room_id, user_on_rocketchat_server.matrix_user_id, message.text.clone())
-    }
-
-    fn create_virtual_user_on_rocketchat_server(&self,
-                                                rocketchat_server_id: i32,
-                                                message: &Message)
-                                                -> Result<UserOnRocketchatServer> {
-
-        let user_id_local_part = format!("{}_{}_{}", self.config.sender_localpart, message.user_id, rocketchat_server_id);
-        let user_id = format!("@{}:{}", user_id_local_part, self.config.hs_domain);
-        let matrix_user_id = UserId::try_from(&user_id).chain_err(|| ErrorKind::InvalidUserId(user_id))?;
-
-        let new_user = NewUser {
-            language: DEFAULT_LANGUAGE,
-            matrix_user_id: matrix_user_id.clone(),
-        };
-        User::insert(self.connection, &new_user)?;
-
-        let new_user_on_rocketchat_server = NewUserOnRocketchatServer {
-            is_virtual_user: true,
-            matrix_user_id: matrix_user_id,
-            rocketchat_auth_token: None,
-            rocketchat_server_id: rocketchat_server_id,
-            rocketchat_user_id: Some(message.user_id.clone()),
-            rocketchat_username: Some(message.user_name.clone()),
-        };
-        let user_on_rocketchat_server = UserOnRocketchatServer::upsert(self.connection, &new_user_on_rocketchat_server)?;
-
-        self.matrix_api.register(user_id_local_part.clone())?;
-        if let Err(err) = self.matrix_api.set_display_name(user_on_rocketchat_server.matrix_user_id.clone(),
-                                                           message.user_name.clone()) {
-            info!(self.logger,
-                  format!("Setting display name `{}`, for user `{}` failed with {}",
-                          &user_on_rocketchat_server.matrix_user_id,
-                          &message.user_name,
-                          err));
-        }
-
-        Ok(user_on_rocketchat_server)
-    }
-
-    fn add_virtual_user_to_room(&self, matrix_user_id: UserId, matrix_room_id: RoomId) -> Result<()> {
-        self.matrix_api.invite(matrix_room_id.clone(), matrix_user_id.clone())?;
-        self.matrix_api.join(matrix_room_id.clone(), matrix_user_id.clone())?;
-        Ok(())
     }
 
     fn is_sendable_message(&self, virtual_user_on_rocketchat_server: &UserOnRocketchatServer) -> Result<bool> {

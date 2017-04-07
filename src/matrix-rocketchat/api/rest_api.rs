@@ -30,8 +30,7 @@ impl RestApi {
 
     /// Call a Rocket.Chat API endpoint
     pub fn call_rocketchat(endpoint: &Endpoint) -> Result<(String, StatusCode)> {
-        let query_params = HashMap::new();
-        RestApi::call(endpoint.method(), &endpoint.url(), &endpoint.payload()?, &query_params, endpoint.headers())
+        RestApi::call(endpoint.method(), &endpoint.url(), &endpoint.payload()?, &endpoint.query_params(), endpoint.headers())
     }
 
     /// Call a REST API endpoint
@@ -66,9 +65,8 @@ impl RestApi {
     }
 
     fn encode_url(base: String, parameters: &HashMap<&str, &str>) -> Result<String> {
-        let query_string = parameters.iter().fold("?".to_string(), |init, (k, v)| {
-            [init, [k.to_string(), v.to_string()].join("=")].join("&")
-        });
+        let query_string =
+            parameters.iter().fold("?".to_string(), |init, (k, v)| [init, [k.to_string(), v.to_string()].join("=")].join("&"));
         let url_string = [base, query_string].join("");
         let url = Url::parse(&url_string).chain_err(|| ErrorKind::ApiCallFailed(url_string))?;
         Ok(format!("{}", url))

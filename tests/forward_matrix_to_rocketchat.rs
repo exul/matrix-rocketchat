@@ -11,10 +11,13 @@ extern crate serde_json;
 
 use std::convert::TryFrom;
 
+use iron::status;
 use matrix_rocketchat::api::rocketchat::v1::POST_CHAT_MESSAGE_PATH;
 use matrix_rocketchat::api::rocketchat::Message;
-use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, helpers};
+use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
 use router::Router;
+use ruma_client_api::Endpoint;
+use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json::to_string;
 
@@ -153,4 +156,45 @@ fn ignore_messages_with_a_message_type_that_is_not_supported() {
                                             "emote message".to_string());
 
     assert!(receiver.recv_timeout(default_timeout()).is_err());
+}
+
+
+#[test]
+fn the_user_gets_a_message_when_forwarding_a_message_failes() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let mut rocketchat_router = Router::new();
+    rocketchat_router.post(POST_CHAT_MESSAGE_PATH,
+                           handlers::RocketchatErrorResponder {
+                               message: "Rocketh.Chat chat.postMessage error".to_string(),
+                               status: status::InternalServerError,
+                           },
+                           "post_chat_message");
+
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           "spec message".to_string());
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard bridge message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
 }

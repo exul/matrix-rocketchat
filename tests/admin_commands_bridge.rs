@@ -301,6 +301,93 @@ fn susccessfully_bridge_a_rocketchat_room_that_was_unbridged_before() {
 }
 
 #[test]
+fn successfully_bridge_two_different_rocketchat_rooms() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
+    let mut channels = HashMap::new();
+    channels.insert("first_channel", vec!["spec_user", "other_user"]);
+    channels.insert("second_channel", vec!["spec_user", "other_user"]);
+
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_custom_channel_list(channels)
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           "bridge first_channel".to_string());
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           "bridge second_channel".to_string());
+
+    let first_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(first_message_received_by_matrix.contains("first_channel is now bridged."));
+
+    let second_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(second_message_received_by_matrix.contains("second_channel is now bridged."));
+
+    // users accepts invite from bot user
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!first_channel_id:localhost").unwrap(),
+                  UserId::try_from("@spec_user:localhost").unwrap());
+
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!first_channel_id:localhost").unwrap(),
+                  UserId::try_from("@rocketchat_spec_user_id_1:localhost").unwrap());
+
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!first_channel_id:localhost").unwrap(),
+                  UserId::try_from("@rocketchat_other_user_id_1:localhost").unwrap());
+
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!second_channel_id:localhost").unwrap(),
+                  UserId::try_from("@spec_user:localhost").unwrap());
+
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!second_channel_id:localhost").unwrap(),
+                  UserId::try_from("@rocketchat_spec_user_id_1:localhost").unwrap());
+
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!second_channel_id:localhost").unwrap(),
+                  UserId::try_from("@rocketchat_other_user_id_1:localhost").unwrap());
+
+
+    let connection = test.connection_pool.get().unwrap();
+    let first_room = Room::find(&connection, &RoomId::try_from("!first_channel_id:localhost").unwrap()).unwrap();
+    assert_eq!(first_room.display_name, "first_channel");
+
+    let first_users = first_room.users(&connection).unwrap();
+    assert!(first_users.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat:localhost").unwrap()));
+    assert!(first_users.iter().any(|u| u.matrix_user_id == UserId::try_from("@spec_user:localhost").unwrap()));
+    assert!(first_users.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat_spec_user_id_1:localhost").unwrap()));
+    assert!(first_users.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat_other_user_id_1:localhost").unwrap()));
+
+    let sec_room = Room::find(&connection, &RoomId::try_from("!second_channel_id:localhost").unwrap()).unwrap();
+    assert_eq!(sec_room.display_name, "second_channel");
+
+    let sec_users = sec_room.users(&connection).unwrap();
+    assert!(sec_users.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat:localhost").unwrap()));
+    assert!(sec_users.iter().any(|u| u.matrix_user_id == UserId::try_from("@spec_user:localhost").unwrap()));
+    assert!(sec_users.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat_spec_user_id_1:localhost").unwrap()));
+    assert!(sec_users.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat_other_user_id_1:localhost").unwrap()));
+}
+
+#[test]
 fn do_not_allow_to_bridge_channels_that_the_user_has_not_joined_on_the_rocketchat_server() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();

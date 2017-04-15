@@ -35,21 +35,12 @@ impl<'a> Forwarder<'a> {
             matrix_api: self.matrix_api,
         };
 
-        let mut user_on_rocketchat_server = match UserOnRocketchatServer::find_by_rocketchat_user_id(self.connection,
-                                                                 rocketchat_server.id,
-                                                                 message.user_id
-                                                                     .clone(),
-                                                                 true)? {
-            Some(user_on_rocketchat_server) => user_on_rocketchat_server,
-            None => {
-                self.connection
-                    .transaction(|| {
-                                     virtual_user_handler.register(rocketchat_server.id,
+        let mut user_on_rocketchat_server = self.connection
+            .transaction(|| {
+                             virtual_user_handler.find_or_register(rocketchat_server.id,
                                                                    message.user_id.clone(),
                                                                    message.user_name.clone())
-                                 })?
-            }
-        };
+                         })?;
 
         if !self.is_sendable_message(&user_on_rocketchat_server)? {
             debug!(self.logger,

@@ -457,3 +457,22 @@ fn ignore_messages_from_the_bot_user() {
     // no command is executed, so we get a timeout
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
+
+#[test]
+fn ignore_multiple_join_events_for_the_same_user() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+
+    let test = Test::new().with_admin_room().with_matrix_routes(matrix_router).run();
+
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!admin:localhost").unwrap(),
+                  UserId::try_from("@spec_user:localhost").unwrap());
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    // no message, because the join is ignored
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
+}

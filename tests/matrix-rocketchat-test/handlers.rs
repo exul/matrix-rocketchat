@@ -1,6 +1,7 @@
-use std::collections::HashMap;
-use std::io::Read;
 use rand::{Rng, thread_rng};
+use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::io::Read;
 
 use iron::prelude::*;
 use iron::url::Url;
@@ -214,13 +215,16 @@ impl Handler for MatrixRegister {
     }
 }
 
-pub struct MatrixCreateRoom {
-    pub room_id: RoomId,
-}
+pub struct MatrixCreateRoom {}
 
 impl Handler for MatrixCreateRoom {
-    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
-        let response = create_room::Response { room_id: self.room_id.clone() };
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        let mut request_payload = String::new();
+        request.body.read_to_string(&mut request_payload).unwrap();
+        let create_room_payload: create_room::BodyParams = serde_json::from_str(&request_payload).unwrap();
+
+        let room_id = RoomId::try_from(&format!("!{}_id:localhost", create_room_payload.name.unwrap())).unwrap();
+        let response = create_room::Response { room_id: room_id };
         let payload = serde_json::to_string(&response).unwrap();
         Ok(Response::with((status::Ok, payload)))
     }

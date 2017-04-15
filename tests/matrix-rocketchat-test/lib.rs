@@ -261,13 +261,8 @@ impl Test {
             router.post(RegisterEndpoint::router_path(), handlers::MatrixRegister {}, "register");
         }
 
-        if let Some(bridged_room) = self.bridged_room {
-            let (room_name, _) = bridged_room;
-            router.post(CreateRoomEndpoint::router_path(),
-                        handlers::MatrixCreateRoom {
-                            room_id: RoomId::try_from(&format!("!{}_id:localhost", &room_name)).unwrap(),
-                        },
-                        "create_room");
+        if self.bridged_room.is_some() {
+            router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
         }
 
         thread::spawn(move || {

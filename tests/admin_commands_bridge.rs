@@ -25,15 +25,13 @@ use ruma_identifiers::{RoomId, UserId};
 
 
 #[test]
-fn successfully_bridge_a_rocketchat_roomm() {
+fn successfully_bridge_a_rocketchat_room() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     let (state_forwarder, state_receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.post(CreateRoomEndpoint::router_path(),
-                       handlers::MatrixCreateRoom { room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap() },
-                       "create_room");
+    matrix_router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
     matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(), state_forwarder, "send_state_event_for_key");
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
     let mut channels = HashMap::new();
@@ -124,9 +122,7 @@ fn susccessfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.post(CreateRoomEndpoint::router_path(),
-                       handlers::MatrixCreateRoom { room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap() },
-                       "create_room");
+    matrix_router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
     let other_room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").unwrap(),
         members: vec![UserId::try_from("@other_user:localhost").unwrap(), UserId::try_from("@rocketchat:localhost").unwrap()],
@@ -372,9 +368,7 @@ fn attempting_to_bridge_an_already_bridged_channel_returns_an_error() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.post(CreateRoomEndpoint::router_path(),
-                       handlers::MatrixCreateRoom { room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap() },
-                       "create_room");
+    matrix_router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
     let mut channels = HashMap::new();
     channels.insert("joined_channel", vec!["spec_user"]);
     let test = Test::new()
@@ -456,9 +450,7 @@ fn the_user_gets_a_message_when_setting_the_powerlevels_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.post(CreateRoomEndpoint::router_path(),
-                       handlers::MatrixCreateRoom { room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap() },
-                       "create_room");
+    matrix_router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
     matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(),
                       handlers::MatrixConditionalErrorResponder {
                           status: status::InternalServerError,
@@ -497,9 +489,7 @@ fn the_user_gets_a_message_when_inviting_the_user_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.post(CreateRoomEndpoint::router_path(),
-                       handlers::MatrixCreateRoom { room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap() },
-                       "create_room");
+    matrix_router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
     matrix_router.post(InviteEndpoint::router_path(),
                        handlers::MatrixErrorResponder {
                            status: status::InternalServerError,
@@ -537,9 +527,7 @@ fn the_user_gets_a_message_when_getting_the_users_info_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.post(CreateRoomEndpoint::router_path(),
-                       handlers::MatrixCreateRoom { room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap() },
-                       "create_room");
+    matrix_router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
     let mut channels = HashMap::new();
     channels.insert("joined_channel", vec!["spec_user"]);
 
@@ -624,9 +612,7 @@ fn the_user_gets_a_message_when_the_users_info_response_cannot_be_deserialized()
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.post(CreateRoomEndpoint::router_path(),
-                       handlers::MatrixCreateRoom { room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap() },
-                       "create_room");
+    matrix_router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
     let mut channels = HashMap::new();
     channels.insert("joined_channel", vec!["spec_user"]);
 

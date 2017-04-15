@@ -5,6 +5,7 @@ extern crate iron;
 #[macro_use]
 extern crate lazy_static;
 extern crate matrix_rocketchat;
+extern crate persistent;
 extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate rand;
@@ -37,15 +38,18 @@ use std::thread;
 use std::time::Duration;
 
 use diesel::sqlite::SqliteConnection;
-use iron::{Iron, Listening, status};
+use iron::{Chain, Iron, Listening, status};
+use iron::typemap::Key;
 use matrix_rocketchat::{Config, Server};
 use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, LOGIN_PATH, ME_PATH, USERS_INFO_PATH};
 use matrix_rocketchat::db::ConnectionPool;
+use persistent::Write;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 use router::Router;
 use ruma_identifiers::{RoomId, UserId};
 use ruma_client_api::Endpoint;
+use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
 use slog::{DrainExt, Record};
@@ -85,6 +89,14 @@ macro_rules! assert_error_kind {
 pub mod message_forwarder;
 
 pub use message_forwarder::MessageForwarder;
+
+/// Keep track of users that are registered on the Matrix server mock
+#[derive(Copy, Clone)]
+pub struct UsernameList;
+
+impl Key for UsernameList {
+    type Value = Vec<String>;
+}
 
 /// A helper struct when running the tests that manages test resources and offers some helper methods.
 pub struct Test {
@@ -246,6 +258,7 @@ impl Test {
                               UserId::try_from("@rocketchat:localhost").unwrap()],
             };
             router.get(GetMemberEventsEndpoint::router_path(), room_members, "room_members");
+            router.post(RegisterEndpoint::router_path(), handlers::MatrixRegister {}, "register");
         }
 
         if let Some(bridged_room) = self.bridged_room {
@@ -258,11 +271,13 @@ impl Test {
         }
 
         thread::spawn(move || {
-                          let mut server = Iron::new(router);
-                          server.threads = IRON_THREADS;
-                          let listening = server.http(&hs_socket_addr).unwrap();
-                          hs_tx.send(listening).unwrap();
-                      });
+            let mut chain = Chain::new(router);
+            chain.link_before(Write::<UsernameList>::one(Vec::new()));
+            let mut server = Iron::new(chain);
+            server.threads = IRON_THREADS;
+            let listening = server.http(&hs_socket_addr).unwrap();
+            hs_tx.send(listening).unwrap();
+        });
 
         let hs_listening = hs_rx.recv_timeout(default_timeout()).unwrap();
         self.hs_listening = Some(hs_listening);

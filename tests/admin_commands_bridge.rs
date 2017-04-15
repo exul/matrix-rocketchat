@@ -25,7 +25,7 @@ use ruma_identifiers::{RoomId, UserId};
 
 
 #[test]
-fn successfully_bridge_a_rocketchat_room() {
+fn successfully_bridge_a_rocketchat_roomm() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     let (state_forwarder, state_receiver) = MessageForwarder::new();

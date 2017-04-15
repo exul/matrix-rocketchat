@@ -27,9 +27,6 @@ impl<'a> Forwarder<'a> {
             Some(rocketchat_server) => {
                 let user_on_rocketchat_server =
                     UserOnRocketchatServer::find(self.connection, &event.user_id, rocketchat_server.id)?;
-                let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url,
-                                                        rocketchat_server.rocketchat_token,
-                                                        self.logger.clone())?;
 
                 if user_on_rocketchat_server.is_virtual_user {
                     debug!(self.logger, "Skipping event, because it was sent by a virtual user");
@@ -38,7 +35,13 @@ impl<'a> Forwarder<'a> {
 
                 match event.content {
                     MessageEventContent::Text(ref text_content) => {
-                        self.forward_text_message(text_content, &rocketchat_api, room, &user_on_rocketchat_server)?;
+
+                        let rocketchat_api =
+                            RocketchatApi::new(rocketchat_server.rocketchat_url, self.logger.clone())
+                                ?
+                                .with_credentials(user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
+                                                  user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default());
+                        self.forward_text_message(text_content, &rocketchat_api, room)?;
                     }
                     _ => info!(self.logger, format!("Forwarding the type {} is not implemented.", event.event_type)),
                 }
@@ -55,12 +58,8 @@ impl<'a> Forwarder<'a> {
     pub fn forward_text_message(&self,
                                 content: &TextMessageEventContent,
                                 rocketchat_api: &Box<RocketchatApi>,
-                                room: &Room,
-                                user_on_rocketchat_server: &UserOnRocketchatServer)
+                                room: &Room)
                                 -> Result<()> {
-        rocketchat_api.post_chat_message(user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
-                                         user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
-                                         &content.body,
-                                         &room.rocketchat_room_id.clone().unwrap_or_default())
+        rocketchat_api.post_chat_message(&content.body, &room.rocketchat_room_id.clone().unwrap_or_default())
     }
 }

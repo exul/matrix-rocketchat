@@ -1,16 +1,21 @@
-use std::collections::HashMap;
-use std::io::Read;
 use rand::{Rng, thread_rng};
+use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::io::Read;
 
 use iron::prelude::*;
+use iron::url::Url;
 use iron::{Handler, status};
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
+use persistent::Write;
+use ruma_client_api::r0::account::register;
 use ruma_client_api::r0::room::create_room;
 use ruma_client_api::r0::sync::get_member_events;
 use ruma_events::EventType;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
 use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json;
+use super::UsernameList;
 
 #[derive(Serialize)]
 pub struct RocketchatInfo {
@@ -117,6 +122,45 @@ impl Handler for RocketchatChannelsList {
     }
 }
 
+pub struct RocketchatUsersInfo {}
+
+impl Handler for RocketchatUsersInfo {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        let url: Url = request.url.clone().into();
+        let mut query_pairs = url.query_pairs();
+
+        let (status, payload) = match query_pairs.find(|&(ref key, _)| key == "username") {
+            Some((_, ref username)) => {
+                (status::Ok,
+                 r#"{
+                    "user": {
+                        "name": "Name USERNAME",
+                        "username": "USERNAME",
+                        "status": "online",
+                        "utcOffset": 1,
+                        "type": "user",
+                        "active": true,
+                        "_id": "USERNAME_id"
+                    },
+                    "success": true
+                }"#
+                         .replace("USERNAME", username))
+            }
+            None => {
+                (status::BadRequest,
+                 r#"{
+                    "success": false,
+                    "error": "The required \"userId\" or \"username\" param was not provided [error-user-param-not-provided]",
+                    "errorType": "error-user-param-not-provided"
+                    }"#
+                         .to_string())
+            }
+        };
+
+        Ok(Response::with((status, payload)))
+    }
+}
+
 pub struct RocketchatErrorResponder {
     pub message: String,
     pub status: status::Status,
@@ -146,13 +190,41 @@ impl Handler for MatrixVersion {
     }
 }
 
-pub struct MatrixCreateRoom {
-    pub room_id: RoomId,
+pub struct MatrixRegister {}
+
+impl Handler for MatrixRegister {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        let mut request_payload = String::new();
+        request.body.read_to_string(&mut request_payload).unwrap();
+        let register_payload: register::BodyParams = serde_json::from_str(&request_payload).unwrap();
+
+        let mutex = request.get::<Write<UsernameList>>().unwrap();
+        let mut username_list = mutex.lock().unwrap();
+
+        if username_list.iter().any(|u| u == register_payload.username.as_ref().unwrap()) {
+            let error_response = MatrixErrorResponse {
+                errcode: "M_USER_IN_USE".to_string(),
+                error: "The desired user ID is already taken.".to_string(),
+            };
+            let response_payload = serde_json::to_string(&error_response).unwrap();
+            Ok(Response::with((status::BadRequest, response_payload)))
+        } else {
+            username_list.push(register_payload.username.unwrap());
+            Ok(Response::with((status::Ok, "{}".to_string())))
+        }
+    }
 }
 
+pub struct MatrixCreateRoom {}
+
 impl Handler for MatrixCreateRoom {
-    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
-        let response = create_room::Response { room_id: self.room_id.clone() };
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        let mut request_payload = String::new();
+        request.body.read_to_string(&mut request_payload).unwrap();
+        let create_room_payload: create_room::BodyParams = serde_json::from_str(&request_payload).unwrap();
+
+        let room_id = RoomId::try_from(&format!("!{}_id:localhost", create_room_payload.name.unwrap())).unwrap();
+        let response = create_room::Response { room_id: room_id };
         let payload = serde_json::to_string(&response).unwrap();
         Ok(Response::with((status::Ok, payload)))
     }

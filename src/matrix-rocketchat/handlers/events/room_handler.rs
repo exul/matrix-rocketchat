@@ -131,6 +131,15 @@ impl<'a> RoomHandler<'a> {
 
     fn handle_user_join(&self, matrix_user_id: UserId, matrix_room_id: RoomId) -> Result<()> {
         let room = Room::find(self.connection, &matrix_room_id)?;
+
+        if UserInRoom::find_by_matrix_user_id_and_matrix_room_id(self.connection, &matrix_user_id, &matrix_room_id)?.is_some() {
+            let msg = format!("Skipping join event because the user {} is already in the room {} (join event triggered due to name change)",
+                              &matrix_user_id,
+                              &matrix_room_id);
+            debug!(self.logger, msg);
+            return Ok(());
+        }
+
         if room.is_admin_room {
             info!(self.logger, "Another user join the admin room {}, bot user is leaving", matrix_room_id);
             let admin_room_language = self.admin_room_language(&room)?;
@@ -138,6 +147,7 @@ impl<'a> RoomHandler<'a> {
             self.matrix_api.send_text_message_event(matrix_room_id, self.config.matrix_bot_user_id()?, body)?;
             self.leave_and_forget_room(&room)?;
         } else {
+            debug!(self.logger, format!("Adding user {} to room {}", &matrix_user_id, &matrix_room_id));
             let new_user_in_room = NewUserInRoom {
                 matrix_user_id: matrix_user_id,
                 matrix_room_id: matrix_room_id,

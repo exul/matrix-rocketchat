@@ -31,7 +31,6 @@ fn successfully_connect_rocketchat_server() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("MSG: {}", message_received_by_matrix);
     assert!(message_received_by_matrix.contains(&format!("You are connected to {}",
                                                          test.rocketchat_mock_url.clone().unwrap())));
 

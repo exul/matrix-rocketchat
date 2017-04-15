@@ -67,6 +67,8 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     // receive the invite messages
     let spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_invite_message.contains("@spec_user:localhost"));
+    let virtual_spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(virtual_spec_user_invite_message.contains("@rocketchat_spec_user_id_1:localhost"));
     let new_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(new_user_invite_message.contains("@rocketchat_new_user_id_1:localhost"));
 
@@ -75,8 +77,11 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     // receive the join message
     assert!(join_receiver.recv_timeout(default_timeout()).is_ok());
 
-    // receive set display name
-    assert!(set_display_name_receiver.recv_timeout(default_timeout()).is_ok());
+    // receive set display
+    let set_display_name_spec_user = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(set_display_name_spec_user.contains("spec_user"));
+    let set_display_name_new_spec_user = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(set_display_name_new_spec_user.contains("new_spec_user"));
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -161,8 +166,8 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
         channel_name: "spec_channel".to_string(),
-        user_id: "virtual_spec_user_id".to_string(),
-        user_name: "virtual_spec_user".to_string(),
+        user_id: "spec_user_id".to_string(),
+        user_name: "spec_user".to_string(),
         text: "spec_message".to_string(),
     };
     let payload = to_string(&message).unwrap();
@@ -171,13 +176,13 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     helpers::join(&test.config.as_url,
                   RoomId::try_from("!spec_channel_id:localhost").unwrap(),
-                  UserId::try_from("@rocketchat_virtual_spec_user_id_1:localhost").unwrap());
+                  UserId::try_from("@rocketchat_spec_user_id_1:localhost").unwrap());
 
     // receive the invite messages
     let spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_invite_message.contains("@spec_user:localhost"));
     let virtual_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(virtual_user_invite_message.contains("@rocketchat_virtual_spec_user_id_1:localhost"));
+    assert!(virtual_user_invite_message.contains("@rocketchat_spec_user_id_1:localhost"));
 
     // discard admin room join
     join_receiver.recv_timeout(default_timeout()).unwrap();
@@ -185,7 +190,8 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     assert!(join_receiver.recv_timeout(default_timeout()).is_ok());
 
     // receive set display name
-    assert!(set_display_name_receiver.recv_timeout(default_timeout()).is_ok());
+    let set_display_name_spec_user = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(set_display_name_spec_user.contains("spec_user"));
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -223,15 +229,15 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     // the virtual user was create with the Rocket.Chat user ID because the exiting matrix user
     // cannot be used since the application service can only impersonate virtual users.
     let user_on_rocketchat = UserOnRocketchatServer::find(&connection, new_user_id, rocketchat_server_id).unwrap();
-    assert_eq!(user_on_rocketchat.rocketchat_user_id.unwrap(), "virtual_spec_user_id".to_string());
+    assert_eq!(user_on_rocketchat.rocketchat_user_id.unwrap(), "spec_user_id".to_string());
 
     let second_message = Message {
         message_id: "spec_id_2".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
         channel_name: "spec_channel".to_string(),
-        user_id: "virtual_spec_user_id".to_string(),
-        user_name: "virtual_spec_user".to_string(),
+        user_id: "spec_user_id".to_string(),
+        user_name: "spec_user".to_string(),
         text: "spec_message 2".to_string(),
     };
     let second_payload = to_string(&second_message).unwrap();
@@ -272,8 +278,10 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
-    let display_name_message = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(display_name_message.contains("spec_user"));
+    let spec_user_display_name_message = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(spec_user_display_name_message.contains("spec_user"));
+    let virtual_spec_user_display_name_message = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(virtual_spec_user_display_name_message.contains("virtual_spec_user"));
 
     let second_message_with_new_username = Message {
         message_id: "spec_id_2".to_string(),

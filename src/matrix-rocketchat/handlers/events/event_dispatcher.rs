@@ -47,11 +47,8 @@ impl<'a> EventDispatcher<'a> {
                     }
                 }
                 Event::RoomMessage(message_event) => {
-                    if let Err(err) = MessageHandler::new(self.config,
-                                                          self.connection,
-                                                          self.logger,
-                                                          self.matrix_api.clone())
-                               .process(&message_event) {
+                    if let Err(err) = MessageHandler::new(self.config, self.connection, self.logger, self.matrix_api.clone())
+                           .process(&message_event) {
                         return self.handle_error(err, message_event.room_id, &message_event.user_id);
                     }
                 }
@@ -61,7 +58,7 @@ impl<'a> EventDispatcher<'a> {
         Ok(())
     }
 
-    /// Forward the error the notifier to send the corresponding message to the user
+    /// Forward the error to the notifier to send the corresponding message to the user
     pub fn handle_error(&self, err: Error, room_id: RoomId, user_id: &UserId) -> Result<()> {
         let error_notifier = ErrorNotifier {
             config: self.config,

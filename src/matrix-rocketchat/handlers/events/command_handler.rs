@@ -422,7 +422,8 @@ impl<'a> CommandHandler<'a> {
                                                                              rocketchat_server.rocketchat_url)])
                 } else {
                     t!(["admin_room", "login_instructions"]).with_vars(vec![("rocketchat_url",
-                                                                             rocketchat_server.rocketchat_url)])
+                                                                             rocketchat_server.rocketchat_url),
+                                                                            ("as_url", as_url)])
                 }
             }
             None => {

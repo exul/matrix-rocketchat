@@ -44,7 +44,7 @@ en:
       1. Send a message in this room: `login rocketchatusername mysecret`
       **Warning**: This will store your password *unecrypted* in the database of your homeserver
 
-      1. Login via curl: `curl AS_URL/login -d '{"rocketchat_server_url": "${rocketchat_url}", "matrix_user_id": "${matrix_user_id}", "username": "rocketchat_user", "password": "mysecret"}'`
+      1. Login via curl: `curl ${as_url}/login -d '{"rocketchat_server_url": "${rocketchat_url}", "matrix_user_id": "${matrix_user_id}", "username": "rocketchat_user", "password": "mysecret"}'`
     no_rocketchat_server_connected: "No Rocket.Chat server is connected yet."
     usage_instructions: |
       You are logged in.

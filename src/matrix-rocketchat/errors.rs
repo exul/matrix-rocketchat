@@ -104,8 +104,8 @@ error_chain!{
         }
 
         InvalidJSON(msg: String) {
-            description("The provided JSON is not valid.")
-            display("Could not process request, the submitted data is not valid JSON: {}", msg)
+            description("The provided data is not valid.")
+            display("Could not process request, the submitted data is not valid: {}", msg)
         }
 
         InvalidYAML(msg: String) {
@@ -173,14 +173,19 @@ error_chain!{
             display("Reading file from {} failed", path)
         }
 
-        RoomNotConnected(matrix_room_id: String, command: String) {
+        RoomNotConnected(matrix_room_id: String) {
             description("The room is not connected, but has to be for the command the user submitted")
-            display("Room {} is not connected to a Rocket.Chat server, cannot execute command {}", matrix_room_id, command)
+            display("Room {} is not connected to a Rocket.Chat server, cannot execute command", matrix_room_id)
         }
 
         RoomAlreadyConnected(matrix_room_id: String) {
             description("The Room is already connected to a Rocket.Chat server")
             display("Room {} is already connected", matrix_room_id)
+        }
+
+        AdminRoomForRocketchatServerNotFound(rocketchat_url: String) {
+            description("The user does not have an admin room that is connected to the given Rocket.Chat server")
+            display("No admin room found that is connected to the Rocket.Chat server {}", rocketchat_url)
         }
 
         RocketchatTokenMissing{
@@ -308,6 +313,8 @@ impl Error {
             ErrorKind::MissingAccessToken |
             ErrorKind::MissingRocketchatToken => Status::Unauthorized,
             ErrorKind::InvalidJSON(_) => Status::UnprocessableEntity,
+            ErrorKind::AdminRoomForRocketchatServerNotFound(_) => Status::NotFound,
+            ErrorKind::AuthenticationFailed(_) => Status::Unauthorized,
             _ => Status::InternalServerError,
         }
     }
@@ -363,10 +370,14 @@ impl From<Error> for IronError {
 
 impl<'a> Modifier<Response> for &'a Error {
     fn modify(self, response: &mut Response) {
-        let causes = self.error_chain.iter().skip(1).map(|e| format!("{}", e)).collect();
+        let error_message = match self.user_message {
+            Some(ref user_message) => user_message.l(DEFAULT_LANGUAGE),
+            None => format!("{}", self),
+        };
 
+        let causes = self.error_chain.iter().skip(1).map(|e| format!("{}", e)).collect();
         let resp = ErrorResponse {
-            error: format!("{}", self),
+            error: format!("{}", &error_message),
             causes: causes,
         };
 

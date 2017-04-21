@@ -104,8 +104,8 @@ error_chain!{
         }
 
         InvalidJSON(msg: String) {
-            description("The provided JSON is not valid.")
-            display("Could not process request, the submitted data is not valid JSON: {}", msg)
+            description("The provided data is not valid.")
+            display("Could not process request, the submitted data is not valid: {}", msg)
         }
 
         InvalidYAML(msg: String) {

@@ -169,7 +169,7 @@ fn sucessfully_login_via_rest_api() {
                                                 &HashMap::new(),
                                                 None)
             .unwrap();
-    assert!(response.contains("You are logged in."));
+    assert!(response.contains("You are logged in. Return to your Matrix client and follow the instructions there."));
     assert!(status_code.is_success());
 
     // discard welcome message
@@ -274,7 +274,7 @@ fn login_multiple_times_via_rest_message() {
                                                     &HashMap::new(),
                                                     None)
                 .unwrap();
-        assert!(response.contains("You are logged in."));
+        assert!(response.contains("You are logged in. Return to your Matrix client and follow the instructions there."));
         assert!(status_code.is_success());
         let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
         assert!(message_received_by_matrix.contains("You are logged in."));
@@ -301,7 +301,8 @@ fn login_via_rest_api_with_invalid_payload() {
                                                 &HashMap::new(),
                                                 None)
             .unwrap();
-    assert!(response.contains("Could not process request, the submitted data is not valid JSON"));
+    println!("MSG: {}", &response);
+    assert!(response.contains("Could not process request, the submitted data is not valid"));
     assert_eq!(status_code, status::UnprocessableEntity);
 }
 

@@ -2,9 +2,12 @@ use diesel;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use iron::typemap::Key;
+use ruma_identifiers::UserId;
 
+use i18n::*;
 use errors::*;
-use super::schema::rocketchat_servers;
+use super::{Room, User, UserInRoom};
+use super::schema::{rocketchat_servers, rooms, users_in_rooms};
 
 /// A Rocket.Chat server.
 #[derive(Associations, Debug, Identifiable, Queryable)]
@@ -74,6 +77,34 @@ impl RocketchatServer {
             .load::<RocketchatServer>(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rocketchat_servers)
+    }
+
+    /// Get the admin room for this Rocket.Chat server and a given user.
+    pub fn admin_room_for_user(&self, connection: &SqliteConnection, matrix_user_id: &UserId) -> Result<Option<Room>> {
+        let user = match User::find_by_matrix_user_id(connection, matrix_user_id)? {
+            Some(user) => user,
+            None => return Ok(None),
+        };
+
+        let rooms =
+            rooms::table.filter(rooms::is_admin_room.eq(true)
+                                    .and(rooms::matrix_room_id.eq_any(UserInRoom::belonging_to(&user)
+                                                                          .select(users_in_rooms::matrix_room_id))))
+                .load::<Room>(connection)
+                .chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(rooms.into_iter().next())
+    }
+
+    /// Same as admin_room_for_user but returns an error if no room is found.
+    pub fn admin_room_for_user_or_err(&self, connection: &SqliteConnection, matrix_user_id: &UserId) -> Result<Room> {
+        match self.admin_room_for_user(connection, matrix_user_id)? {
+            Some(room) => Ok(room),
+            None => {
+                Err(user_error!(ErrorKind::AdminRoomForRocketchatServerNotFound(self.rocketchat_url.clone()),
+                                t!(["errors", "admin_room_for_rocketchat_server_not_found"])
+                                    .with_vars(vec![("rocketchat_url", self.rocketchat_url.clone())])))
+            }
+        }
     }
 }
 

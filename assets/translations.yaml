@@ -44,7 +44,7 @@ en:
       1. Send a message in this room: `login rocketchatusername mysecret`
       **Warning**: This will store your password *unecrypted* in the database of your homeserver
 
-      1. Login via curl: `curl ${as_url}/login -d '{"rocketchat_server_url": "${rocketchat_url}", "matrix_user_id": "${matrix_user_id}", "username": "rocketchat_user", "password": "mysecret"}'`
+      1. Login via curl: `curl ${as_url}/rocketchat/login -d '{"rocketchat_server_url": "${rocketchat_url}", "matrix_user_id": "${matrix_user_id}", "username": "rocketchat_user", "password": "mysecret"}'`
     no_rocketchat_server_connected: "No Rocket.Chat server is connected yet."
     usage_instructions: |
       You are logged in.
@@ -69,7 +69,9 @@ en:
     internal_error: "An internal error occurred"
   handlers:
     welcome: "Your Rocket.Chat <-> Matrix application service is running"
+    rocketchat_login_successful: "You are logged in."
   errors:
+    admin_room_for_rocketchat_server_not_found: "No admin room found that is connected to the Rocket.Chat server ${rocketchat_url}"
     authentication_failed: "Authentication failed!"
     internal: "An internal error occurred"
     no_rocketchat_server: "No Rocket.Chat server found when querying ${rocketchat_url} (version information is missing from the response)"

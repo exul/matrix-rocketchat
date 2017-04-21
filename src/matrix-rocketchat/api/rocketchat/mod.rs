@@ -29,7 +29,6 @@ pub trait Endpoint {
     }
 }
 
-//TODO: Move this into v1, because those structs are depending on the api version as well
 /// A Rocket.Chat channel
 #[derive(Deserialize, Debug)]
 pub struct Channel {

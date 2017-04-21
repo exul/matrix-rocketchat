@@ -47,11 +47,8 @@ impl<'a> EventDispatcher<'a> {
                     }
                 }
                 Event::RoomMessage(message_event) => {
-                    if let Err(err) = MessageHandler::new(self.config,
-                                                          self.connection,
-                                                          self.logger,
-                                                          self.matrix_api.clone())
-                               .process(&message_event) {
+                    if let Err(err) = MessageHandler::new(self.config, self.connection, self.logger, self.matrix_api.clone())
+                           .process(&message_event) {
                         return self.handle_error(err, message_event.room_id, &message_event.user_id);
                     }
                 }
@@ -69,6 +66,10 @@ impl<'a> EventDispatcher<'a> {
             logger: &self.logger,
             matrix_api: &self.matrix_api,
         };
-        error_notifier.send_message_to_user(err, room_id, user_id)
+        error_notifier.send_message_to_user(&err, room_id, user_id)?;
+        if err.user_message.is_none() {
+            return Err(err);
+        }
+        Ok(())
     }
 }

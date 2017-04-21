@@ -37,11 +37,9 @@ impl Handler for Rocketchat {
         let logger = IronLogger::from_request(request)?;
         let connection = ConnectionPool::from_request(request)?;
 
-        let message =
-            request.extensions.get::<Message>().expect("Middleware ensures the presence of the Rocket.Chat message");
-        let rocketchat_server = request.extensions
-            .get::<RocketchatServer>()
-            .expect("Middleware ensures the presence of the Rocket.Chat server");
+        let message = request.extensions.get::<Message>().expect("Middleware ensures the presence of the Rocket.Chat message");
+        let rocketchat_server =
+            request.extensions.get::<RocketchatServer>().expect("Middleware ensures the presence of the Rocket.Chat server");
 
         let forwarder = Forwarder {
             config: &self.config,

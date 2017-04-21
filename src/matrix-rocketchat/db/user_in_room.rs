@@ -4,12 +4,13 @@ use diesel::sqlite::SqliteConnection;
 use ruma_identifiers::{RoomId, UserId};
 
 use errors::*;
-use super::room::Room;
+use super::{Room, User};
 use super::schema::users_in_rooms;
 
 /// Join table for users that participate in a room.
 #[derive(Associations, Debug, Identifiable, Queryable)]
 #[belongs_to(Room, foreign_key = "matrix_room_id")]
+#[belongs_to(User, foreign_key = "matrix_user_id")]
 #[primary_key(matrix_user_id, matrix_room_id)]
 #[table_name="users_in_rooms"]
 pub struct UserInRoom {

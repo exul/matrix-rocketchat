@@ -1,4 +1,5 @@
-# Matrix <-> Rocket.Chat bridge
+![logo](https://cloud.githubusercontent.com/assets/1886214/25308549/323fd2f8-27b7-11e7-9d2c-e7e8380a686d.png)
+=======
 
 [![Build Status](https://travis-ci.org/exul/matrix-rocketchat.svg?branch=master)](https://travis-ci.org/exul/matrix-rocketchat)
 [![Coverage Status](https://coveralls.io/repos/github/exul/matrix-rocketchat/badge.svg?branch=master)](https://coveralls.io/github/exul/matrix-rocketchat?branch=master)
@@ -7,7 +8,7 @@ This is an application service that bridges [Matrix](https://matrix.org) to
 [Rocket.Chat](https://rocket.chat).
 
 **Warning: This application service is still in development. Do not use it!
-There will be breaking changs!**
+There will be breaking changes!**
 
 ![matrix-rocketchat](https://cloud.githubusercontent.com/assets/1886214/24167507/457d5ea2-0e77-11e7-8102-c14e4c04e4dd.png)
 
@@ -63,6 +64,10 @@ I learned a lot by reading the code of the following projects:
 From the first one I learned a lot about [Rust](https://www.rust-lang.org) and
 [Iron](https://github.com/iron/iron). The second one helped me to understand
 how a Matrix bridge works.
+
+## Logo
+
+Special thanks to [Steffi](http://schriftundsatz.ch) who created the logo for this project.
 
 ## License
 

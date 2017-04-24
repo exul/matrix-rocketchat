@@ -5,7 +5,7 @@ use std::fmt::{Display, Formatter};
 use std::fmt::Error as FmtError;
 use std::result::Result as StdResult;
 
-use diesel::TransactionError;
+use diesel::result::Error as DieselError;
 use iron::{IronError, Response};
 use iron::modifier::Modifier;
 use iron::status::Status;
@@ -273,11 +273,6 @@ error_chain!{
             display("Could not get connection from connection pool")
         }
 
-        DBTransactionError {
-            description("Error when running a transaction")
-            display("An error occurred when running the transaction")
-        }
-
         DBInsertError {
             description("Error when inserting a record")
             display("Inserting record into the database failed")
@@ -344,17 +339,9 @@ impl From<ErrorKind> for Error {
     }
 }
 
-impl From<TransactionError<Error>> for Error {
-    fn from(error: TransactionError<Error>) -> Error {
-        match error {
-            TransactionError::UserReturnedError(err) => {
-                Error {
-                    user_message: err.user_message,
-                    error_chain: err.error_chain,
-                }
-            }
-            TransactionError::CouldntCreateTransaction(_) => simple_error!(ErrorKind::DBTransactionError),
-        }
+impl From<DieselError> for Error {
+    fn from(error: DieselError) -> Error {
+        simple_error!(format!("{}", error))
     }
 }
 

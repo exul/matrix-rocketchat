@@ -100,7 +100,6 @@ impl<'a> RoomHandler<'a> {
                 UserInRoom::insert(self.connection, &user_in_room)?;
                 self.matrix_api.join(matrix_room_id, invited_user_id)
             })
-            .chain_err(|| ErrorKind::DBTransactionError)
             .map_err(Error::from)
     }
 

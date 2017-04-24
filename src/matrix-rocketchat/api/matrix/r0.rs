@@ -180,10 +180,10 @@ impl super::MatrixApi for MatrixApi {
     fn send_text_message_event(&self, matrix_room_id: RoomId, matrix_user_id: UserId, body: String) -> Result<()> {
         let formatted_body = render_markdown(&body);
         let mut message = Map::new();
-        message.insert("body", body);
-        message.insert("formatted_body", formatted_body);
-        message.insert("msgtype", MessageType::Text.to_string());
-        message.insert("format", "org.matrix.custom.html".to_string());
+        message.insert("body".to_string(), json!(body));
+        message.insert("formatted_body".to_string(), json!(formatted_body));
+        message.insert("msgtype".to_string(), json!(MessageType::Text));
+        message.insert("format".to_string(), json!("org.matrix.custom.html"));
 
         let payload =
             serde_json::to_string(&message).chain_err(|| ErrorKind::InvalidJSON("Could not serialize message".to_string()))?;
@@ -217,13 +217,13 @@ impl super::MatrixApi for MatrixApi {
         let params = self.params_hash();
         let mut body_params = serde_json::Map::new();
         let mut users = serde_json::Map::new();
-        users.insert(bot_user_id.to_string(), Value::I64(100));
-        body_params.insert("invite", Value::I64(50));
-        body_params.insert("kick", Value::I64(50));
-        body_params.insert("ban", Value::I64(50));
-        body_params.insert("redact", Value::I64(50));
-        body_params.insert("users", Value::Object(users));
-        body_params.insert("events", Value::Object(serde_json::Map::new()));
+        users.insert(bot_user_id.to_string(), json!(100));
+        body_params.insert("invite".to_string(), json!(50));
+        body_params.insert("kick".to_string(), json!(50));
+        body_params.insert("ban".to_string(), json!(50));
+        body_params.insert("redact".to_string(), json!(50));
+        body_params.insert("users".to_string(), json!(users));
+        body_params.insert("events".to_string(), json!(serde_json::Map::new()));
 
         let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize power levels body params".to_string()))?;
 
@@ -260,7 +260,7 @@ impl super::MatrixApi for MatrixApi {
         let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
         let params = self.params_hash();
         let mut body_params = serde_json::Map::new();
-        body_params.insert("name", name);
+        body_params.insert("name".to_string(), Value::String(name));
 
         let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize room name body params".to_string()))?;
 

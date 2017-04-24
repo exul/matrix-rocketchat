@@ -141,7 +141,7 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        debug!(self.logger, "User {} successfully joined room {}", matrix_room_id, matrix_user_id);
+        debug!(self.logger, "User {} successfully joined room {}", matrix_user_id, matrix_room_id);
         Ok(())
     }
 

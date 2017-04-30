@@ -1,6 +1,8 @@
 sudo: required
+
 services:
   - docker
+
 before_script:
   - docker pull exul/matrix-rocketchat-dev
 

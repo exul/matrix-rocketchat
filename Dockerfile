@@ -14,9 +14,6 @@ RUN apt-get update && \
 			libdw-dev \
 			libelf-dev \
       libiberty-dev \
-			libpq-dev \
-			libsqlite3-dev \
-			libssl-dev \
 			pkg-config \
 			python \
 			unzip \
@@ -43,3 +40,18 @@ RUN apt-get update && \
       /var/tmp/* \
       /var/lib/apt/lists/* && \
     apt-get remove --purge -y curl \
+      binutils-dev \
+      build-essential \
+			cmake \
+      curl \
+			libcurl4-openssl-dev \
+			libdw-dev \
+			libelf-dev \
+      libiberty-dev \
+			python \
+			unzip \
+			zlib1g-dev && \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
+			libssl-dev \
+			libsqlite3-dev \

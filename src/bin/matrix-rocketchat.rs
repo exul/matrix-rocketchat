@@ -2,7 +2,6 @@
 
 #![deny(missing_docs)]
 
-#[macro_use]
 extern crate clap;
 extern crate iron;
 extern crate matrix_rocketchat;
@@ -16,7 +15,7 @@ extern crate slog_term;
 use std::fs::OpenOptions;
 use std::path::Path;
 
-use clap::App;
+use clap::{App, Arg};
 use iron::Listening;
 use matrix_rocketchat::{Config, Server};
 use matrix_rocketchat::errors::*;
@@ -33,13 +32,17 @@ fn main() {
 }
 
 fn run() -> Result<Listening> {
-    let cli_yaml = load_yaml!("../../assets/cli.yaml");
-    let matches = App::from_yaml(cli_yaml).get_matches();
+    let matches = App::new("matrix-rocketchat")
+        .version("0.1")
+        .author("Andreas Brönnimann <foss@exul.org>")
+        .about("An application service to bridge Matrix and Rocket.Chat.")
+        .arg(Arg::with_name("config").short("c").long("config").help("Path to config file").takes_value(true))
+        .arg(Arg::with_name("log-file").short("l").long("log-file").help("Path to log file").takes_value(true))
+        .get_matches();
 
-    let config_path = matches.value_of("config").expect("Config is always present (default value is set)").to_string();
+    let config_path = matches.value_of("config").unwrap_or("config.yaml").to_string();
     let config = Config::read_from_file(&config_path).chain_err(|| ErrorKind::ReadFileError(config_path))?;
-    let log_file_path =
-        matches.value_of("log_file").expect("Log file path is always present (default value is set)").to_string();
+    let log_file_path = matches.value_of("log_file").unwrap_or("matrix-rocketchat.log");
     let log = build_logger(&log_file_path);
     let threads = num_cpus::get() * 8;
     Server::new(&config, log).run(threads)

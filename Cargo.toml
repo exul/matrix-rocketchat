@@ -9,26 +9,26 @@ name = "matrix_rocketchat"
 path = "src/matrix-rocketchat/lib.rs"
 
 [dependencies]
-clap = {version = "2.1", features = ["yaml"]}
-diesel = { version = "0.9", features = ["sqlite"] }
-diesel_codegen = { version = "0.9", features = ["sqlite"] }
-error-chain = "0.7"
+clap = { version = "2.23" }
+diesel = { version = "0.12", default-features = false, features = ["sqlite"] }
+diesel_codegen = { version = "0.12", default-features = false, features = ["sqlite"] }
+error-chain = "0.10"
 iron = "0.5"
 lazy_static = "0.2"
-num_cpus = "1.2"
+num_cpus = "1.4"
 persistent = "0.3"
 pulldown-cmark = "0.0"
 r2d2 = "0.7"
-r2d2-diesel = "0.9"
-reqwest = "0.3"
+r2d2-diesel = "0.12"
+reqwest = "0.5"
 router = "0.5"
-ruma-client-api = { git = "https://github.com/ruma/ruma-client-api.git" }
-ruma-events = "0.3"
-ruma-identifiers = { version = "0.6", features = ["diesel"] }
-serde = "0.8"
-serde_derive = "0.8"
-serde_json = "0.8"
-serde_yaml = "0.4"
+ruma-client-api = { git = "https://github.com/exul/ruma-client-api.git" }
+ruma-events = { git = "https://github.com/ruma/ruma-events.git" }
+ruma-identifiers = { version = "0.11", features = ["diesel"] }
+serde = "1.0"
+serde_derive = "1.0"
+serde_json = "1.0"
+serde_yaml = "0.7"
 slog = "1.4"
 slog-json = "1.2"
 slog-term = "1.3"

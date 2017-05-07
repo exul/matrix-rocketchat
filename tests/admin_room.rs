@@ -288,9 +288,8 @@ fn the_user_gets_a_message_when_setting_the_room_display_name_fails() {
     assert!(room.is_admin_room);
 
     let members = room.users(&connection).unwrap();
-    assert_eq!(members.len(), 2);
+    assert_eq!(members.len(), 1);
     assert!(members.iter().any(|m| m.matrix_user_id == UserId::try_from("@spec_user:localhost").unwrap()));
-    assert!(members.iter().any(|m| m.matrix_user_id == UserId::try_from("@rocketchat:localhost").unwrap()));
 }
 
 #[test]

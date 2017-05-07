@@ -389,7 +389,11 @@ impl Test {
                                                UserId::try_from("@spec_user:localhost").unwrap(),
                                                format!("bridge {}", room_name));
 
-        // spec_user accepts invite from bot user
+        // users accept invite
+        helpers::join(&self.config.as_url,
+                      RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap(),
+                      UserId::try_from("@rocketchat:localhost").unwrap());
+
         helpers::join(&self.config.as_url,
                       RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap(),
                       UserId::try_from("@spec_user:localhost").unwrap());

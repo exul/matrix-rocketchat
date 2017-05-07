@@ -88,8 +88,9 @@ fn help_command_when_connected() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    let expected_curl_command = format!("curl http://{}", test.as_listening.as_ref().unwrap().socket);
     assert!(message_received_by_matrix.contains("You have to login before you can use the application service, there are two ways to do that"));
-    assert!(message_received_by_matrix.contains(&format!("curl http://{}", test.as_listening.as_ref().unwrap().socket)));
+    assert!(message_received_by_matrix.contains(&expected_curl_command));
 }
 
 #[test]

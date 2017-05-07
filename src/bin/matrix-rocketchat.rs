@@ -43,7 +43,7 @@ fn run() -> Result<Listening> {
     let config_path = matches.value_of("config").unwrap_or("config.yaml").to_string();
     let config = Config::read_from_file(&config_path).chain_err(|| ErrorKind::ReadFileError(config_path))?;
     let log_file_path = matches.value_of("log_file").unwrap_or("matrix-rocketchat.log");
-    let log = build_logger(&log_file_path);
+    let log = build_logger(log_file_path);
     let threads = num_cpus::get() * 8;
     Server::new(&config, log).run(threads)
 }

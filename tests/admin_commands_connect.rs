@@ -31,8 +31,8 @@ fn successfully_connect_rocketchat_server() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains(&format!("You are connected to {}",
-                                                         test.rocketchat_mock_url.clone().unwrap())));
+    let expected_message = format!("You are connected to {}", test.rocketchat_mock_url.clone().unwrap());
+    assert!(message_received_by_matrix.contains(&expected_message));
 
     let connection = test.connection_pool.get().unwrap();
     let rocketchat_server =
@@ -112,7 +112,8 @@ fn attempt_to_connect_to_a_non_rocketchat_server() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains(&format!("No Rocket.Chat server found when querying {}", rocketchat_mock_url)));
+    let expected_message = format!("No Rocket.Chat server found when querying {}", rocketchat_mock_url);
+    assert!(message_received_by_matrix.contains(&expected_message));
 }
 
 #[test]
@@ -148,7 +149,9 @@ fn attempt_to_connect_to_a_server_with_the_correct_endpoint_but_an_incompatible_
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains(&format!("No Rocket.Chat server found when querying {}/api/info (version information is missing from the response)", rocketchat_mock_url)));
+    let expected_message = format!("No Rocket.Chat server found when querying {}/api/info (version information is missing from the response)",
+                                   rocketchat_mock_url);
+    assert!(message_received_by_matrix.contains(&expected_message));
 }
 
 
@@ -172,7 +175,8 @@ fn attempt_to_connect_to_non_existing_server() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains(&format!("Could not reach Rocket.Chat server {}", rocketchat_mock_url)));
+    let expected_message = format!("Could not reach Rocket.Chat server {}", rocketchat_mock_url);
+    assert!(message_received_by_matrix.contains(&expected_message));
 }
 
 #[test]
@@ -202,8 +206,8 @@ fn connect_an_existing_server() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains(&format!("You are connected to {}",
-                                                         test.rocketchat_mock_url.clone().unwrap())));
+    let expected_message = format!("You are connected to {}", test.rocketchat_mock_url.clone().unwrap());
+    assert!(message_received_by_matrix.contains(&expected_message));
 }
 
 #[test]
@@ -234,7 +238,9 @@ fn attempt_to_connect_to_an_existing_server_with_a_token() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains(&format!("The Rocket.Chat server {} is already connected, connect without a token if you want to connect to the server", test.rocketchat_mock_url.clone().unwrap())));
+    let expected_message = format!("The Rocket.Chat server {} is already connected, connect without a token if you want to connect to the server",
+                                   test.rocketchat_mock_url.clone().unwrap());
+    assert!(message_received_by_matrix.contains(&expected_message));
 }
 
 #[test]

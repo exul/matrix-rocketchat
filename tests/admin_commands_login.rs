@@ -349,8 +349,9 @@ fn login_via_rest_api_with_a_user_that_has_no_connected_admin_room_for_the_rocke
                                                 &HashMap::new(),
                                                 None)
             .unwrap();
-    assert!(response.contains(&format!("No admin room found that is connected to the Rocket.Chat server {}",
-                                       &test.rocketchat_mock_url.clone().unwrap())));
+    let expected_respones = format!("No admin room found that is connected to the Rocket.Chat server {}",
+                                    &test.rocketchat_mock_url.clone().unwrap());
+    assert!(response.contains(&expected_respones));
     assert_eq!(status_code, status::NotFound);
 }
 

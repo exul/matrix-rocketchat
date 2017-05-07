@@ -105,25 +105,29 @@ impl<'a> RoomHandler<'a> {
 
     fn handle_bot_join(&self, matrix_room_id: RoomId, matrix_bot_user_id: UserId) -> Result<()> {
         let room = Room::find(self.connection, &matrix_room_id)?;
-        let users_in_room = room.users(self.connection)?;
-        let invitation_submitter =
-            users_in_room.first().expect("There is always a user in the room, because this user invited the bot");
 
-        if !self.is_private_room(matrix_room_id.clone())? {
-            return self.handle_non_private_room(&room, invitation_submitter, matrix_bot_user_id);
+        if room.is_admin_room {
+            let users_in_room = room.users(self.connection)?;
+            let invitation_submitter =
+                users_in_room.first().expect("There is always a user in the room, because this user invited the bot");
+
+            if !self.is_private_room(matrix_room_id.clone())? {
+                return self.handle_non_private_room(&room, invitation_submitter, matrix_bot_user_id);
+            }
+
+            let body =
+                CommandHandler::build_help_message(self.connection, self.config.as_url.clone(), &room, &invitation_submitter)?;
+            self.matrix_api.send_text_message_event(matrix_room_id.clone(), matrix_bot_user_id.clone(), body)?;
+
+            let room_name = t!(["defaults", "admin_room_display_name"]).l(&invitation_submitter.language);
+            self.matrix_api.set_room_name(matrix_room_id.clone(), room_name)?;
         }
 
         let user_in_room = NewUserInRoom {
-            matrix_user_id: matrix_bot_user_id.clone(),
+            matrix_user_id: matrix_bot_user_id,
             matrix_room_id: room.matrix_room_id.clone(),
         };
         UserInRoom::insert(self.connection, &user_in_room)?;
-        let body =
-            CommandHandler::build_help_message(self.connection, self.config.as_url.clone(), &room, &invitation_submitter)?;
-        self.matrix_api.send_text_message_event(matrix_room_id.clone(), matrix_bot_user_id, body)?;
-
-        let room_name = t!(["defaults", "admin_room_display_name"]).l(&invitation_submitter.language);
-        self.matrix_api.set_room_name(matrix_room_id.clone(), room_name)?;
 
         Ok(())
     }

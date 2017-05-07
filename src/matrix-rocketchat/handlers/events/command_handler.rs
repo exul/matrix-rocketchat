@@ -8,8 +8,7 @@ use slog::Logger;
 use api::{MatrixApi, RocketchatApi};
 use api::rocketchat::Channel;
 use config::Config;
-use db::{NewRocketchatServer, NewRoom, NewUserInRoom, NewUserOnRocketchatServer, RocketchatServer, Room, User, UserInRoom,
-         UserOnRocketchatServer};
+use db::{NewRocketchatServer, NewRoom, NewUserOnRocketchatServer, RocketchatServer, Room, User, UserOnRocketchatServer};
 use errors::*;
 use handlers::rocketchat::VirtualUserHandler;
 use handlers::rocketchat::{Credentials, Login};
@@ -362,11 +361,6 @@ impl<'a> CommandHandler<'a> {
             is_bridged: true,
         };
         let room = Room::insert(self.connection, &new_room)?;
-        let new_user_in_room = NewUserInRoom {
-            matrix_user_id: bot_matrix_user_id.clone(),
-            matrix_room_id: matrix_room_id,
-        };
-        UserInRoom::insert(self.connection, &new_user_in_room)?;
 
         Ok(room)
     }

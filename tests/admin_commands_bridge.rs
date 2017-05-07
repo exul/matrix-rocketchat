@@ -82,7 +82,11 @@ fn successfully_bridge_a_rocketchat_room() {
     assert!(power_levels_received_by_matrix.contains("\"redact\":50"));
     assert!(power_levels_received_by_matrix.contains("@rocketchat:localhost"));
 
-    // users accepts invite from bot user
+    // users accept invite
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!joined_channel_id:localhost").unwrap(),
+                  UserId::try_from("@rocketchat:localhost").unwrap());
+
     helpers::join(&test.config.as_url,
                   RoomId::try_from("!joined_channel_id:localhost").unwrap(),
                   UserId::try_from("@spec_user:localhost").unwrap());
@@ -209,7 +213,11 @@ fn susccessfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     let other_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(other_message_received_by_matrix.contains("joined_channel is now bridged."));
 
-    // spec_user accepts invite from bot user
+    // users accept invite
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!joined_channel_id:localhost").unwrap(),
+                  UserId::try_from("@rocketchat:localhost").unwrap());
+
     helpers::join(&test.config.as_url,
                   RoomId::try_from("!joined_channel_id:localhost").unwrap(),
                   UserId::try_from("@spec_user:localhost").unwrap());
@@ -268,7 +276,11 @@ fn susccessfully_bridge_a_rocketchat_room_that_was_unbridged_before() {
                                            UserId::try_from("@spec_user:localhost").unwrap(),
                                            "bridge joined_channel".to_string());
 
-    // spec_user accepts invite from bot user
+    // users accept invite
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!joined_channel_id:localhost").unwrap(),
+                  UserId::try_from("@rocketchat:localhost").unwrap());
+
     helpers::join(&test.config.as_url,
                   RoomId::try_from("!joined_channel_id:localhost").unwrap(),
                   UserId::try_from("@spec_user:localhost").unwrap());
@@ -341,7 +353,11 @@ fn successfully_bridge_two_different_rocketchat_rooms() {
     let second_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(second_message_received_by_matrix.contains("second_channel is now bridged."));
 
-    // users accepts invite from bot user
+    // users accept invite
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!first_channel_id:localhost").unwrap(),
+                  UserId::try_from("@rocketchat:localhost").unwrap());
+
     helpers::join(&test.config.as_url,
                   RoomId::try_from("!first_channel_id:localhost").unwrap(),
                   UserId::try_from("@spec_user:localhost").unwrap());
@@ -353,6 +369,10 @@ fn successfully_bridge_two_different_rocketchat_rooms() {
     helpers::join(&test.config.as_url,
                   RoomId::try_from("!first_channel_id:localhost").unwrap(),
                   UserId::try_from("@rocketchat_other_user_id_1:localhost").unwrap());
+
+    helpers::join(&test.config.as_url,
+                  RoomId::try_from("!second_channel_id:localhost").unwrap(),
+                  UserId::try_from("@rocketchat:localhost").unwrap());
 
     helpers::join(&test.config.as_url,
                   RoomId::try_from("!second_channel_id:localhost").unwrap(),

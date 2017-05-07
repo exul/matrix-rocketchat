@@ -166,7 +166,10 @@ error_chain!{
 
         UnsupportedRocketchatApiVersion(min_version: String, versions: String) {
             description("The Rocket.Chat server's version is not compatible with the application service")
-            display("No supported API version (>= {}) found for the Rocket.Chat server, found version: {}", min_version, versions)
+            display("No supported API version (>= {}) found for the Rocket.Chat server, found version: {}",
+                    min_version,
+                    versions
+                )
         }
 
         ReadFileError(path: String) {

@@ -79,7 +79,8 @@ impl<'a> Endpoint for LoginEndpoint<'a> {
     }
 
     fn payload(&self) -> Result<String> {
-        let payload = serde_json::to_string(&self.payload).chain_err(|| ErrorKind::InvalidJSON("Could not serialize login payload".to_string()))?;
+        let payload = serde_json::to_string(&self.payload)
+            .chain_err(|| ErrorKind::InvalidJSON("Could not serialize login payload".to_string()))?;
         Ok(payload)
     }
 
@@ -114,7 +115,8 @@ impl<'a> Endpoint for PostChatMessageEndpoint<'a> {
     }
 
     fn payload(&self) -> Result<String> {
-        let payload = serde_json::to_string(&self.payload).chain_err(|| ErrorKind::InvalidJSON("Could not serialize post chat message payload".to_string()))?;
+        let payload = serde_json::to_string(&self.payload)
+            .chain_err(|| ErrorKind::InvalidJSON("Could not serialize post chat message payload".to_string()))?;
         Ok(payload)
     }
 
@@ -210,7 +212,8 @@ impl super::RocketchatApi for RocketchatApi {
             return Err(build_error(channels_list_endpoint.url(), &body, &status_code));
         }
 
-        let channels_list_response: ChannelsListResponse = serde_json::from_str(&body).chain_err(|| {
+        let channels_list_response: ChannelsListResponse = serde_json::from_str(&body)
+            .chain_err(|| {
                            ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat channels.list API \
                                                 endpoint: `{}`",
                                                           body))

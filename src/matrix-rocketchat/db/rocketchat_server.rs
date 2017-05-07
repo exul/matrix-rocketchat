@@ -38,7 +38,8 @@ pub struct NewRocketchatServer {
 impl RocketchatServer {
     /// Insert a `RocketchatServer`.
     pub fn insert(connection: &SqliteConnection, new_rocketchat_server: &NewRocketchatServer) -> Result<RocketchatServer> {
-        diesel::insert(new_rocketchat_server).into(rocketchat_servers::table)
+        diesel::insert(new_rocketchat_server)
+            .into(rocketchat_servers::table)
             .execute(connection)
             .chain_err(|| ErrorKind::DBInsertError)?;
 
@@ -49,7 +50,8 @@ impl RocketchatServer {
     /// Find a `RocketchatServer` by its URL, return an error if the `RocketchatServer` is not
     /// found.
     pub fn find(connection: &SqliteConnection, url: String) -> Result<RocketchatServer> {
-        let rocketchat_server = rocketchat_servers::table.filter(rocketchat_servers::rocketchat_url.eq(url))
+        let rocketchat_server = rocketchat_servers::table
+            .filter(rocketchat_servers::rocketchat_url.eq(url))
             .first(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rocketchat_server)
@@ -57,7 +59,8 @@ impl RocketchatServer {
 
     /// Find a `RocketchatServer` by its URL.
     pub fn find_by_url(connection: &SqliteConnection, url: String) -> Result<Option<RocketchatServer>> {
-        let rocketchat_servers = rocketchat_servers::table.filter(rocketchat_servers::rocketchat_url.eq(url))
+        let rocketchat_servers = rocketchat_servers::table
+            .filter(rocketchat_servers::rocketchat_url.eq(url))
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rocketchat_servers.into_iter().next())
@@ -65,7 +68,8 @@ impl RocketchatServer {
 
     /// Find a `RocketchatServer` bit its token.
     pub fn find_by_token(connection: &SqliteConnection, token: String) -> Result<Option<RocketchatServer>> {
-        let rocketchat_servers = rocketchat_servers::table.filter(rocketchat_servers::rocketchat_token.eq(Some(token)))
+        let rocketchat_servers = rocketchat_servers::table
+            .filter(rocketchat_servers::rocketchat_token.eq(Some(token)))
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rocketchat_servers.into_iter().next())
@@ -73,7 +77,8 @@ impl RocketchatServer {
 
     /// Get all connected servers.
     pub fn find_connected_servers(connection: &SqliteConnection) -> Result<Vec<RocketchatServer>> {
-        let rocketchat_servers = rocketchat_servers::table.filter(rocketchat_servers::rocketchat_token.is_not_null())
+        let rocketchat_servers = rocketchat_servers::table
+            .filter(rocketchat_servers::rocketchat_token.is_not_null())
             .load::<RocketchatServer>(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rocketchat_servers)
@@ -86,12 +91,13 @@ impl RocketchatServer {
             None => return Ok(None),
         };
 
-        let rooms =
-            rooms::table.filter(rooms::is_admin_room.eq(true)
-                                    .and(rooms::matrix_room_id.eq_any(UserInRoom::belonging_to(&user)
-                                                                          .select(users_in_rooms::matrix_room_id))))
-                .load::<Room>(connection)
-                .chain_err(|| ErrorKind::DBSelectError)?;
+        let rooms = rooms::table
+            .filter(rooms::is_admin_room
+                        .eq(true)
+                        .and(rooms::matrix_room_id.eq_any(UserInRoom::belonging_to(&user)
+                                                              .select(users_in_rooms::matrix_room_id))))
+            .load::<Room>(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rooms.into_iter().next())
     }
 
@@ -101,8 +107,9 @@ impl RocketchatServer {
             Some(room) => Ok(room),
             None => {
                 Err(user_error!(ErrorKind::AdminRoomForRocketchatServerNotFound(self.rocketchat_url.clone()),
-                                t!(["errors", "admin_room_for_rocketchat_server_not_found"])
-                                    .with_vars(vec![("rocketchat_url", self.rocketchat_url.clone())])))
+                                t!(["errors", "admin_room_for_rocketchat_server_not_found"]).with_vars(vec![("rocketchat_url",
+                                                     self.rocketchat_url
+                                                         .clone())])))
             }
         }
     }

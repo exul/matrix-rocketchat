@@ -84,14 +84,15 @@ impl<'a> Server<'a> {
             None => {
                 debug!(self.logger, format!("Bot user {} doesn't exists, starting registration", matrix_bot_user_id));
 
-                connection.transaction(|| {
-                        let new_user = NewUser {
-                            matrix_user_id: matrix_bot_user_id.clone(),
-                            language: DEFAULT_LANGUAGE,
-                        };
-                        User::insert(connection, &new_user)?;
-                        matrix_api.register(self.config.sender_localpart.clone())
-                    })?;
+                connection
+                    .transaction(|| {
+                                     let new_user = NewUser {
+                                         matrix_user_id: matrix_bot_user_id.clone(),
+                                         language: DEFAULT_LANGUAGE,
+                                     };
+                                     User::insert(connection, &new_user)?;
+                                     matrix_api.register(self.config.sender_localpart.clone())
+                                 })?;
                 info!(self.logger, format!("Bot user {} successfully registered", matrix_bot_user_id));
             }
         }

@@ -129,7 +129,8 @@ fn susccessfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     matrix_router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
     let other_room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").unwrap(),
-        members: vec![UserId::try_from("@other_user:localhost").unwrap(), UserId::try_from("@rocketchat:localhost").unwrap()],
+        members: vec![UserId::try_from("@other_user:localhost").unwrap(),
+                      UserId::try_from("@rocketchat:localhost").unwrap()],
     };
     let path_params = get_member_events::PathParams { room_id: RoomId::try_from("!other_admin:localhost").unwrap() };
     matrix_router.get(GetMemberEventsEndpoint::request_path(path_params), other_room_members, "other_room_members");
@@ -436,7 +437,8 @@ fn do_not_allow_to_bridge_channels_that_the_user_has_not_joined_on_the_rocketcha
                                            "bridge normal_channel".to_string());
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("You have to join the channel normal_channel on the Rocket.Chat server before you can bridge it."));
+    assert!(message_received_by_matrix.contains("You have to join the channel normal_channel on the Rocket.Chat server \
+                                                before you can bridge it."));
 }
 
 #[test]

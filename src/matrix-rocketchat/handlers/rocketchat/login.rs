@@ -47,11 +47,10 @@ impl<'a> Login<'a> {
 
         let mut rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())?;
 
-        let (rocketchat_user_id, rocketchat_auth_token) =
-            rocketchat_api.login(&credentials.rocketchat_username, &credentials.password)?;
-        user_on_rocketchat_server.set_credentials(self.connection,
-                                                  Some(rocketchat_user_id.clone()),
-                                                  Some(rocketchat_auth_token.clone()))?;
+        let (rocketchat_user_id, rocketchat_auth_token) = rocketchat_api
+            .login(&credentials.rocketchat_username, &credentials.password)?;
+        user_on_rocketchat_server
+            .set_credentials(self.connection, Some(rocketchat_user_id.clone()), Some(rocketchat_auth_token.clone()))?;
 
         rocketchat_api = rocketchat_api.with_credentials(rocketchat_user_id, rocketchat_auth_token);
         let username = rocketchat_api.current_username()?;

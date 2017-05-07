@@ -43,7 +43,8 @@ impl UserInRoom {
 
     /// Find a `UserInRoom` by its matrix user ID and its matrix room ID, return an error if the user is not found
     pub fn find(connection: &SqliteConnection, matrix_user_id: &UserId, matrix_room_id: &RoomId) -> Result<UserInRoom> {
-        let user_in_room = users_in_rooms::table.find((matrix_user_id, matrix_room_id))
+        let user_in_room = users_in_rooms::table
+            .find((matrix_user_id, matrix_room_id))
             .first(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(user_in_room)
@@ -54,7 +55,8 @@ impl UserInRoom {
                                                      matrix_user_id: &UserId,
                                                      matrix_room_id: &RoomId)
                                                      -> Result<Option<UserInRoom>> {
-        let user_in_room = users_in_rooms::table.find((matrix_user_id, matrix_room_id))
+        let user_in_room = users_in_rooms::table
+            .find((matrix_user_id, matrix_room_id))
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(user_in_room.into_iter().next())
@@ -62,11 +64,11 @@ impl UserInRoom {
 
     /// Delete a user_in_room.
     pub fn delete(&self, connection: &SqliteConnection) -> Result<()> {
-        diesel::delete(
-            users_in_rooms::table.filter(
-                users_in_rooms::matrix_user_id.eq(&self.matrix_user_id).and(users_in_rooms::matrix_room_id.eq(&self.matrix_room_id))
-            )
-        ).execute(connection).chain_err(|| ErrorKind::DBDeleteError)?;
+        diesel::delete(users_in_rooms::table.filter(users_in_rooms::matrix_user_id
+                                                        .eq(&self.matrix_user_id)
+                                                        .and(users_in_rooms::matrix_room_id.eq(&self.matrix_room_id))))
+                .execute(connection)
+                .chain_err(|| ErrorKind::DBDeleteError)?;
 
         Ok(())
 

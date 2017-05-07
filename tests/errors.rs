@@ -30,7 +30,7 @@ fn error_descriptions_from_the_error_chain_are_passed_to_the_outer_error() {
     let not_found_error = UserInRoom::find(&connection,
                                            &UserId::try_from("@nonexisting:localhost").unwrap(),
                                            &RoomId::try_from("!some_room:localhost").unwrap())
-        .unwrap_err();
+            .unwrap_err();
 
     assert_eq!(not_found_error.description(), "Error when selecting a record");
 }
@@ -48,7 +48,8 @@ fn errors_when_sending_a_message_are_handled_gracefully() {
     let test = Test::new().with_matrix_routes(matrix_router).with_admin_room().run();
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    matrix_api.send_text_message_event(RoomId::try_from("!room:localhost").unwrap(),
+    matrix_api
+        .send_text_message_event(RoomId::try_from("!room:localhost").unwrap(),
                                  UserId::try_from("@user:localhost").unwrap(),
                                  "Message after an error".to_string())
         .unwrap();
@@ -64,9 +65,7 @@ fn the_user_gets_a_message_when_the_rocketchat_error_cannot_be_deserialized() {
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(LOGIN_PATH,
-                           handlers::InvalidJsonResponse { status: status::InternalServerError },
-                           "login");
+    rocketchat_router.post(LOGIN_PATH, handlers::InvalidJsonResponse { status: status::InternalServerError }, "login");
     let test = Test::new()
         .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()

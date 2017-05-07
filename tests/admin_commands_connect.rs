@@ -54,13 +54,13 @@ fn attempt_to_connect_to_an_incompatible_rocketchat_server_version() {
     let socket_addr = get_free_socket_addr();
 
     thread::spawn(move || {
-        let mut rocketchat_router = Router::new();
-        rocketchat_router.get("/api/info", handlers::RocketchatInfo { version: "0.1.0" }, "info");
-        let mut server = Iron::new(rocketchat_router);
-        server.threads = IRON_THREADS;
-        let listening = server.http(&socket_addr).unwrap();
-        tx.send(listening).unwrap();
-    });
+                      let mut rocketchat_router = Router::new();
+                      rocketchat_router.get("/api/info", handlers::RocketchatInfo { version: "0.1.0" }, "info");
+                      let mut server = Iron::new(rocketchat_router);
+                      server.threads = IRON_THREADS;
+                      let listening = server.http(&socket_addr).unwrap();
+                      tx.send(listening).unwrap();
+                  });
     let mut listening = rx.recv_timeout(default_timeout() * 2).unwrap();
     let rocketchat_mock_url = format!("http://{}", socket_addr);
 
@@ -77,7 +77,8 @@ fn attempt_to_connect_to_an_incompatible_rocketchat_server_version() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("No supported API version (>= 0.49) found for the Rocket.Chat server, found version: 0.1.0"));
+    assert!(message_received_by_matrix.contains("No supported API version (>= 0.49) found for the Rocket.Chat server, \
+                                                found version: 0.1.0"));
 }
 
 #[test]
@@ -90,12 +91,12 @@ fn attempt_to_connect_to_a_non_rocketchat_server() {
     let socket_addr = get_free_socket_addr();
 
     thread::spawn(move || {
-        let rocketchat_router = Router::new();
-        let mut server = Iron::new(rocketchat_router);
-        server.threads = IRON_THREADS;
-        let listening = server.http(&socket_addr).unwrap();
-        tx.send(listening).unwrap();
-    });
+                      let rocketchat_router = Router::new();
+                      let mut server = Iron::new(rocketchat_router);
+                      server.threads = IRON_THREADS;
+                      let listening = server.http(&socket_addr).unwrap();
+                      tx.send(listening).unwrap();
+                  });
     let mut listening = rx.recv_timeout(default_timeout() * 2).unwrap();
     let rocketchat_mock_url = format!("http://{}", socket_addr);
 
@@ -126,13 +127,13 @@ fn attempt_to_connect_to_a_server_with_the_correct_endpoint_but_an_incompatible_
     let socket_addr = get_free_socket_addr();
 
     thread::spawn(move || {
-        let mut rocketchat_router = Router::new();
-        rocketchat_router.get("/api/info", handlers::InvalidJsonResponse { status: status::Ok }, "info");
-        let mut server = Iron::new(rocketchat_router);
-        server.threads = IRON_THREADS;
-        let listening = server.http(&socket_addr).unwrap();
-        tx.send(listening).unwrap();
-    });
+                      let mut rocketchat_router = Router::new();
+                      rocketchat_router.get("/api/info", handlers::InvalidJsonResponse { status: status::Ok }, "info");
+                      let mut server = Iron::new(rocketchat_router);
+                      server.threads = IRON_THREADS;
+                      let listening = server.http(&socket_addr).unwrap();
+                      tx.send(listening).unwrap();
+                  });
     let mut listening = rx.recv_timeout(default_timeout() * 2).unwrap();
     let rocketchat_mock_url = format!("http://{}", socket_addr);
 
@@ -149,7 +150,8 @@ fn attempt_to_connect_to_a_server_with_the_correct_endpoint_but_an_incompatible_
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    let expected_message = format!("No Rocket.Chat server found when querying {}/api/info (version information is missing from the response)",
+    let expected_message = format!("No Rocket.Chat server found when querying {}/api/info \
+                                   (version information is missing from the response)",
                                    rocketchat_mock_url);
     assert!(message_received_by_matrix.contains(&expected_message));
 }
@@ -238,7 +240,8 @@ fn attempt_to_connect_to_an_existing_server_with_a_token() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    let expected_message = format!("The Rocket.Chat server {} is already connected, connect without a token if you want to connect to the server",
+    let expected_message = format!("The Rocket.Chat server {} is already connected, \
+                                   connect without a token if you want to connect to the server",
                                    test.rocketchat_mock_url.clone().unwrap());
     assert!(message_received_by_matrix.contains(&expected_message));
 }
@@ -255,13 +258,13 @@ fn attempt_to_connect_an_already_connected_room() {
     let socket_addr = get_free_socket_addr();
 
     thread::spawn(move || {
-        let mut rocketchat_router = Router::new();
-        rocketchat_router.get("/api/info", handlers::RocketchatInfo { version: "0.49.0" }, "info");
-        let mut server = Iron::new(rocketchat_router);
-        server.threads = IRON_THREADS;
-        let listening = server.http(&socket_addr).unwrap();
-        tx.send(listening).unwrap();
-    });
+                      let mut rocketchat_router = Router::new();
+                      rocketchat_router.get("/api/info", handlers::RocketchatInfo { version: "0.49.0" }, "info");
+                      let mut server = Iron::new(rocketchat_router);
+                      server.threads = IRON_THREADS;
+                      let listening = server.http(&socket_addr).unwrap();
+                      tx.send(listening).unwrap();
+                  });
 
     let mut listening = rx.recv_timeout(default_timeout() * 2).unwrap();
     let other_rocketchat_url = format!("http://{}", socket_addr);

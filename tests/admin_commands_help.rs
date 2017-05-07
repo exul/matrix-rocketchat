@@ -30,7 +30,9 @@ fn help_command_when_not_connected_and_no_one_else_has_connected_a_server_yet() 
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("You have to connect this room to a Rocket.Chat server. To do so you can either use an already connected server (if there is one) or connect to a new server."));
+    assert!(message_received_by_matrix.contains("You have to connect this room to a Rocket.Chat server. To do so you can \
+                                                either use an already connected server (if there is one) or connect to a \
+                                                new server."));
     assert!(message_received_by_matrix.contains("No Rocket.Chat server is connected yet."));
 }
 
@@ -68,7 +70,9 @@ fn help_command_when_not_connected_and_someone_else_has_connected_a_server_alrea
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("You have to connect this room to a Rocket.Chat server. To do so you can either use an already connected server (if there is one) or connect to a new server."));
+    assert!(message_received_by_matrix.contains("You have to connect this room to a Rocket.Chat server. To do so you can \
+                                                either use an already connected server (if there is one) or connect to a \
+                                                new server."));
     assert!(message_received_by_matrix.contains(&test.rocketchat_mock_url.clone().unwrap()));
 }
 
@@ -89,7 +93,8 @@ fn help_command_when_connected() {
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     let expected_curl_command = format!("curl http://{}", test.as_listening.as_ref().unwrap().socket);
-    assert!(message_received_by_matrix.contains("You have to login before you can use the application service, there are two ways to do that"));
+    assert!(message_received_by_matrix.contains("You have to login before you can use the application service, \
+                                                there are two ways to do that"));
     assert!(message_received_by_matrix.contains(&expected_curl_command));
 }
 
@@ -120,5 +125,6 @@ fn help_command_when_logged_in() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("`list` Lists all public rooms from the Rocket.Chat server"));
     assert!(message_received_by_matrix.contains("`bridge rocketchatroomnname` Bridge a Rocket.Chat room"));
-    assert!(message_received_by_matrix.contains("`unbridge rocketchatroomnname` Unbridge a Rocket.Chat room (messages are no longer forwarded)"));
+    assert!(message_received_by_matrix.contains("`unbridge rocketchatroomnname` Unbridge a Rocket.Chat room \
+                                                (messages are no longer forwarded)"));
 }

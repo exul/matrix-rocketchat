@@ -65,7 +65,8 @@ impl super::MatrixApi for MatrixApi {
             topic: None,
             visibility: Some("private".to_string()),
         };
-        let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize create_room body params".to_string()))?;
+        let payload = serde_json::to_string(&body_params)
+            .chain_err(|| ErrorKind::InvalidJSON("Could not serialize create_room body params".to_string()))?;
         let params = self.params_hash();
 
         let (body, status_code) = RestApi::call_matrix(CreateRoomEndpoint::method(), &endpoint, &payload, &params)?;
@@ -118,7 +119,8 @@ impl super::MatrixApi for MatrixApi {
         let endpoint = self.base_url.clone() + &InviteUserEndpoint::request_path(path_params);
         let params = self.params_hash();
         let body_params = invite_user::BodyParams { user_id: matrix_user_id.clone() };
-        let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize invite user params".to_string()))?;
+        let payload = serde_json::to_string(&body_params)
+            .chain_err(|| ErrorKind::InvalidJSON("Could not serialize invite user params".to_string()))?;
 
         let (body, status_code) = RestApi::call_matrix(InviteUserEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
@@ -168,7 +170,8 @@ impl super::MatrixApi for MatrixApi {
             initial_device_display_name: None,
             auth: None,
         };
-        let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize account body params".to_string()))?;
+        let payload = serde_json::to_string(&body_params)
+            .chain_err(|| ErrorKind::InvalidJSON("Could not serialize account body params".to_string()))?;
 
         let (body, status_code) = RestApi::call_matrix(RegisterEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
@@ -185,8 +188,8 @@ impl super::MatrixApi for MatrixApi {
         message.insert("msgtype".to_string(), json!(MessageType::Text));
         message.insert("format".to_string(), json!("org.matrix.custom.html"));
 
-        let payload =
-            serde_json::to_string(&message).chain_err(|| ErrorKind::InvalidJSON("Could not serialize message".to_string()))?;
+        let payload = serde_json::to_string(&message)
+            .chain_err(|| ErrorKind::InvalidJSON("Could not serialize message".to_string()))?;
         let txn_id = EventId::new(&self.base_url).chain_err(|| ErrorKind::EventIdGenerationFailed)?;
         let path_params = send_message_event::PathParams {
             room_id: matrix_room_id.clone(),
@@ -225,7 +228,8 @@ impl super::MatrixApi for MatrixApi {
         body_params.insert("users".to_string(), json!(users));
         body_params.insert("events".to_string(), json!(serde_json::Map::new()));
 
-        let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize power levels body params".to_string()))?;
+        let payload = serde_json::to_string(&body_params)
+            .chain_err(|| ErrorKind::InvalidJSON("Could not serialize power levels body params".to_string()))?;
 
         let (body, status_code) =
             RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
@@ -243,7 +247,9 @@ impl super::MatrixApi for MatrixApi {
         params.insert("user_id", &user_id);
         let body_params = set_display_name::BodyParams { displayname: Some(name) };
 
-        let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize set display name body params".to_string()))?;
+        let payload =
+            serde_json::to_string(&body_params)
+                .chain_err(|| ErrorKind::InvalidJSON("Could not serialize set display name body params".to_string()))?;
 
         let (body, status_code) = RestApi::call_matrix(SetDisplayNameEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
@@ -262,7 +268,8 @@ impl super::MatrixApi for MatrixApi {
         let mut body_params = serde_json::Map::new();
         body_params.insert("name".to_string(), Value::String(name));
 
-        let payload = serde_json::to_string(&body_params).chain_err(|| ErrorKind::InvalidJSON("Could not serialize room name body params".to_string()))?;
+        let payload = serde_json::to_string(&body_params)
+            .chain_err(|| ErrorKind::InvalidJSON("Could not serialize room name body params".to_string()))?;
 
         let (body, status_code) =
             RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;

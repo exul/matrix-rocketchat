@@ -12,5 +12,5 @@ script:
 after_success:
   - docker run -v "$(pwd):/source" -e TRAVIS_JOB_ID=${TRAVIS_JOB_ID} --security-opt seccomp=unconfined exul/matrix-rocketchat-dev /bin/bash -c
     "cd /source &&
-    find ./target/debug -maxdepth 1 -regex '.*-.*[0-9]+.*'  -print0 | xargs -0 -n 1 kcov --verify --exclude-pattern=/.cargo,/source/target/debug/build,/source/tests /source/target/kcov &&
+    find ./target/debug -maxdepth 1 -regex '\.\/target\/debug\/[a-z0-9_]*-[a-z0-9]+'  -print0 | xargs -0 -n 1 kcov --verify --exclude-pattern=/.cargo,/source/src/bin,/source/target/debug/build,/source/tests /source/target/kcov &&
     kcov --coveralls-id=${TRAVIS_JOB_ID} --merge ./target/kcov-merge ./target/kcov"

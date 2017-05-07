@@ -1,3 +1,4 @@
+// LCOV_EXCL_START
 #![allow(missing_docs)]
 
 use std::error::Error as StdError;
@@ -373,3 +374,4 @@ impl<'a> Modifier<Response> for &'a Error {
         response.body = Some(Box::new(err_msg));
     }
 }
+// LCOV_EXCL_STOP

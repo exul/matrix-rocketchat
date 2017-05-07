@@ -1,3 +1,4 @@
+// LCOV_EXCL_START
 use yaml_rust::{Yaml, YamlLoader};
 
 lazy_static! {
@@ -96,3 +97,4 @@ i18n_languages!(en);
 
 /// Language that is used if no language is specified
 pub const DEFAULT_LANGUAGE: &'static str = "en";
+// LCOV_EXCL_STOP

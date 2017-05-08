@@ -116,7 +116,7 @@ impl<'a> RoomHandler<'a> {
             }
 
             let body =
-                CommandHandler::build_help_message(self.connection, self.config.as_url.clone(), &room, &invitation_submitter)?;
+                CommandHandler::build_help_message(self.connection, self.config.as_url.clone(), &room, invitation_submitter)?;
             self.matrix_api.send_text_message_event(matrix_room_id.clone(), matrix_bot_user_id.clone(), body)?;
 
             let room_name = t!(["defaults", "admin_room_display_name"]).l(&invitation_submitter.language);

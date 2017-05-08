@@ -287,7 +287,7 @@ impl<'a> CommandHandler<'a> {
         };
 
         let users = room.non_virtual_users(self.connection)?;
-        if users.len() != 0 {
+        if !users.is_empty() {
             let user_ids = users.iter().map(|u| u.matrix_user_id.to_string()).collect::<Vec<String>>().join(", ");
             bail_error!(ErrorKind::RoomNotEmpty(channel_name.to_string(), user_ids.clone()),
                         t!(["errors", "room_not_empty"]).with_vars(vec![("channel_name", channel_name), ("users", user_ids)]));
@@ -384,8 +384,8 @@ impl<'a> CommandHandler<'a> {
 
         //TODO: Check if a max number of users per channel has to be defined to avoid problems when
         //there are several thousand users in a channel.
-        for username in channel.usernames.iter() {
-            let rocketchat_user = rocketchat_api.users_info(&username)?;
+        for username in &channel.usernames {
+            let rocketchat_user = rocketchat_api.users_info(username)?;
             let user_on_rocketchat_server =
                 virtual_user_handler.find_or_register(rocketchat_server_id, rocketchat_user.id, username.to_string())?;
             virtual_user_handler.add_to_room(user_on_rocketchat_server.matrix_user_id, matrix_room_id.clone())?;

@@ -14,7 +14,7 @@ use handlers::ErrorNotifier;
 use handlers::rocketchat::{Credentials, Login};
 use log::IronLogger;
 
-/// RocketchatLogin is an endpoint that allows a user to login to Rocket.Chat via REST API.
+/// `RocketchatLogin` is an endpoint that allows a user to login to Rocket.Chat via REST API.
 pub struct RocketchatLogin {
     /// Application service configuration
     pub config: Config,

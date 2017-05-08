@@ -310,10 +310,10 @@ impl Error {
             ErrorKind::InvalidAccessToken(_) |
             ErrorKind::InvalidRocketchatToken(_) => Status::Forbidden,
             ErrorKind::MissingAccessToken |
-            ErrorKind::MissingRocketchatToken => Status::Unauthorized,
+            ErrorKind::MissingRocketchatToken |
+            ErrorKind::AuthenticationFailed(_) => Status::Unauthorized,
             ErrorKind::InvalidJSON(_) => Status::UnprocessableEntity,
             ErrorKind::AdminRoomForRocketchatServerNotFound(_) => Status::NotFound,
-            ErrorKind::AuthenticationFailed(_) => Status::Unauthorized,
             _ => Status::InternalServerError,
         }
     }
@@ -368,7 +368,7 @@ impl<'a> Modifier<Response> for &'a Error {
 
         let causes = self.error_chain.iter().skip(1).map(|e| format!("{}", e)).collect();
         let resp = ErrorResponse {
-            error: format!("{}", &error_message),
+            error: error_message,
             causes: causes,
         };
 

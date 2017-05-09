@@ -1,4 +1,4 @@
+chain_one_line_max = 128
 fn_call_width = 128
 max_width = 128
 reorder_imported_names = true
-chain_one_line_max = 6

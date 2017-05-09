@@ -38,7 +38,8 @@ fn successfully_create_an_admin_room() {
     matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {}, "join");
     let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").unwrap(),
-        members: vec![UserId::try_from("@spec_user:localhost").unwrap(), UserId::try_from("@rocketchat:localhost").unwrap()],
+        members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
+                      UserId::try_from("@rocketchat:localhost").unwrap()],
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
@@ -51,7 +52,9 @@ fn successfully_create_an_admin_room() {
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("Hi, I'm the Rocket.Chat application service"));
-    assert!(message_received_by_matrix.contains("You have to connect this room to a Rocket.Chat server. To do so you can either use an already connected server (if there is one) or connect to a new server."));
+    assert!(message_received_by_matrix.contains("You have to connect this room to a Rocket.Chat server. To do so you can \
+                                                either use an already connected server (if there is one) or connect to a \
+                                                new server."));
     assert!(message_received_by_matrix.contains("No Rocket.Chat server is connected yet."));
 
     let connection = test.connection_pool.get().unwrap();
@@ -84,7 +87,8 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
                                UserId::try_from("@rocketchat:localhost").unwrap());
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."));
+    assert!(message_received_by_matrix.contains("Admin rooms must only contain the user that invites the bot. \
+                                                Too many members in the room, leaving."));
 
     let connection = test.connection_pool.get().unwrap();
     let room_error = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).err().unwrap();
@@ -180,7 +184,8 @@ fn the_user_gets_a_message_when_joining_the_room_failes_for_the_bot_user() {
     matrix_router.post(JoinEndpoint::router_path(), error_responder, "join");
     let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").unwrap(),
-        members: vec![UserId::try_from("@spec_user:localhost").unwrap(), UserId::try_from("@rocketchat:localhost").unwrap()],
+        members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
+                      UserId::try_from("@rocketchat:localhost").unwrap()],
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
@@ -266,7 +271,8 @@ fn the_user_gets_a_message_when_setting_the_room_display_name_fails() {
     matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(), error_responder, "send_state_event_for_empty_key");
     let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").unwrap(),
-        members: vec![UserId::try_from("@spec_user:localhost").unwrap(), UserId::try_from("@rocketchat:localhost").unwrap()],
+        members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
+                      UserId::try_from("@rocketchat:localhost").unwrap()],
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
@@ -317,7 +323,8 @@ fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
                                UserId::try_from("@rocketchat:localhost").unwrap());
 
     let welcome_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(welcome_message_received_by_matrix.contains("Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."));
+    assert!(welcome_message_received_by_matrix.contains("Admin rooms must only contain the user that invites the bot. \
+                                                        Too many members in the room, leaving."));
     let error_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(error_message_received_by_matrix.contains("An internal error occurred"));
 }
@@ -347,7 +354,8 @@ fn the_user_gets_a_message_when_forgetting_the_room_failes_for_the_bot_user() {
                                UserId::try_from("@rocketchat:localhost").unwrap());
 
     let welcome_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(welcome_message_received_by_matrix.contains("Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."));
+    assert!(welcome_message_received_by_matrix.contains("Admin rooms must only contain the user that invites the bot. \
+                                                        Too many members in the room, leaving."));
     let error_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(error_message_received_by_matrix.contains("An internal error occurred"));
 }
@@ -361,7 +369,8 @@ fn bot_leaves_when_a_third_user_joins_the_admin_room() {
     matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {}, "join");
     let room_members = handlers::RoomMembers {
         room_id: RoomId::try_from("!admin:localhost").unwrap(),
-        members: vec![UserId::try_from("@spec_user:localhost").unwrap(), UserId::try_from("@rocketchat:localhost").unwrap()],
+        members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
+                      UserId::try_from("@rocketchat:localhost").unwrap()],
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");

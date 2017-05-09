@@ -163,7 +163,8 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
                                            "unbridge bridged_channel".to_string());
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("Cannot unbdrige room bridged_channel, because Matrix users (@other_user:localhost, @spec_user:localhost) are still using the room."));
+    assert!(message_received_by_matrix.contains("Cannot unbdrige room bridged_channel, because Matrix users \
+                                                (@other_user:localhost, @spec_user:localhost) are still using the room."));
 }
 
 #[test]

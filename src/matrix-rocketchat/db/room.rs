@@ -77,8 +77,8 @@ impl Room {
                                       rocketchat_server_id: i32,
                                       rocketchat_room_id: String)
                                       -> Result<Option<Room>> {
-        let rooms = rooms::table.filter(rooms::rocketchat_server_id.eq(rocketchat_server_id)
-                                            .and(rooms::rocketchat_room_id.eq(rocketchat_room_id)))
+        let rooms = rooms::table
+            .filter(rooms::rocketchat_server_id.eq(rocketchat_server_id).and(rooms::rocketchat_room_id.eq(rocketchat_room_id)))
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rooms.into_iter().next())
@@ -91,8 +91,8 @@ impl Room {
                                 rocketchat_server_id: i32,
                                 display_name: String)
                                 -> Result<Option<Room>> {
-        let rooms = rooms::table.filter(rooms::rocketchat_server_id.eq(rocketchat_server_id)
-                                            .and(rooms::display_name.eq(display_name)))
+        let rooms = rooms::table
+            .filter(rooms::rocketchat_server_id.eq(rocketchat_server_id).and(rooms::display_name.eq(display_name)))
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rooms.into_iter().next())
@@ -123,7 +123,8 @@ impl Room {
     pub fn rocketchat_server(&self, connection: &SqliteConnection) -> Result<Option<RocketchatServer>> {
         match self.rocketchat_server_id {
             Some(rocketchat_server_id) => {
-                let rocketchat_server = rocketchat_servers::table.find(rocketchat_server_id)
+                let rocketchat_server = rocketchat_servers::table
+                    .find(rocketchat_server_id)
                     .first::<RocketchatServer>(connection)
                     .chain_err(|| ErrorKind::DBSelectError)?;
                 Ok(Some(rocketchat_server))
@@ -143,7 +144,8 @@ impl Room {
     /// Set the Rocket.Chat id for a room.
     pub fn set_rocketchat_server_id(&mut self, connection: &SqliteConnection, rocketchat_server_id: i32) -> Result<()> {
         self.rocketchat_server_id = Some(rocketchat_server_id);
-        diesel::update(rooms::table.find(&self.matrix_room_id)).set(rooms::rocketchat_server_id.eq(rocketchat_server_id))
+        diesel::update(rooms::table.find(&self.matrix_room_id))
+            .set(rooms::rocketchat_server_id.eq(rocketchat_server_id))
             .execute(connection)
             .chain_err(|| ErrorKind::DBUpdateError)?;
         Ok(())
@@ -156,11 +158,10 @@ impl Room {
 
     /// Returns all `User`s in the room.
     pub fn users(&self, connection: &SqliteConnection) -> Result<Vec<User>> {
-        let users: Vec<User> =
-            users::table.filter(users::matrix_user_id.eq_any(UserInRoom::belonging_to(self)
-                                                                 .select(users_in_rooms::matrix_user_id)))
-                .load(connection)
-                .chain_err(|| ErrorKind::DBSelectError)?;
+        let users: Vec<User> = users::table
+            .filter(users::matrix_user_id.eq_any(UserInRoom::belonging_to(self).select(users_in_rooms::matrix_user_id)))
+            .load(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(users)
     }
 
@@ -173,22 +174,23 @@ impl Room {
             }
         };
 
-        let users: Vec<User> =
-            users::table.filter(
-                users::matrix_user_id.eq_any(
-                    UserInRoom::belonging_to(self).select(users_in_rooms::matrix_user_id)
-                ).and(users::matrix_user_id.eq_any(
-                    UserOnRocketchatServer::belonging_to(&rocketchat_server).filter(
-                        users_on_rocketchat_servers::is_virtual_user.eq(false)
-                    ).select(users_on_rocketchat_servers::matrix_user_id)
-                ))).load(connection).chain_err(|| ErrorKind::DBSelectError)?;
+        let users: Vec<User> = users::table
+            .filter(users::matrix_user_id
+                        .eq_any(UserInRoom::belonging_to(self).select(users_in_rooms::matrix_user_id))
+                        .and(users::matrix_user_id.eq_any(UserOnRocketchatServer::belonging_to(&rocketchat_server)
+                                                              .filter(users_on_rocketchat_servers::is_virtual_user
+                                                                          .eq(false))
+                                                              .select(users_on_rocketchat_servers::matrix_user_id))))
+            .load(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(users)
     }
 
     /// Update the is_bridged flag for the room.
     pub fn set_is_bridged(&mut self, connection: &SqliteConnection, is_bridged: bool) -> Result<()> {
         self.is_bridged = is_bridged;
-        diesel::update(rooms::table.find(&self.matrix_room_id)).set(rooms::is_bridged.eq(is_bridged))
+        diesel::update(rooms::table.find(&self.matrix_room_id))
+            .set(rooms::is_bridged.eq(is_bridged))
             .execute(connection)
             .chain_err(|| ErrorKind::DBUpdateError)?;
         Ok(())
@@ -197,7 +199,8 @@ impl Room {
     /// Delete a room, this also deletes any users_in_rooms relations for that room.
     pub fn delete(&self, connection: &SqliteConnection) -> Result<()> {
         diesel::delete(UserInRoom::belonging_to(self)).execute(connection).chain_err(|| ErrorKind::DBDeleteError)?;
-        diesel::delete(rooms::table.filter(rooms::matrix_room_id.eq(self.matrix_room_id.clone()))).execute(connection)
+        diesel::delete(rooms::table.filter(rooms::matrix_room_id.eq(self.matrix_room_id.clone())))
+            .execute(connection)
             .chain_err(|| ErrorKind::DBDeleteError)?;
         Ok(())
     }

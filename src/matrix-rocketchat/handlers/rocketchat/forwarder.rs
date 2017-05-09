@@ -62,10 +62,11 @@ impl<'a> Forwarder<'a> {
         if Some(message.user_name.clone()) != user_on_rocketchat_server.rocketchat_username.clone() {
             self.connection
                 .transaction(|| {
-                                 user_on_rocketchat_server.set_rocketchat_username(self.connection,
-                                                                                   Some(message.user_name.clone()))?;
-                                 self.matrix_api.set_display_name(user_on_rocketchat_server.matrix_user_id.clone(),
-                                                                  message.user_name.clone())
+                                 user_on_rocketchat_server
+                                     .set_rocketchat_username(self.connection, Some(message.user_name.clone()))?;
+                                 self.matrix_api
+                                     .set_display_name(user_on_rocketchat_server.matrix_user_id.clone(),
+                                                       message.user_name.clone())
                              })?;
         }
 
@@ -83,7 +84,8 @@ impl<'a> Forwarder<'a> {
     fn is_sendable_message(&self, virtual_user_on_rocketchat_server: &UserOnRocketchatServer) -> Result<bool> {
         match UserOnRocketchatServer::find_by_rocketchat_user_id(self.connection,
                                                                  virtual_user_on_rocketchat_server.rocketchat_server_id,
-                                                                 virtual_user_on_rocketchat_server.rocketchat_user_id
+                                                                 virtual_user_on_rocketchat_server
+                                                                     .rocketchat_user_id
                                                                      .clone()
                                                                      .unwrap_or_default(),
                                                                  false)? {

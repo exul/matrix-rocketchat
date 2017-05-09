@@ -137,9 +137,11 @@ impl<'a> CommandHandler<'a> {
         if let Some(rocketchat_server) = RocketchatServer::find_by_url(self.connection, rocketchat_url.clone())? {
             if rocketchat_server.rocketchat_token.is_some() {
                 bail_error!(ErrorKind::RocketchatServerAlreadyConnected(rocketchat_url.clone()),
-                            t!(["errors", "rocketchat_server_already_connected"])
-                                .with_vars(vec![("rocketchat_url", rocketchat_url),
-                                                ("matrix_user_id", matrix_user_id.to_string())]));
+                            t!(["errors", "rocketchat_server_already_connected"]).with_vars(vec![("rocketchat_url",
+                                                                                                  rocketchat_url),
+                                                                                                 ("matrix_user_id",
+                                                                                                  matrix_user_id
+                                                                                                      .to_string())]));
             }
         }
 
@@ -194,8 +196,7 @@ impl<'a> CommandHandler<'a> {
         let user = User::find(self.connection, &event.user_id)?;
 
         let user_on_rocketchat_server = UserOnRocketchatServer::find(self.connection, &event.user_id, rocketchat_server.id)?;
-        let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())
-            ?
+        let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())?
             .with_credentials(user_on_rocketchat_server.rocketchat_user_id.unwrap_or_default(),
                               user_on_rocketchat_server.rocketchat_auth_token.unwrap_or_default());
         let channels = rocketchat_api.channels_list()?;
@@ -214,8 +215,7 @@ impl<'a> CommandHandler<'a> {
                 let user_on_rocketchat_server =
                     UserOnRocketchatServer::find(self.connection, &event.user_id, rocketchat_server.id)?;
                 let rocketchat_api =
-                    RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())
-                        ?
+                    RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())?
                         .with_credentials(user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
                                           user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default());
 
@@ -235,8 +235,9 @@ impl<'a> CommandHandler<'a> {
 
                 if Room::is_bridged_for_user(self.connection, rocketchat_server.id, channel.id.clone(), &event.user_id)? {
                     bail_error!(ErrorKind::RocketchatChannelAlreadyBridged(channel_name.to_string()),
-                                t!(["errors", "rocketchat_channel_already_bridged"])
-                                    .with_vars(vec![("channel_name", channel_name.to_string())]));
+                                t!(["errors", "rocketchat_channel_already_bridged"]).with_vars(vec![("channel_name",
+                                                                                                     channel_name
+                                                                                                         .to_string())]));
                 }
 
                 let username = user_on_rocketchat_server.rocketchat_username.clone().unwrap_or_default();

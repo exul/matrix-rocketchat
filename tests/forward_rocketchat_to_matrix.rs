@@ -108,11 +108,12 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let bot_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
     let users_iter = users.iter();
-    let user_ids = users_iter.filter_map(|u| if u.matrix_user_id != bot_user_id && u.matrix_user_id != spec_user_id {
-                                             Some(u.matrix_user_id.clone())
-                                         } else {
-                                             None
-                                         })
+    let user_ids = users_iter
+        .filter_map(|u| if u.matrix_user_id != bot_user_id && u.matrix_user_id != spec_user_id {
+                        Some(u.matrix_user_id.clone())
+                    } else {
+                        None
+                    })
         .collect::<Vec<UserId>>();
     let new_user_id = user_ids.iter().next().unwrap();
 
@@ -218,11 +219,12 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let bot_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
     let users_iter = users.iter();
-    let user_ids = users_iter.filter_map(|u| if u.matrix_user_id != bot_user_id && u.matrix_user_id != spec_user_id {
-                                             Some(u.matrix_user_id.clone())
-                                         } else {
-                                             None
-                                         })
+    let user_ids = users_iter
+        .filter_map(|u| if u.matrix_user_id != bot_user_id && u.matrix_user_id != spec_user_id {
+                        Some(u.matrix_user_id.clone())
+                    } else {
+                        None
+                    })
         .collect::<Vec<UserId>>();
     let new_user_id = user_ids.iter().next().unwrap();
 

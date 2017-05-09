@@ -73,7 +73,8 @@ impl User {
         let last_message_sent =
             SystemTime::now().duration_since(UNIX_EPOCH).chain_err(|| ErrorKind::InternalServerError)?.as_secs() as i64;
         self.last_message_sent = last_message_sent;
-        diesel::update(users::table.find(&self.matrix_user_id)).set(users::last_message_sent.eq(last_message_sent))
+        diesel::update(users::table.find(&self.matrix_user_id))
+            .set(users::last_message_sent.eq(last_message_sent))
             .execute(connection)
             .chain_err(|| ErrorKind::DBUpdateError)?;
         Ok(())

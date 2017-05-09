@@ -136,7 +136,8 @@ impl<'a> RoomHandler<'a> {
         let room = Room::find(self.connection, &matrix_room_id)?;
 
         if UserInRoom::find_by_matrix_user_id_and_matrix_room_id(self.connection, &matrix_user_id, &matrix_room_id)?.is_some() {
-            let msg = format!("Skipping join event because the user {} is already in the room {} (join event triggered due to name change)",
+            let msg = format!("Skipping join event because the user {} is already in the room {} \
+                              (join event triggered due to name change)",
                               &matrix_user_id,
                               &matrix_room_id);
             debug!(self.logger, msg);

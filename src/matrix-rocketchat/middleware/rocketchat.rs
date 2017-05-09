@@ -19,8 +19,8 @@ impl BeforeMiddleware for RocketchatToken {
         let message = match serde_json::from_str::<Message>(&payload) {
             Ok(message) => message,
             Err(err) => {
-                let json_err = simple_error!(ErrorKind::InvalidJSON(format!("Could not deserialize message that was sent to the rocketchat endpoint: `{}`",
-                                                                            payload)));
+                let msg = format!("Could not deserialize message that was sent to the rocketchat endpoint: `{}`", payload);
+                let json_err = simple_error!(ErrorKind::InvalidJSON(msg));
                 error!(logger, err);
                 return Err(json_err.into());
             }

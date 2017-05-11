@@ -40,10 +40,10 @@ impl<'a> MessageHandler<'a> {
 
         match Room::find_by_matrix_room_id(self.connection, &event.room_id)? {
             Some(ref room) if room.is_admin_room => {
-                CommandHandler::new(self.config, self.connection, &self.logger, &self.matrix_api).process(event, room)?;
+                CommandHandler::new(self.config, self.connection, self.logger, &self.matrix_api).process(event, room)?;
             }
             Some(ref room) => {
-                Forwarder::new(self.connection, &self.logger).process(event, room)?;
+                Forwarder::new(self.connection, self.logger).process(event, room)?;
             }
             None => debug!(self.logger, "Skipping event, because the room is not bridged"),
         }

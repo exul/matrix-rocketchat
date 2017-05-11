@@ -42,7 +42,7 @@ impl<'a> VirtualUserHandler<'a> {
 
         if let Some(user_on_rocketchat_server) =
             UserOnRocketchatServer::find_by_rocketchat_user_id(self.connection,
-                                                               rocketchat_server_id.clone(),
+                                                               rocketchat_server_id,
                                                                rocketchat_user_id.clone(),
                                                                true)? {
             return Ok(user_on_rocketchat_server);

@@ -209,7 +209,7 @@ impl super::RocketchatApi for RocketchatApi {
 
         let (body, status_code) = RestApi::call_rocketchat(&channels_list_endpoint)?;
         if !status_code.is_success() {
-            return Err(build_error(channels_list_endpoint.url(), &body, &status_code));
+            return Err(build_error(&channels_list_endpoint.url(), &body, &status_code));
         }
 
         let channels_list_response: ChannelsListResponse = serde_json::from_str(&body)
@@ -235,7 +235,7 @@ impl super::RocketchatApi for RocketchatApi {
 
         let (body, status_code) = RestApi::call_rocketchat(&me_endpoint)?;
         if !status_code.is_success() {
-            return Err(build_error(me_endpoint.url(), &body, &status_code));
+            return Err(build_error(&me_endpoint.url(), &body, &status_code));
         }
 
         let me_response: MeResponse = serde_json::from_str(&body).chain_err(|| {
@@ -259,7 +259,7 @@ impl super::RocketchatApi for RocketchatApi {
 
         let (body, status_code) = RestApi::call_rocketchat(&login_endpoint)?;
         if !status_code.is_success() {
-            return Err(build_error(login_endpoint.url(), &body, &status_code));
+            return Err(build_error(&login_endpoint.url(), &body, &status_code));
         }
 
         let login_response: LoginResponse = serde_json::from_str(&body).chain_err(|| {
@@ -284,7 +284,7 @@ impl super::RocketchatApi for RocketchatApi {
 
         let (body, status_code) = RestApi::call_rocketchat(&post_chat_message_endpoint)?;
         if !status_code.is_success() {
-            return Err(build_error(post_chat_message_endpoint.url(), &body, &status_code));
+            return Err(build_error(&post_chat_message_endpoint.url(), &body, &status_code));
         }
 
         Ok(())
@@ -305,7 +305,7 @@ impl super::RocketchatApi for RocketchatApi {
 
         let (body, status_code) = RestApi::call_rocketchat(&users_info_endpoint)?;
         if !status_code.is_success() {
-            return Err(build_error(users_info_endpoint.url(), &body, &status_code));
+            return Err(build_error(&users_info_endpoint.url(), &body, &status_code));
         }
 
         let users_info_response: UsersInfoResponse = serde_json::from_str(&body).chain_err(|| {
@@ -323,7 +323,7 @@ impl super::RocketchatApi for RocketchatApi {
     }
 }
 
-fn build_error(endpoint: String, body: &str, status_code: &StatusCode) -> Error {
+fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
     let json_error_msg = format!("Could not deserialize error from Rocket.Chat API endpoint {} with status code {}: `{}`",
                                  endpoint,
                                  status_code,
@@ -344,6 +344,9 @@ fn build_error(endpoint: String, body: &str, status_code: &StatusCode) -> Error 
                };
     }
 
-    let msg = rocketchat_error_resp.message.unwrap_or(rocketchat_error_resp.error.unwrap_or(body.to_string()));
+    let msg = rocketchat_error_resp
+        .message
+        .clone()
+        .unwrap_or_else(|| rocketchat_error_resp.error.clone().unwrap_or_else(|| body.to_string()));
     Error::from(ErrorKind::RocketchatError(msg))
 }

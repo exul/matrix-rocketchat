@@ -20,7 +20,7 @@ pub struct Login<'a> {
     pub matrix_api: &'a Box<MatrixApi>,
 }
 
-/// Credentials to perform a login on the Rocket.Chat server. The matrix_user_id is used to find
+/// Credentials to perform a login on the Rocket.Chat server. The `matrix_user_id` is used to find
 /// the corresponding matrix user.
 #[derive(Serialize, Deserialize)]
 pub struct Credentials {

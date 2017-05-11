@@ -63,7 +63,7 @@ impl<'a> EventDispatcher<'a> {
         let error_notifier = ErrorNotifier {
             config: self.config,
             connection: self.connection,
-            logger: &self.logger,
+            logger: self.logger,
             matrix_api: &self.matrix_api,
         };
         error_notifier.send_message_to_user(&err, room_id, user_id)?;

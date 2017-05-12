@@ -50,7 +50,7 @@ fn successfully_unbridge_a_rocketchat_room() {
 
     helpers::join(&test.config.as_url,
                   RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
-                  UserId::try_from("@rocketchat_new_user_id_1:localhost").unwrap());
+                  UserId::try_from("@rocketchat_new_user_id_rc_id:localhost").unwrap());
 
     helpers::leave_room(&test.config.as_url,
                         RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
@@ -80,9 +80,13 @@ fn successfully_unbridge_a_rocketchat_room() {
     assert!(!room.is_bridged);
 
     let users_in_room = room.users(&connection).unwrap();
-    assert!(users_in_room.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat:localhost").unwrap()));
-    assert!(users_in_room.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat_new_user_id_1:localhost").unwrap()));
-    assert!(!users_in_room.iter().any(|u| u.matrix_user_id == UserId::try_from("@spec_user:localhost").unwrap()));
+    let rocketchat_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
+    let new_user_id = UserId::try_from("@rocketchat_new_user_id_rc_id:localhost").unwrap();
+    let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
+
+    assert!(users_in_room.iter().any(|u| u.matrix_user_id == rocketchat_user_id));
+    assert!(users_in_room.iter().any(|u| u.matrix_user_id == new_user_id));
+    assert!(!users_in_room.iter().any(|u| u.matrix_user_id == spec_user_id));
 }
 
 #[test]

@@ -13,8 +13,8 @@ use std::thread;
 
 use iron::{Iron, Listening, status};
 use matrix_rocketchat::db::{RocketchatServer, UserOnRocketchatServer};
-use matrix_rocketchat_test::{IRON_THREADS, MessageForwarder, RS_TOKEN, Test, default_timeout, get_free_socket_addr, handlers,
-                             helpers};
+use matrix_rocketchat_test::{DEFAULT_ROCKETCHAT_VERSION, IRON_THREADS, MessageForwarder, RS_TOKEN, Test, default_timeout,
+                             get_free_socket_addr, handlers, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -69,7 +69,7 @@ fn attempt_to_connect_to_an_incompatible_rocketchat_server_version() {
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),
                                            UserId::try_from("@spec_user:localhost").unwrap(),
-                                           format!("connect {} {}", rocketchat_mock_url.clone(), RS_TOKEN));
+                                           format!("connect {} {} rc_id", rocketchat_mock_url.clone(), RS_TOKEN));
 
     listening.close().unwrap();
 
@@ -79,6 +79,10 @@ fn attempt_to_connect_to_an_incompatible_rocketchat_server_version() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("No supported API version (>= 0.49) found for the Rocket.Chat server, \
                                                 found version: 0.1.0"));
+
+    let connection = test.connection_pool.get().unwrap();
+    let rocketchat_server = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    assert!(rocketchat_server.is_none());
 }
 
 #[test]
@@ -105,7 +109,7 @@ fn attempt_to_connect_to_a_non_rocketchat_server() {
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),
                                            UserId::try_from("@spec_user:localhost").unwrap(),
-                                           format!("connect {} {}", rocketchat_mock_url.clone(), RS_TOKEN));
+                                           format!("connect {} {} rc_id", rocketchat_mock_url.clone(), RS_TOKEN));
 
     listening.close().unwrap();
 
@@ -115,6 +119,10 @@ fn attempt_to_connect_to_a_non_rocketchat_server() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     let expected_message = format!("No Rocket.Chat server found when querying {}", rocketchat_mock_url);
     assert!(message_received_by_matrix.contains(&expected_message));
+
+    let connection = test.connection_pool.get().unwrap();
+    let rocketchat_server = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    assert!(rocketchat_server.is_none());
 }
 
 #[test]
@@ -142,7 +150,7 @@ fn attempt_to_connect_to_a_server_with_the_correct_endpoint_but_an_incompatible_
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),
                                            UserId::try_from("@spec_user:localhost").unwrap(),
-                                           format!("connect {} spec_token", rocketchat_mock_url.clone()));
+                                           format!("connect {} spec_token rc_id", rocketchat_mock_url.clone()));
 
     listening.close().unwrap();
 
@@ -154,8 +162,11 @@ fn attempt_to_connect_to_a_server_with_the_correct_endpoint_but_an_incompatible_
                                    (version information is missing from the response)",
                                    rocketchat_mock_url);
     assert!(message_received_by_matrix.contains(&expected_message));
-}
 
+    let connection = test.connection_pool.get().unwrap();
+    let rocketchat_server = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    assert!(rocketchat_server.is_none());
+}
 
 #[test]
 fn attempt_to_connect_to_non_existing_server() {
@@ -171,7 +182,7 @@ fn attempt_to_connect_to_non_existing_server() {
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),
                                            UserId::try_from("@spec_user:localhost").unwrap(),
-                                           format!("connect {} spec_token", rocketchat_mock_url.clone()));
+                                           format!("connect {} spec_token rc_id", rocketchat_mock_url.clone()));
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -179,6 +190,117 @@ fn attempt_to_connect_to_non_existing_server() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     let expected_message = format!("Could not reach Rocket.Chat server {}", rocketchat_mock_url);
     assert!(message_received_by_matrix.contains(&expected_message));
+
+    let connection = test.connection_pool.get().unwrap();
+    let rocketchat_server = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    assert!(rocketchat_server.is_none());
+}
+
+#[test]
+fn attempt_to_connect_without_a_rocketchat_server_id() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           format!("connect {} spec_token", &test.rocketchat_mock_url.clone().unwrap()));
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("You have to provide an id to connect to a Rocket.Chat server. \
+                                                It can contain any alphanumeric character and `_`. \
+                                                For example \
+                                                `connect https://rocketchat.example.com my_token rocketchat_example`"));
+
+    let connection = test.connection_pool.get().unwrap();
+    let rocketchat_server = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    assert!(rocketchat_server.is_none());
+}
+
+#[test]
+fn attempt_to_connect_with_an_incompatible_rocketchat_server_id() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           format!("connect {} spec_token invalid$id",
+                                                   &test.rocketchat_mock_url.clone().unwrap()));
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("The provided Rocket.Chat server ID `invalid$id` is not valid, \
+                      it can only contain lowercase alphanumeric characters and `_`. \
+                      The maximum length is 16 characters."));
+
+    let connection = test.connection_pool.get().unwrap();
+    let rocketchat_server = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    assert!(rocketchat_server.is_none());
+}
+
+#[test]
+fn attempt_to_connect_with_a_rocketchat_server_id_that_is_already_in_use() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
+
+    let (tx, rx) = channel::<Listening>();
+    let socket_addr = get_free_socket_addr();
+
+    thread::spawn(move || {
+        let mut rocketchat_router = Router::new();
+        rocketchat_router.get("/api/info", handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION }, "info");
+        let mut server = Iron::new(rocketchat_router);
+        server.threads = IRON_THREADS;
+        let listening = server.http(&socket_addr).unwrap();
+        tx.send(listening).unwrap();
+    });
+    let mut listening = rx.recv_timeout(default_timeout() * 2).unwrap();
+    let other_rocketchat_mock_url = format!("http://{}", socket_addr);
+
+    helpers::create_admin_room(&test.config.as_url,
+                               RoomId::try_from("!other_admin:localhost").unwrap(),
+                               UserId::try_from("@spec_user:localhost").unwrap(),
+                               UserId::try_from("@rocketchat:localhost").unwrap());
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!other_admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           format!("connect {} other_token rc_id", &other_rocketchat_mock_url));
+
+    listening.close().unwrap();
+
+    helpers::send_room_message_from_matrix(&test.config.as_url,
+                                           RoomId::try_from("!admin:localhost").unwrap(),
+                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           format!("connect {} spec_token rc_id", &test.rocketchat_mock_url.clone().unwrap()));
+
+    // discard first welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    // discard first connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    // discard second welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("The provided ID `rc_id` is already in use, please choose another one."));
+
+    let connection = test.connection_pool.get().unwrap();
+    let rocketchat_server = RocketchatServer::find(&connection, other_rocketchat_mock_url).unwrap();
+    assert_eq!(rocketchat_server.id, "rc_id".to_string());
 }
 
 #[test]
@@ -229,7 +351,7 @@ fn attempt_to_connect_to_an_existing_server_with_a_token() {
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!other_admin:localhost").unwrap(),
                                            UserId::try_from("@other_user:localhost").unwrap(),
-                                           format!("connect {} my_token", test.rocketchat_mock_url.clone().unwrap()));
+                                           format!("connect {} my_token other_id", test.rocketchat_mock_url.clone().unwrap()));
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
 
@@ -305,7 +427,7 @@ fn attempt_to_connect_a_server_with_a_token_that_is_already_in_use() {
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!other_admin:localhost").unwrap(),
                                            UserId::try_from("@other_user:localhost").unwrap(),
-                                           format!("connect {} {}", other_rocketchat_url.clone(), RS_TOKEN));
+                                           format!("connect {} {} other_id", other_rocketchat_url.clone(), RS_TOKEN));
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();

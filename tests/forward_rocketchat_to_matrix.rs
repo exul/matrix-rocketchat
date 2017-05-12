@@ -62,15 +62,15 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     helpers::join(&test.config.as_url,
                   RoomId::try_from("!spec_channel_id:localhost").unwrap(),
-                  UserId::try_from("@rocketchat_new_user_id_1:localhost").unwrap());
+                  UserId::try_from("@rocketchat_new_user_id_rc_id:localhost").unwrap());
 
     // receive the invite messages
     let spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_invite_message.contains("@spec_user:localhost"));
     let virtual_spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(virtual_spec_user_invite_message.contains("@rocketchat_spec_user_id_1:localhost"));
+    assert!(virtual_spec_user_invite_message.contains("@rocketchat_spec_user_id_rc_id:localhost"));
     let new_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(new_user_invite_message.contains("@rocketchat_new_user_id_1:localhost"));
+    assert!(new_user_invite_message.contains("@rocketchat_new_user_id_rc_id:localhost"));
 
     // discard admin room join
     join_receiver.recv_timeout(default_timeout()).unwrap();
@@ -99,7 +99,9 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let admin_room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
     let rocketchat_server_id = admin_room.rocketchat_server_id.unwrap();
     let bridged_room =
-        Room::find_by_rocketchat_room_id(&connection, rocketchat_server_id, "spec_channel_id".to_string()).unwrap().unwrap();
+        Room::find_by_rocketchat_room_id(&connection, rocketchat_server_id.clone(), "spec_channel_id".to_string())
+            .unwrap()
+            .unwrap();
 
     // the bot, the user who bridged the channel and the virtual user are in the channel
     let users = bridged_room.users(&connection).unwrap();
@@ -177,13 +179,13 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     helpers::join(&test.config.as_url,
                   RoomId::try_from("!spec_channel_id:localhost").unwrap(),
-                  UserId::try_from("@rocketchat_spec_user_id_1:localhost").unwrap());
+                  UserId::try_from("@rocketchat_spec_user_id_rc_id:localhost").unwrap());
 
     // receive the invite messages
     let spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_invite_message.contains("@spec_user:localhost"));
     let virtual_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(virtual_user_invite_message.contains("@rocketchat_spec_user_id_1:localhost"));
+    assert!(virtual_user_invite_message.contains("@rocketchat_spec_user_id_rc_id:localhost"));
 
     // discard admin room join
     join_receiver.recv_timeout(default_timeout()).unwrap();
@@ -210,7 +212,9 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let admin_room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
     let rocketchat_server_id = admin_room.rocketchat_server_id.unwrap();
     let bridged_room =
-        Room::find_by_rocketchat_room_id(&connection, rocketchat_server_id, "spec_channel_id".to_string()).unwrap().unwrap();
+        Room::find_by_rocketchat_room_id(&connection, rocketchat_server_id.clone(), "spec_channel_id".to_string())
+            .unwrap()
+            .unwrap();
 
     // the bot, the user who bridged the channel and the virtual user are in the channel
     let users = bridged_room.users(&connection).unwrap();

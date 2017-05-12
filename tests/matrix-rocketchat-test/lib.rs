@@ -266,13 +266,13 @@ impl Test {
         }
 
         thread::spawn(move || {
-            let mut chain = Chain::new(router);
-            chain.link_before(Write::<UsernameList>::one(Vec::new()));
-            let mut server = Iron::new(chain);
-            server.threads = IRON_THREADS;
-            let listening = server.http(&hs_socket_addr).unwrap();
-            hs_tx.send(listening).unwrap();
-        });
+                          let mut chain = Chain::new(router);
+                          chain.link_before(Write::<UsernameList>::one(Vec::new()));
+                          let mut server = Iron::new(chain);
+                          server.threads = IRON_THREADS;
+                          let listening = server.http(&hs_socket_addr).unwrap();
+                          hs_tx.send(listening).unwrap();
+                      });
 
         let hs_listening = hs_rx.recv_timeout(default_timeout()).unwrap();
         self.hs_listening = Some(hs_listening);
@@ -370,7 +370,7 @@ impl Test {
                 helpers::send_room_message_from_matrix(&self.config.as_url,
                                                        RoomId::try_from("!admin:localhost").unwrap(),
                                                        UserId::try_from("@spec_user:localhost").unwrap(),
-                                                       format!("connect {} {}", rocketchat_mock_url, RS_TOKEN));
+                                                       format!("connect {} {} rc_id", rocketchat_mock_url, RS_TOKEN));
             }
             None => panic!("No Rocket.Chat mock present to connect to"),
         }

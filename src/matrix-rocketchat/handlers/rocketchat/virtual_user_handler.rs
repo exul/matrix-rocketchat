@@ -32,17 +32,18 @@ impl<'a> VirtualUserHandler<'a> {
 
     /// Register a virtual user on the Matrix server and assign it to a Rocket.Chat server.
     pub fn find_or_register(&self,
-                            rocketchat_server_id: i32,
+                            rocketchat_server_id: String,
                             rocketchat_user_id: String,
                             rocketchat_user_name: String)
                             -> Result<UserOnRocketchatServer> {
-        let user_id_local_part = format!("{}_{}_{}", self.config.sender_localpart, &rocketchat_user_id, rocketchat_server_id);
+        let user_id_local_part =
+            format!("{}_{}_{}", self.config.sender_localpart, &rocketchat_user_id, rocketchat_server_id.clone());
         let user_id = format!("@{}:{}", user_id_local_part, self.config.hs_domain);
         let matrix_user_id = UserId::try_from(&user_id).chain_err(|| ErrorKind::InvalidUserId(user_id))?;
 
         if let Some(user_on_rocketchat_server) =
             UserOnRocketchatServer::find_by_rocketchat_user_id(self.connection,
-                                                               rocketchat_server_id,
+                                                               rocketchat_server_id.clone(),
                                                                rocketchat_user_id.clone(),
                                                                true)? {
             return Ok(user_on_rocketchat_server);

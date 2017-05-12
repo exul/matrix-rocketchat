@@ -53,7 +53,9 @@ fn help_command_when_not_connected_and_someone_else_has_connected_a_server_alrea
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!other_admin:localhost").unwrap(),
                                            UserId::try_from("@other_user:localhost").unwrap(),
-                                           format!("connect {} {}", test.rocketchat_mock_url.clone().unwrap(), RS_TOKEN));
+                                           format!("connect {} {} other_id",
+                                                   test.rocketchat_mock_url.clone().unwrap(),
+                                                   RS_TOKEN));
 
     // spec user gets the already connected server list
     helpers::send_room_message_from_matrix(&test.config.as_url,

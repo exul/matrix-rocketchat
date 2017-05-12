@@ -37,6 +37,9 @@ extern crate yaml_rust;
 
 embed_migrations!();
 
+/// The maximum number of characters that can be used for a Rocket.Chat server ID
+pub const MAX_ROCKETCHAT_SERVER_ID_LENGTH: usize = 16;
+
 /// Translations
 #[macro_use]
 pub mod i18n;

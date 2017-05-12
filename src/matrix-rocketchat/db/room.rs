@@ -19,7 +19,7 @@ pub struct Room {
     /// The rooms display name.
     pub display_name: String,
     /// The Rocket.Chat server the room is connected to.
-    pub rocketchat_server_id: Option<i32>,
+    pub rocketchat_server_id: Option<String>,
     /// The rooms unique id on the Rocket.Chat server.
     pub rocketchat_room_id: Option<String>,
     /// A flag that indicates if the rooms is used as a admin room for the
@@ -42,7 +42,7 @@ pub struct NewRoom {
     /// The rooms display name.
     pub display_name: String,
     /// The Rocket.Chat server the room is connected to.
-    pub rocketchat_server_id: Option<i32>,
+    pub rocketchat_server_id: Option<String>,
     /// The rooms unique id on the rocketchat server.
     pub rocketchat_room_id: Option<String>,
     /// A flag that indicates if the rooms is used as a admin room for the
@@ -74,7 +74,7 @@ impl Room {
     /// Rocket.Chat room ID might not be unique across servers.
     /// Returns `None`, if the room is not found.
     pub fn find_by_rocketchat_room_id(connection: &SqliteConnection,
-                                      rocketchat_server_id: i32,
+                                      rocketchat_server_id: String,
                                       rocketchat_room_id: String)
                                       -> Result<Option<Room>> {
         let rooms = rooms::table
@@ -88,7 +88,7 @@ impl Room {
     /// display name might not be unique across servers.
     /// Returns `None`, if the room is not found.
     pub fn find_by_display_name(connection: &SqliteConnection,
-                                rocketchat_server_id: i32,
+                                rocketchat_server_id: String,
                                 display_name: String)
                                 -> Result<Option<Room>> {
         let rooms = rooms::table
@@ -100,7 +100,7 @@ impl Room {
 
     /// Indicates if the room is bridged for a given user.
     pub fn is_bridged_for_user(connection: &SqliteConnection,
-                               rocketchat_server_id: i32,
+                               rocketchat_server_id: String,
                                rocketchat_room_id: String,
                                matrix_user_id: &UserId)
                                -> Result<bool> {
@@ -112,7 +112,7 @@ impl Room {
     }
 
     /// Indicates if a room is bridged.
-    pub fn is_bridged(connection: &SqliteConnection, rocketchat_server_id: i32, rocketchat_room_id: String) -> Result<bool> {
+    pub fn is_bridged(connection: &SqliteConnection, rocketchat_server_id: String, rocketchat_room_id: String) -> Result<bool> {
         match Room::find_by_rocketchat_room_id(connection, rocketchat_server_id, rocketchat_room_id)? {
             Some(room) => Ok(room.is_bridged),
             None => Ok(false),
@@ -121,7 +121,7 @@ impl Room {
 
     /// Get the Rocket.Chat server this room is connected to, if any.
     pub fn rocketchat_server(&self, connection: &SqliteConnection) -> Result<Option<RocketchatServer>> {
-        match self.rocketchat_server_id {
+        match self.rocketchat_server_id.clone() {
             Some(rocketchat_server_id) => {
                 let rocketchat_server = rocketchat_servers::table
                     .find(rocketchat_server_id)
@@ -142,8 +142,8 @@ impl Room {
     }
 
     /// Set the Rocket.Chat id for a room.
-    pub fn set_rocketchat_server_id(&mut self, connection: &SqliteConnection, rocketchat_server_id: i32) -> Result<()> {
-        self.rocketchat_server_id = Some(rocketchat_server_id);
+    pub fn set_rocketchat_server_id(&mut self, connection: &SqliteConnection, rocketchat_server_id: String) -> Result<()> {
+        self.rocketchat_server_id = Some(rocketchat_server_id.clone());
         diesel::update(rooms::table.find(&self.matrix_room_id))
             .set(rooms::rocketchat_server_id.eq(rocketchat_server_id))
             .execute(connection)

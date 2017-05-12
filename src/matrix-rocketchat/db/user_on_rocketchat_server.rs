@@ -18,7 +18,7 @@ pub struct UserOnRocketchatServer {
     /// The users unique id on the Rocket.Chat server.
     pub matrix_user_id: UserId,
     /// The unique id for the Rocket.Chat server
-    pub rocketchat_server_id: i32,
+    pub rocketchat_server_id: String,
     /// The users unique id on the Rocket.Chat server.
     pub rocketchat_user_id: Option<String>,
     /// The token to identify reuqests from the Rocket.Chat server
@@ -40,7 +40,7 @@ pub struct NewUserOnRocketchatServer {
     /// The users unique id on the Rocket.Chat server.
     pub matrix_user_id: UserId,
     /// The unique id for the Rocket.Chat server
-    pub rocketchat_server_id: i32,
+    pub rocketchat_server_id: String,
     /// The users unique id on the Rocket.Chat server.
     pub rocketchat_user_id: Option<String>,
     /// The token to identify reuqests from the Rocket.Chat server
@@ -77,14 +77,14 @@ impl UserOnRocketchatServer {
 
         UserOnRocketchatServer::find(connection,
                                      &user_on_rocketchat_server.matrix_user_id,
-                                     user_on_rocketchat_server.rocketchat_server_id)
+                                     user_on_rocketchat_server.rocketchat_server_id.clone())
     }
 
     /// Find a `UserOnRocketchatServer` by his matrix user ID and the Rocket.Chat server ID, return
     /// an error if the `UserOnRocketchatServer` is not found
     pub fn find(connection: &SqliteConnection,
                 matrix_user_id: &UserId,
-                rocketchat_server_id: i32)
+                rocketchat_server_id: String)
                 -> Result<UserOnRocketchatServer> {
         let user_on_rocketchat_server = users_on_rocketchat_servers::table
             .find((matrix_user_id, rocketchat_server_id))
@@ -96,7 +96,7 @@ impl UserOnRocketchatServer {
     /// Find a `UserOnRocketchatServer` by his Rocket.Chat user ID. Returns `None`,
     /// if the `UserOnRocketchatServer` is not found.
     pub fn find_by_rocketchat_user_id(connection: &SqliteConnection,
-                                      rocketchat_server_id: i32,
+                                      rocketchat_server_id: String,
                                       rocketchat_user_id: String,
                                       is_virtual_user: bool)
                                       -> Result<Option<UserOnRocketchatServer>> {
@@ -118,7 +118,7 @@ impl UserOnRocketchatServer {
                            -> Result<()> {
         self.rocketchat_user_id = rocketchat_user_id.clone();
         self.rocketchat_auth_token = rocketchat_auth_token.clone();
-        diesel::update(users_on_rocketchat_servers::table.find((&self.matrix_user_id, self.rocketchat_server_id)))
+        diesel::update(users_on_rocketchat_servers::table.find((&self.matrix_user_id, self.rocketchat_server_id.clone())))
             .set((users_on_rocketchat_servers::rocketchat_user_id.eq(rocketchat_user_id),
                   users_on_rocketchat_servers::rocketchat_auth_token.eq(rocketchat_auth_token)))
             .execute(connection)
@@ -132,7 +132,7 @@ impl UserOnRocketchatServer {
                                    rocketchat_username: Option<String>)
                                    -> Result<()> {
         self.rocketchat_username = rocketchat_username.clone();
-        diesel::update(users_on_rocketchat_servers::table.find((&self.matrix_user_id, self.rocketchat_server_id)))
+        diesel::update(users_on_rocketchat_servers::table.find((&self.matrix_user_id, self.rocketchat_server_id.clone())))
             .set(users_on_rocketchat_servers::rocketchat_username.eq(rocketchat_username))
             .execute(connection)
             .chain_err(|| ErrorKind::DBUpdateError)?;

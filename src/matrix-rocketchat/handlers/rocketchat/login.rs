@@ -42,7 +42,7 @@ impl<'a> Login<'a> {
         let room = rocketchat_server.admin_room_for_user_or_err(self.connection, &credentials.matrix_user_id)?;
 
         let mut user_on_rocketchat_server =
-            UserOnRocketchatServer::find(self.connection, &credentials.matrix_user_id, rocketchat_server.id)?;
+            UserOnRocketchatServer::find(self.connection, &credentials.matrix_user_id, rocketchat_server.id.clone())?;
         let user = User::find(self.connection, &credentials.matrix_user_id)?;
 
         let mut rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())?;

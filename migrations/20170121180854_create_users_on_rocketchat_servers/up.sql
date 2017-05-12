@@ -1,7 +1,7 @@
 CREATE TABLE users_on_rocketchat_servers (
   is_virtual_user BOOLEAN NOT NULL,
   matrix_user_id VARCHAR NOT NULL,
-  rocketchat_server_id INTEGER NOT NULL,
+  rocketchat_server_id VARCHAR NOT NULL,
   rocketchat_user_id VARCHAR,
   rocketchat_auth_token VARCHAR,
   rocketchat_username VARCHAR,

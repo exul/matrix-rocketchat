@@ -202,6 +202,21 @@ error_chain!{
             display("Attempt to connect {}, but the Rocket.Chat server is already connected", rocketchat_url)
         }
 
+        ConnectWithoutRocketchatServerId{
+            description("Connect command without a Rocket.Chat server ID.")
+            display("Attempt to connect to a Rocket.Chat server without an ID")
+        }
+
+        ConnectWithInvalidRocketchatServerId(rocketchat_server_id: String) {
+            description("Connect command with an invalid Rocket.Chat server ID.")
+            display("Attempt to connect with the Rocket.Chat server ID {}, which contains invalid characters.", rocketchat_server_id)
+        }
+
+        RocketchatServerIdAlreadyInUse(rocketchat_server_id: String)  {
+            description("Connecting with a Rocket.Chat server id that is already in use")
+            display("Attempt to connect with the Rocket.Chat server ID {}, which is already in use.", rocketchat_server_id)
+        }
+
         RocketchatTokenAlreadyInUse(token: String) {
             description("The token is already used by another server")
             display("The token {} is already in use by another server", token)

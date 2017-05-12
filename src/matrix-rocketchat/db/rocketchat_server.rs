@@ -13,11 +13,11 @@ use super::schema::{rocketchat_servers, rooms, users_in_rooms};
 #[derive(Associations, Debug, Identifiable, Queryable)]
 #[table_name="rocketchat_servers"]
 pub struct RocketchatServer {
-    /// The unique id for the Rocket.Chat server
-    pub id: i32,
+    /// The unique identifier for the Rocket.Chat server
+    pub id: String,
     /// The URL to connect to the Rocket.Chat server
     pub rocketchat_url: String,
-    /// The token to identify reuqests from the Rocket.Chat server
+    /// The token to identify requests from the Rocket.Chat server
     pub rocketchat_token: Option<String>,
     /// created timestamp
     pub created_at: String,
@@ -29,6 +29,8 @@ pub struct RocketchatServer {
 #[derive(Insertable)]
 #[table_name="rocketchat_servers"]
 pub struct NewRocketchatServer {
+    /// The unique identifier for the Rocket.Chat server
+    pub id: String,
     /// The URL to connect to the Rocket.Chat server
     pub rocketchat_url: String,
     /// The token to identify reuqests from the Rocket.Chat server
@@ -55,6 +57,15 @@ impl RocketchatServer {
             .first(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rocketchat_server)
+    }
+
+    /// Find a `RocketchatServer` by its ID.
+    pub fn find_by_id(connection: &SqliteConnection, id: &str) -> Result<Option<RocketchatServer>> {
+        let rocketchat_servers = rocketchat_servers::table
+            .filter(rocketchat_servers::id.eq(id))
+            .load(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(rocketchat_servers.into_iter().next())
     }
 
     /// Find a `RocketchatServer` by its URL.

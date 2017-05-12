@@ -37,7 +37,7 @@ impl<'a> Forwarder<'a> {
 
         let mut user_on_rocketchat_server = self.connection
             .transaction(|| {
-                             virtual_user_handler.find_or_register(rocketchat_server.id,
+                             virtual_user_handler.find_or_register(rocketchat_server.id.clone(),
                                                                    message.user_id.clone(),
                                                                    message.user_name.clone())
                          })?;
@@ -48,16 +48,17 @@ impl<'a> Forwarder<'a> {
             return Ok(());
         }
 
-        let matrix_room_id =
-            match Room::find_by_rocketchat_room_id(self.connection, rocketchat_server.id, message.channel_id.clone())? {
-                Some(ref room) if room.is_bridged => room.matrix_room_id.clone(),
-                _ => {
-                    debug!(self.logger,
-                           "Ignoring message from Rocket.Chat channel `{}`, because the channel is not bridged.",
-                           message.channel_id);
-                    return Ok(());
-                }
-            };
+        let matrix_room_id = match Room::find_by_rocketchat_room_id(self.connection,
+                                                                    rocketchat_server.id.clone(),
+                                                                    message.channel_id.clone())? {
+            Some(ref room) if room.is_bridged => room.matrix_room_id.clone(),
+            _ => {
+                debug!(self.logger,
+                       "Ignoring message from Rocket.Chat channel `{}`, because the channel is not bridged.",
+                       message.channel_id);
+                return Ok(());
+            }
+        };
 
         if Some(message.user_name.clone()) != user_on_rocketchat_server.rocketchat_username.clone() {
             self.connection
@@ -83,7 +84,9 @@ impl<'a> Forwarder<'a> {
 
     fn is_sendable_message(&self, virtual_user_on_rocketchat_server: &UserOnRocketchatServer) -> Result<bool> {
         match UserOnRocketchatServer::find_by_rocketchat_user_id(self.connection,
-                                                                 virtual_user_on_rocketchat_server.rocketchat_server_id,
+                                                                 virtual_user_on_rocketchat_server
+                                                                     .rocketchat_server_id
+                                                                     .clone(),
                                                                  virtual_user_on_rocketchat_server
                                                                      .rocketchat_user_id
                                                                      .clone()

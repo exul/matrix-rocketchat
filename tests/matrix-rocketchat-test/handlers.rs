@@ -2,10 +2,11 @@ use rand::{Rng, thread_rng};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io::Read;
+use std::sync::mpsc::Receiver;
 
 use iron::prelude::*;
 use iron::url::Url;
-use iron::{Handler, status};
+use iron::{Chain, Handler, status};
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
 use persistent::Write;
 use ruma_client_api::r0::account::register;
@@ -15,7 +16,7 @@ use ruma_events::EventType;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
 use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json;
-use super::UsernameList;
+use super::{Message, MessageForwarder, UsernameList};
 
 #[derive(Serialize)]
 pub struct RocketchatInfo {
@@ -194,8 +195,7 @@ pub struct MatrixRegister {}
 
 impl Handler for MatrixRegister {
     fn handle(&self, request: &mut Request) -> IronResult<Response> {
-        let mut request_payload = String::new();
-        request.body.read_to_string(&mut request_payload).unwrap();
+        let request_payload = extract_payload(request);
         let register_payload: register::BodyParams = serde_json::from_str(&request_payload).unwrap();
 
         let mutex = request.get::<Write<UsernameList>>().unwrap();
@@ -217,10 +217,19 @@ impl Handler for MatrixRegister {
 
 pub struct MatrixCreateRoom {}
 
+impl MatrixCreateRoom {
+    /// Create a `MatrixCreateRoom` handler with a message forwarder middleware.
+    pub fn with_forwarder() -> (Chain, Receiver<String>) {
+        let (message_forwarder, receiver) = MessageForwarder::new();
+        let mut chain = Chain::new(MatrixCreateRoom {});
+        chain.link_before(message_forwarder);;
+        (chain, receiver)
+    }
+}
+
 impl Handler for MatrixCreateRoom {
     fn handle(&self, request: &mut Request) -> IronResult<Response> {
-        let mut request_payload = String::new();
-        request.body.read_to_string(&mut request_payload).unwrap();
+        let request_payload = extract_payload(request);
         let create_room_payload: create_room::BodyParams = serde_json::from_str(&request_payload).unwrap();
 
         let room_id = RoomId::try_from(&format!("!{}_id:localhost", create_room_payload.name.unwrap())).unwrap();
@@ -297,8 +306,7 @@ pub struct MatrixConditionalErrorResponder {
 
 impl Handler for MatrixConditionalErrorResponder {
     fn handle(&self, request: &mut Request) -> IronResult<Response> {
-        let mut request_payload = String::new();
-        request.body.read_to_string(&mut request_payload).unwrap();
+        let request_payload = extract_payload(request);
 
         if request_payload.contains(self.conditional_content) {
             let error_response = MatrixErrorResponse {
@@ -321,4 +329,18 @@ impl Handler for InvalidJsonResponse {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
         Ok(Response::with((self.status, "invalid json")))
     }
+}
+
+fn extract_payload(request: &mut Request) -> String {
+    let mut payload = String::new();
+    request.body.read_to_string(&mut payload).unwrap();
+
+    // if the request payload is empty, try to get it from the middleware
+    if payload.is_empty() {
+        if let Some(message) = request.extensions.get::<Message>() {
+            payload = message.payload.clone()
+        }
+    }
+
+    payload
 }

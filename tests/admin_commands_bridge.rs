@@ -29,11 +29,13 @@ fn successfully_bridge_a_rocketchat_room() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     let (state_forwarder, state_receiver) = MessageForwarder::new();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
     matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(), state_forwarder, "send_state_event_for_key");
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
+    matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
+
     let mut channels = HashMap::new();
     channels.insert("joined_channel", vec!["spec_user", "user_1", "user_2", "user_3"]);
 

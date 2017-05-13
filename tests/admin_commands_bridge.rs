@@ -59,6 +59,10 @@ fn successfully_bridge_a_rocketchat_room() {
                                            UserId::try_from("@spec_user:localhost").unwrap(),
                                            "bridge joined_channel".to_string());
 
+    let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(create_room_message.contains("\"name\":\"joined_channel\""));
+    assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat_rc_id_joined_channel_id\""));
+
     let invite_spec_user = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(invite_spec_user.contains("@spec_user:localhost"));
     let invite_virtual_spec_user = invite_receiver.recv_timeout(default_timeout()).unwrap();

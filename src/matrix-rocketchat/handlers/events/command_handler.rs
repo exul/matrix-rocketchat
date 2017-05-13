@@ -381,7 +381,8 @@ impl<'a> CommandHandler<'a> {
 
     fn create_room(&self, channel: &Channel, rocketchat_server_id: String, user_id: UserId) -> Result<Room> {
         let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
-        let matrix_room_id = self.matrix_api.create_room(channel.name.clone())?;
+        let room_alias_name = format!("{}_{}_{}", self.config.sender_localpart, rocketchat_server_id, channel.id);
+        let matrix_room_id = self.matrix_api.create_room(channel.name.clone(), Some(room_alias_name))?;
         self.matrix_api.set_default_powerlevels(matrix_room_id.clone(), bot_matrix_user_id.clone())?;
         self.matrix_api.invite(matrix_room_id.clone(), user_id.clone())?;
         let new_room = NewRoom {

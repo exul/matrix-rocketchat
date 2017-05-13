@@ -164,7 +164,7 @@ fn sucessfully_login_via_rest_api() {
     let payload = to_string(&login_request).unwrap();
     let (response, status_code) = RestApi::call(Method::Post,
                                                 &format!("http://{}/rocketchat/login",
-                                                         test.as_listening.as_ref().unwrap().socket),
+                                                        test.as_listening.as_ref().unwrap().socket),
                                                 &payload,
                                                 &HashMap::new(),
                                                 None)
@@ -216,7 +216,7 @@ fn wrong_password_when_logging_in_via_rest_api() {
     let payload = to_string(&login_request).unwrap();
     let (response, status_code) = RestApi::call(Method::Post,
                                                 &format!("http://{}/rocketchat/login",
-                                                         test.as_listening.as_ref().unwrap().socket),
+                                                        test.as_listening.as_ref().unwrap().socket),
                                                 &payload,
                                                 &HashMap::new(),
                                                 None)
@@ -269,7 +269,7 @@ fn login_multiple_times_via_rest_message() {
     for _ in 0..2 {
         let (response, status_code) = RestApi::call(Method::Post,
                                                     &format!("http://{}/rocketchat/login",
-                                                             test.as_listening.as_ref().unwrap().socket),
+                                                            test.as_listening.as_ref().unwrap().socket),
                                                     &payload,
                                                     &HashMap::new(),
                                                     None)
@@ -296,7 +296,7 @@ fn login_via_rest_api_with_invalid_payload() {
 
     let (response, status_code) = RestApi::call(Method::Post,
                                                 &format!("http://{}/rocketchat/login",
-                                                         test.as_listening.as_ref().unwrap().socket),
+                                                        test.as_listening.as_ref().unwrap().socket),
                                                 "not json",
                                                 &HashMap::new(),
                                                 None)
@@ -320,7 +320,7 @@ fn login_via_rest_api_with_a_non_existing_rocketchat_server() {
 
     let (response, status_code) = RestApi::call(Method::Post,
                                                 &format!("http://{}/rocketchat/login",
-                                                         test.as_listening.as_ref().unwrap().socket),
+                                                        test.as_listening.as_ref().unwrap().socket),
                                                 &payload,
                                                 &HashMap::new(),
                                                 None)
@@ -344,7 +344,7 @@ fn login_via_rest_api_with_a_user_that_has_no_connected_admin_room_for_the_rocke
 
     let (response, status_code) = RestApi::call(Method::Post,
                                                 &format!("http://{}/rocketchat/login",
-                                                         test.as_listening.as_ref().unwrap().socket),
+                                                        test.as_listening.as_ref().unwrap().socket),
                                                 &payload,
                                                 &HashMap::new(),
                                                 None)

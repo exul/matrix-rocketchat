@@ -158,11 +158,9 @@ impl<'a> CommandHandler<'a> {
         if let Some(rocketchat_server) = RocketchatServer::find_by_url(self.connection, rocketchat_url.clone())? {
             if rocketchat_server.rocketchat_token.is_some() {
                 bail_error!(ErrorKind::RocketchatServerAlreadyConnected(rocketchat_url.clone()),
-                            t!(["errors", "rocketchat_server_already_connected"]).with_vars(vec![("rocketchat_url",
-                                                                                                  rocketchat_url),
-                                                                                                 ("matrix_user_id",
-                                                                                                  matrix_user_id
-                                                                                                      .to_string())]));
+                            t!(["errors", "rocketchat_server_already_connected"])
+                                .with_vars(vec![("rocketchat_url", rocketchat_url),
+                                                ("matrix_user_id", matrix_user_id.to_string())]));
             }
         }
 
@@ -437,11 +435,10 @@ impl<'a> CommandHandler<'a> {
                     t!(["admin_room", "usage_instructions"]).with_vars(vec![("rocketchat_url",
                                                                              rocketchat_server.rocketchat_url)])
                 } else {
-                    t!(["admin_room", "login_instructions"]).with_vars(vec![("rocketchat_url",
-                                                                             rocketchat_server.rocketchat_url),
-                                                                            ("as_url", as_url),
-                                                                            ("matrix_user_id",
-                                                                             user.matrix_user_id.to_string())])
+                    t!(["admin_room", "login_instructions"])
+                        .with_vars(vec![("rocketchat_url", rocketchat_server.rocketchat_url),
+                                        ("as_url", as_url),
+                                        ("matrix_user_id", user.matrix_user_id.to_string())])
                 }
             }
             None => {

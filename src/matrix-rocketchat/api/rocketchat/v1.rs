@@ -238,9 +238,9 @@ impl super::RocketchatApi for RocketchatApi {
             return Err(build_error(&me_endpoint.url(), &body, &status_code));
         }
 
-        let me_response: MeResponse = serde_json::from_str(&body).chain_err(|| {
-                ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat me API endpoint: `{}`",
-                                               body))
+        let me_response: MeResponse = serde_json::from_str(&body)
+            .chain_err(|| {
+                ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat me API endpoint: `{}`", body))
             })?;
 
         Ok(me_response.username)
@@ -262,7 +262,8 @@ impl super::RocketchatApi for RocketchatApi {
             return Err(build_error(&login_endpoint.url(), &body, &status_code));
         }
 
-        let login_response: LoginResponse = serde_json::from_str(&body).chain_err(|| {
+        let login_response: LoginResponse = serde_json::from_str(&body)
+            .chain_err(|| {
                 ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat login API endpoint: `{}`",
                                                body))
             })?;
@@ -308,7 +309,8 @@ impl super::RocketchatApi for RocketchatApi {
             return Err(build_error(&users_info_endpoint.url(), &body, &status_code));
         }
 
-        let users_info_response: UsersInfoResponse = serde_json::from_str(&body).chain_err(|| {
+        let users_info_response: UsersInfoResponse = serde_json::from_str(&body)
+            .chain_err(|| {
                 ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat users.info API endpoint: `{}`",
                                                body))
             })?;
@@ -344,9 +346,7 @@ fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
                };
     }
 
-    let msg = rocketchat_error_resp
-        .message
-        .clone()
-        .unwrap_or_else(|| rocketchat_error_resp.error.clone().unwrap_or_else(|| body.to_string()));
-    Error::from(ErrorKind::RocketchatError(msg))
+    let message = rocketchat_error_resp.message.clone();
+    let error_msg = message.unwrap_or_else(|| rocketchat_error_resp.error.clone().unwrap_or_else(|| body.to_string()));
+    Error::from(ErrorKind::RocketchatError(error_msg))
 }

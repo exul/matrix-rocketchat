@@ -29,11 +29,13 @@ fn successfully_bridge_a_rocketchat_room() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     let (state_forwarder, state_receiver) = MessageForwarder::new();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
     matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(), state_forwarder, "send_state_event_for_key");
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
+    matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
+
     let mut channels = HashMap::new();
     channels.insert("joined_channel", vec!["spec_user", "user_1", "user_2", "user_3"]);
 
@@ -56,6 +58,10 @@ fn successfully_bridge_a_rocketchat_room() {
                                            RoomId::try_from("!admin:localhost").unwrap(),
                                            UserId::try_from("@spec_user:localhost").unwrap(),
                                            "bridge joined_channel".to_string());
+
+    let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(create_room_message.contains("\"name\":\"joined_channel\""));
+    assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat_rc_id_joined_channel_id\""));
 
     let invite_spec_user = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(invite_spec_user.contains("@spec_user:localhost"));

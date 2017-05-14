@@ -209,7 +209,8 @@ error_chain!{
 
         ConnectWithInvalidRocketchatServerId(rocketchat_server_id: String) {
             description("Connect command with an invalid Rocket.Chat server ID.")
-            display("Attempt to connect with the Rocket.Chat server ID {}, which contains invalid characters.", rocketchat_server_id)
+            display("Attempt to connect with the Rocket.Chat server ID {}, which contains invalid characters.",
+                    rocketchat_server_id)
         }
 
         RocketchatServerIdAlreadyInUse(rocketchat_server_id: String)  {

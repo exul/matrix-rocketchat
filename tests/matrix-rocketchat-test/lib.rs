@@ -88,7 +88,7 @@ macro_rules! assert_error_kind {
 /// Helpers to forward messages from iron handlers
 pub mod message_forwarder;
 
-pub use message_forwarder::MessageForwarder;
+pub use message_forwarder::{Message, MessageForwarder};
 
 /// Keep track of users that are registered on the Matrix server mock
 #[derive(Copy, Clone)]

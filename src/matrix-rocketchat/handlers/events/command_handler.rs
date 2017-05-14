@@ -158,11 +158,9 @@ impl<'a> CommandHandler<'a> {
         if let Some(rocketchat_server) = RocketchatServer::find_by_url(self.connection, rocketchat_url.clone())? {
             if rocketchat_server.rocketchat_token.is_some() {
                 bail_error!(ErrorKind::RocketchatServerAlreadyConnected(rocketchat_url.clone()),
-                            t!(["errors", "rocketchat_server_already_connected"]).with_vars(vec![("rocketchat_url",
-                                                                                                  rocketchat_url),
-                                                                                                 ("matrix_user_id",
-                                                                                                  matrix_user_id
-                                                                                                      .to_string())]));
+                            t!(["errors", "rocketchat_server_already_connected"])
+                                .with_vars(vec![("rocketchat_url", rocketchat_url),
+                                                ("matrix_user_id", matrix_user_id.to_string())]));
             }
         }
 
@@ -381,7 +379,8 @@ impl<'a> CommandHandler<'a> {
 
     fn create_room(&self, channel: &Channel, rocketchat_server_id: String, user_id: UserId) -> Result<Room> {
         let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
-        let matrix_room_id = self.matrix_api.create_room(channel.name.clone())?;
+        let room_alias_name = format!("{}_{}_{}", self.config.sender_localpart, rocketchat_server_id, channel.id);
+        let matrix_room_id = self.matrix_api.create_room(channel.name.clone(), Some(room_alias_name))?;
         self.matrix_api.set_default_powerlevels(matrix_room_id.clone(), bot_matrix_user_id.clone())?;
         self.matrix_api.invite(matrix_room_id.clone(), user_id.clone())?;
         let new_room = NewRoom {
@@ -436,11 +435,10 @@ impl<'a> CommandHandler<'a> {
                     t!(["admin_room", "usage_instructions"]).with_vars(vec![("rocketchat_url",
                                                                              rocketchat_server.rocketchat_url)])
                 } else {
-                    t!(["admin_room", "login_instructions"]).with_vars(vec![("rocketchat_url",
-                                                                             rocketchat_server.rocketchat_url),
-                                                                            ("as_url", as_url),
-                                                                            ("matrix_user_id",
-                                                                             user.matrix_user_id.to_string())])
+                    t!(["admin_room", "login_instructions"])
+                        .with_vars(vec![("rocketchat_url", rocketchat_server.rocketchat_url),
+                                        ("as_url", as_url),
+                                        ("matrix_user_id", user.matrix_user_id.to_string())])
                 }
             }
             None => {

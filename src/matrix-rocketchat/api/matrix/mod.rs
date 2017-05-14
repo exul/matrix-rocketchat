@@ -18,7 +18,7 @@ pub mod r0;
 /// Matrix REST API
 pub trait MatrixApi: Send + Sync + MatrixApiClone {
     /// Create a room.
-    fn create_room(&self, room_name: String) -> Result<RoomId>;
+    fn create_room(&self, room_name: String, room_alias_name: Option<String>) -> Result<RoomId>;
     /// Forget a room.
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()>;
     /// Get the list of members for this room.
@@ -73,7 +73,8 @@ impl MatrixApi {
         debug!(logger, format!("Querying homeserver {} for API versions", url));
         let (body, status_code) = RestApi::call_matrix(GetSupportedVersionsEndpoint::method(), &url, "", &params)?;
         if !status_code.is_success() {
-            let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
+            let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body)
+                .chain_err(|| {
                     ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix supported versions \
                                                     API endpoint: `{}` ",
                                                    body))

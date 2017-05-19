@@ -27,7 +27,10 @@ pub struct Config {
     pub sender_localpart: String,
     /// URL to connect to the database
     pub database_url: String,
-    /// Flag to indicate if the application service should use HTTPs
+    /// If this flag is set to true, the bot user accepts invites from rooms on other homeservers.
+    /// Which means that users from other homeservers can use this Rocket.Chat bridge.
+    pub accept_remote_invites: bool,
+    /// Flag to indicate if the application service should use HTTPS
     pub use_ssl: bool,
     /// Path to the SSL certificate (only needed if SSL is used)
     pub ssl_certificate_path: Option<String>,

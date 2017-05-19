@@ -9,6 +9,7 @@ extern crate ruma_client_api;
 extern crate ruma_events;
 extern crate ruma_identifiers;
 extern crate serde_json;
+extern crate tempdir;
 
 use std::convert::TryFrom;
 
@@ -16,7 +17,7 @@ use diesel::result::Error as DieselError;
 use iron::status;
 use matrix_rocketchat::db::{Room, UserInRoom};
 use matrix_rocketchat::models::Events;
-use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat_test::{MessageForwarder, TEMP_DIR_NAME, Test, build_test_config, default_timeout, handlers, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::membership::forget_room::Endpoint as ForgetRoomEndpoint;
@@ -25,30 +26,21 @@ use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::send::send_state_event_for_empty_key::Endpoint as SendStateEventForEmptyKeyEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
+use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
 use ruma_events::EventType;
 use ruma_events::collections::all::Event;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
 use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json::to_string;
+use tempdir::TempDir;
 
 #[test]
 fn successfully_create_an_admin_room() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {}, "join");
-    let room_members = handlers::RoomMembers {
-        room_id: RoomId::try_from("!admin:localhost").unwrap(),
-        members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
-                      UserId::try_from("@rocketchat:localhost").unwrap()],
-    };
-    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new().with_matrix_routes(matrix_router).run();
-
-    helpers::create_admin_room(&test.config.as_url,
-                               RoomId::try_from("!admin:localhost").unwrap(),
-                               UserId::try_from("@spec_user:localhost").unwrap(),
-                               UserId::try_from("@rocketchat:localhost").unwrap());
+    let test = Test::new().with_matrix_routes(matrix_router).with_admin_room().run();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("Hi, I'm the Rocket.Chat application service"));
@@ -79,6 +71,15 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
+    let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!admin:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+                      admin_room_creator_handler,
+                      "get_room_creator_admin_room");
+
     let test = Test::new().with_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
@@ -214,6 +215,14 @@ fn the_user_gets_a_message_when_getting_the_room_members_failes() {
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), error_responder, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
+    let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!admin:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+                      admin_room_creator_handler,
+                      "get_room_creator_admin_room");
     let test = Test::new().with_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
@@ -241,6 +250,14 @@ fn the_user_gets_a_message_when_the_room_members_cannot_be_deserialized() {
                       handlers::InvalidJsonResponse { status: status::Ok },
                       "get_member");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
+    let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!admin:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+                      admin_room_creator_handler,
+                      "get_room_creator_admin_room");
     let test = Test::new().with_matrix_routes(matrix_router).run();
 
     helpers::create_admin_room(&test.config.as_url,
@@ -275,6 +292,14 @@ fn the_user_gets_a_message_when_setting_the_room_display_name_fails() {
                       UserId::try_from("@rocketchat:localhost").unwrap()],
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
+    let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!admin:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+                      admin_room_creator_handler,
+                      "get_room_creator_admin_room");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = Test::new().with_matrix_routes(matrix_router).run();
 
@@ -310,6 +335,14 @@ fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
+    let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!admin:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+                      admin_room_creator_handler,
+                      "get_room_creator_admin_room");
     let error_responder = handlers::MatrixErrorResponder {
         status: status::InternalServerError,
         message: "Could not leave room".to_string(),
@@ -341,6 +374,14 @@ fn the_user_gets_a_message_when_forgetting_the_room_failes_for_the_bot_user() {
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
+    let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!admin:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+                      admin_room_creator_handler,
+                      "get_room_creator_admin_room");
     let error_responder = handlers::MatrixErrorResponder {
         status: status::InternalServerError,
         message: "Could not forget room".to_string(),
@@ -367,21 +408,10 @@ fn bot_leaves_when_a_third_user_joins_the_admin_room() {
     let (forget_forwarder, forget_receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {}, "join");
-    let room_members = handlers::RoomMembers {
-        room_id: RoomId::try_from("!admin:localhost").unwrap(),
-        members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
-                      UserId::try_from("@rocketchat:localhost").unwrap()],
-    };
-    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "get_member_events");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(LeaveRoomEndpoint::router_path(), leave_forwarder, "leave");
     matrix_router.post(ForgetRoomEndpoint::router_path(), forget_forwarder, "forget");
-    let test = Test::new().with_matrix_routes(matrix_router).run();
-
-    helpers::create_admin_room(&test.config.as_url,
-                               RoomId::try_from("!admin:localhost").unwrap(),
-                               UserId::try_from("@spec_user:localhost").unwrap(),
-                               UserId::try_from("@rocketchat:localhost").unwrap());
+    let test = Test::new().with_matrix_routes(matrix_router).with_admin_room().run();
 
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
@@ -483,4 +513,132 @@ fn ignore_multiple_join_events_for_the_same_user() {
 
     // no message, because the join is ignored
     assert!(receiver.recv_timeout(default_timeout()).is_err());
+}
+
+#[test]
+fn accept_invites_from_local_rooms_if_accept_remote_invites_is_set_to_false() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.get(GetStateEventsForEmptyKey::router_path(),
+                      handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() },
+                      "get_state_events_for_empty_key");
+    let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
+    let mut config = build_test_config(&temp_dir);
+    config.accept_remote_invites = false;
+    let _test = Test::new().with_admin_room().with_matrix_routes(matrix_router).with_custom_config(config).run();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("Hi, I'm the Rocket.Chat application service"));
+}
+
+#[test]
+fn ignore_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_set_to_false() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.get(GetStateEventsForEmptyKey::router_path(),
+                      handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() },
+                      "get_state_events_for_empty_key");
+    let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
+    let mut config = build_test_config(&temp_dir);
+    config.accept_remote_invites = false;
+    let test = Test::new().with_matrix_routes(matrix_router).with_custom_config(config).run();
+
+    helpers::invite(&test.config.as_url,
+                    RoomId::try_from("!admin:other_homeserver.com").unwrap(),
+                    UserId::try_from("@spec_user:other_homeserver.com").unwrap(),
+                    UserId::try_from("@rocketchat:localhost").unwrap());
+
+    // the room doesn't get a message, because the bot user ignores the invite
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
+}
+
+#[test]
+fn accept_invites_from_local_rooms_if_accept_remote_invites_is_set_to_true() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.get(GetStateEventsForEmptyKey::router_path(),
+                      handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() },
+                      "get_state_events_for_empty_key");
+    let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
+    let mut config = build_test_config(&temp_dir);
+    config.accept_remote_invites = true;
+    let _test = Test::new().with_admin_room().with_matrix_routes(matrix_router).with_custom_config(config).run();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("Hi, I'm the Rocket.Chat application service"));
+}
+
+#[test]
+fn accept_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_set_to_true() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.get(GetStateEventsForEmptyKey::router_path(),
+                      handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:other_homeserver.com").unwrap() },
+                      "get_state_events_for_empty_key");
+    let room_members = handlers::RoomMembers {
+        room_id: RoomId::try_from("!admin:other_homeserver.com").unwrap(),
+        members: vec![UserId::try_from("@spec_user:other_homeserver.com").unwrap(),
+                      UserId::try_from("@rocketchat:localhost").unwrap()],
+    };
+    matrix_router.get(GetMemberEventsEndpoint::router_path(), room_members, "room_members");
+
+    let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
+    let mut config = build_test_config(&temp_dir);
+    config.accept_remote_invites = true;
+    let test = Test::new().with_matrix_routes(matrix_router).with_custom_config(config).run();
+
+    helpers::create_admin_room(&test.config.as_url,
+                               RoomId::try_from("!admin:other_homeserver.com").unwrap(),
+                               UserId::try_from("@spec_user:other_homeserver.com").unwrap(),
+                               UserId::try_from("@rocketchat:localhost").unwrap());
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("Hi, I'm the Rocket.Chat application service"));
+}
+
+#[test]
+fn reject_invites_when_the_inviting_user_is_not_the_room_creator() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.get(GetStateEventsForEmptyKey::router_path(),
+                      handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() },
+                      "get_state_events_for_empty_key");
+    let test = Test::new().with_matrix_routes(matrix_router).run();
+
+    helpers::invite(&test.config.as_url,
+                    RoomId::try_from("!admin:localhost").unwrap(),
+                    UserId::try_from("@spec_user:loalhost").unwrap(),
+                    UserId::try_from("@rocketchat:localhost").unwrap());
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("Only the room creator can invite the Rocket.Chat bot user, \
+                                                please create a new room and invite the Rocket.Chat user to \
+                                                create an admin room."));
+}
+
+#[test]
+fn the_user_gets_a_message_when_getting_the_room_creator_fails() {
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.get(GetStateEventsForEmptyKey::router_path(),
+                      handlers::MatrixErrorResponder {
+                          status: status::InternalServerError,
+                          message: "Could not get room creator.".to_string(),
+                      },
+                      "get_state_events_for_empty_key");
+    let test = Test::new().with_matrix_routes(matrix_router).run();
+
+    helpers::invite(&test.config.as_url,
+                    RoomId::try_from("!admin:localhost").unwrap(),
+                    UserId::try_from("@spec_user:loalhost").unwrap(),
+                    UserId::try_from("@rocketchat:localhost").unwrap());
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
 }

@@ -44,6 +44,10 @@ log_to_console: true
 log_to_file: true
 # Path to the log file (this is only mandatory if logging to a file is enabled)
 log_file_path: "/path/to/file.log"
+# Flag to indicate if the bot user accepts invites from rooms on other homeservers.
+# Which means that users from other homeservers can use this Rocket.Chat bridge
+# if the flag is set to true.
+accept_remote_invites: false
 # Flag that indicates if the application service should use SSL. It's highly
 # recommended that you use SSL if you expose the application service directly
 # (bind it to a public IP address). If you run the application service behind

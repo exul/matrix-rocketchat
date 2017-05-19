@@ -5,6 +5,7 @@ extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
 extern crate router;
 extern crate ruma_client_api;
+extern crate ruma_events;
 extern crate ruma_identifiers;
 
 use std::collections::HashMap;
@@ -21,6 +22,8 @@ use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::send::send_state_event_for_empty_key::Endpoint as SendStateEventForEmptyKeyEndpoint;
 use ruma_client_api::r0::sync::get_member_events::{self, Endpoint as GetMemberEventsEndpoint};
+use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
+use ruma_events::EventType;
 use ruma_identifiers::{RoomId, UserId};
 
 
@@ -127,20 +130,49 @@ fn successfully_bridge_a_rocketchat_room() {
 }
 
 #[test]
-fn susccessfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
+fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (invite_forwarder, invite_receiver) = MessageForwarder::new();
+
+    let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
+    let other_user_id = UserId::try_from("@other_user:localhost").unwrap();
+    let bot_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
+    let admin_room_id = RoomId::try_from("!admin:localhost").unwrap();
+    let other_admin_room_id = RoomId::try_from("!other_admin:localhost").unwrap();
+
+    // common routes/mocked endpoints
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
-    let other_room_members = handlers::RoomMembers {
-        room_id: RoomId::try_from("!admin:localhost").unwrap(),
-        members: vec![UserId::try_from("@other_user:localhost").unwrap(),
-                      UserId::try_from("@rocketchat:localhost").unwrap()],
-    };
-    let path_params = get_member_events::PathParams { room_id: RoomId::try_from("!other_admin:localhost").unwrap() };
-    matrix_router.get(GetMemberEventsEndpoint::request_path(path_params), other_room_members, "other_room_members");
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
+
+    // routes/mocked endpoints to bridge the first admin room
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: spec_user_id.clone() };
+    let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: admin_room_id.clone(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+                      admin_room_creator_handler,
+                      "get_room_creator_admin_room");
+
+    // routes/mocked endpoints to bridge the other admin room
+    let other_room_members = handlers::RoomMembers {
+        room_id: other_admin_room_id.clone(),
+        members: vec![other_user_id.clone(), bot_user_id.clone()],
+    };
+    let other_members_params = get_member_events::PathParams { room_id: other_admin_room_id.clone() };
+    matrix_router.get(GetMemberEventsEndpoint::request_path(other_members_params), other_room_members, "other_room_members");
+
+    let other_admin_room_creator_handler = handlers::RoomStateCreate { creator: other_user_id.clone() };
+    let other_admin_room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: other_admin_room_id.clone(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(GetStateEventsForEmptyKey::request_path(other_admin_room_creator_params),
+                      other_admin_room_creator_handler,
+                      "get_room_creator_other_admin_room");
+
 
     let mut rocketchat_router = Router::new();
     rocketchat_router.post(LOGIN_PATH,
@@ -165,37 +197,37 @@ fn susccessfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
 
     // login spec user
     helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           admin_room_id.clone(),
+                                           spec_user_id.clone(),
                                            "login spec_user secret".to_string());
 
     // create other admin room
     helpers::create_admin_room(&test.config.as_url,
                                RoomId::try_from("!other_admin:localhost").unwrap(),
-                               UserId::try_from("@other_user:localhost").unwrap(),
-                               UserId::try_from("@rocketchat:localhost").unwrap());
+                               other_user_id.clone(),
+                               bot_user_id.clone());
 
     // connect other admin room
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!other_admin:localhost").unwrap(),
-                                           UserId::try_from("@other_user:localhost").unwrap(),
+                                           other_user_id.clone(),
                                            format!("connect {}", test.rocketchat_mock_url.clone().unwrap()));
 
 
     // login other user
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!other_admin:localhost").unwrap(),
-                                           UserId::try_from("@other_user:localhost").unwrap(),
+                                           other_user_id.clone(),
                                            "login other_user secret".to_string());
 
     helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
+                                           admin_room_id,
+                                           spec_user_id.clone(),
                                            "bridge joined_channel".to_string());
 
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!other_admin:localhost").unwrap(),
-                                           UserId::try_from("@other_user:localhost").unwrap(),
+                                           other_user_id.clone(),
                                            "bridge joined_channel".to_string());
 
     // discard welcome message for spec user
@@ -221,18 +253,12 @@ fn susccessfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     assert!(other_message_received_by_matrix.contains("joined_channel is now bridged."));
 
     // users accept invite
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!joined_channel_id:localhost").unwrap(),
-                  UserId::try_from("@rocketchat:localhost").unwrap());
+    helpers::join(&test.config.as_url, RoomId::try_from("!joined_channel_id:localhost").unwrap(), bot_user_id.clone());
 
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!joined_channel_id:localhost").unwrap(),
-                  UserId::try_from("@spec_user:localhost").unwrap());
+    helpers::join(&test.config.as_url, RoomId::try_from("!joined_channel_id:localhost").unwrap(), spec_user_id.clone());
 
     // other_user accepts invite from bot user
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!joined_channel_id:localhost").unwrap(),
-                  UserId::try_from("@other_user:localhost").unwrap());
+    helpers::join(&test.config.as_url, RoomId::try_from("!joined_channel_id:localhost").unwrap(), other_user_id.clone());
 
     let spec_user_invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_invite_received_by_matrix.contains("@spec_user:localhost"));
@@ -248,9 +274,9 @@ fn susccessfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     assert_eq!(room.display_name, "joined_channel");
 
     let users_in_room = room.users(&connection).unwrap();
-    assert!(users_in_room.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat:localhost").unwrap()));
-    assert!(users_in_room.iter().any(|u| u.matrix_user_id == UserId::try_from("@spec_user:localhost").unwrap()));
-    assert!(users_in_room.iter().any(|u| u.matrix_user_id == UserId::try_from("@other_user:localhost").unwrap()));
+    assert!(users_in_room.iter().any(|u| u.matrix_user_id == bot_user_id));
+    assert!(users_in_room.iter().any(|u| u.matrix_user_id == spec_user_id));
+    assert!(users_in_room.iter().any(|u| u.matrix_user_id == other_user_id));
 }
 
 #[test]

@@ -20,6 +20,7 @@ fn read_config_from_file() {
                         hs_domain: "matrix.local"
                         sender_localpart: "rocketchat"
                         database_url: "./database.sqlite3"
+                        accept_remote_invites: true
                         use_ssl: false"#
             .replace("  ", ""); // hacky way to remove the whitespaces before the keys
     let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
@@ -36,5 +37,6 @@ fn read_config_from_file() {
     assert_eq!(config.hs_domain, "matrix.local");
     assert_eq!(config.sender_localpart, "rocketchat");
     assert_eq!(config.database_url, "./database.sqlite3");
+    assert_eq!(config.accept_remote_invites, true);
     assert_eq!(config.use_ssl, false);
 }

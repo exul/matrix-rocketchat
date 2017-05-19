@@ -2,6 +2,7 @@ use std::convert::TryFrom;
 
 use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
+use iron::url::Host;
 use ruma_events::room::member::{MemberEvent, MembershipState};
 use ruma_identifiers::{RoomId, UserId};
 use slog::Logger;
@@ -80,6 +81,20 @@ impl<'a> RoomHandler<'a> {
     }
 
     fn handle_bot_invite(&self, matrix_room_id: RoomId, invited_user_id: UserId, sender_id: UserId) -> Result<()> {
+        if !self.config.accept_remote_invites && self.is_remote_invite(&matrix_room_id)? {
+            info!(self.logger,
+                  "Bot was invited by a user from another homeserver ({}). \
+                  Ignoring the invite because remote invites are disabled.",
+                  &matrix_room_id);
+            return Ok(());
+        }
+
+        let room_creator_id = self.matrix_api.get_room_creator(matrix_room_id.clone())?;
+        if sender_id != room_creator_id {
+            self.handle_invalid_invite(matrix_room_id.clone(), invited_user_id.clone(), &sender_id, &room_creator_id)?;
+            return Ok(());
+        }
+
         self.connection
             .transaction(|| {
                 let user = User::find_or_create_by_matrix_user_id(self.connection, sender_id)?;
@@ -207,5 +222,29 @@ impl<'a> RoomHandler<'a> {
             .collect();
         let user = users.first().expect("An admin room always contains another user");
         Ok(user.language.clone())
+    }
+
+    fn is_remote_invite(&self, matrix_room_id: &RoomId) -> Result<bool> {
+        let hs_hostname = Host::parse(&self.config.hs_domain)
+            .chain_err(|| ErrorKind::InvalidHostname(self.config.hs_domain.clone()))?;
+        Ok(matrix_room_id.hostname().ne(&hs_hostname))
+    }
+
+    fn handle_invalid_invite(&self,
+                             matrix_room_id: RoomId,
+                             invited_user_id: UserId,
+                             sender_id: &UserId,
+                             room_creator_id: &UserId)
+                             -> Result<()> {
+        self.matrix_api.join(matrix_room_id.clone(), invited_user_id)?;
+        let body = t!(["admin_room", "only_room_creator_can_invite_bot_user"]).l(DEFAULT_LANGUAGE);
+        self.matrix_api.send_text_message_event(matrix_room_id.clone(), self.config.matrix_bot_user_id()?, body)?;
+        info!(self.logger,
+              "The bot user was invited by the user {} but the room {} was created by {}, bot user is leaving",
+              sender_id,
+              &matrix_room_id,
+              room_creator_id);
+        self.matrix_api.leave_room(matrix_room_id.clone())?;
+        self.matrix_api.forget_room(matrix_room_id)
     }
 }

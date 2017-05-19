@@ -274,6 +274,19 @@ impl Handler for RoomMembers {
     }
 }
 
+pub struct RoomStateCreate {
+    pub creator: UserId,
+}
+
+impl Handler for RoomStateCreate {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let mut values = serde_json::Map::new();
+        values.insert("creator".to_string(), serde_json::Value::String(self.creator.to_string()));
+        let payload = serde_json::to_string(&values).unwrap();
+        Ok(Response::with((status::Ok, payload)))
+    }
+}
+
 pub struct EmptyJson {}
 
 impl Handler for EmptyJson {

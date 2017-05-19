@@ -119,6 +119,11 @@ error_chain!{
             display("The provided user ID {} is not valid", user_id)
         }
 
+        InvalidHostname(hostname: String) {
+            description("The provided hostname ist not valid")
+            display("The provided hostname {} is not valid", hostname)
+        }
+
         EventIdGenerationFailed{
             description("Generating a new event ID failed")
             display("Could not generate a new event ID")

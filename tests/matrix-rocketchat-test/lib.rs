@@ -67,7 +67,7 @@ pub const HS_TOKEN: &'static str = "ht";
 /// Rocket.Chat token used in the tests
 pub const RS_TOKEN: &'static str = "rt";
 /// Number of threads that iron uses when running tests
-pub const IRON_THREADS: usize = 1;
+pub const IRON_THREADS: usize = 2;
 /// The version the mock Rocket.Chat server announces
 pub const DEFAULT_ROCKETCHAT_VERSION: &'static str = "0.49.0";
 
@@ -258,6 +258,7 @@ impl Test {
         router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "versions");
         router.post("*", handlers::EmptyJson {}, "default_post");
         router.put("*", handlers::EmptyJson {}, "default_put");
+
         if self.with_admin_room || self.with_connected_admin_room {
             let room_creator = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
             router.get(GetStateEventsForEmptyKey::router_path(), room_creator, "get_state_events_for_empty_key");

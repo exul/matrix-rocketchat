@@ -47,6 +47,7 @@ en:
 
       1. Login via curl: `curl ${as_url}/rocketchat/login -d '{"rocketchat_url": "${rocketchat_url}", "matrix_user_id": "${matrix_user_id}", "rocketchat_username": "ROCKETCHAT_USER", "password": "MYSECRET"}'`
     no_rocketchat_server_connected: "No Rocket.Chat server is connected yet."
+    only_room_creator_can_invite_bot_user: "Only the room creator can invite the Rocket.Chat bot user, please create a new room and invite the Rocket.Chat user to create an admin room."
     usage_instructions: |
       You are logged in.
 

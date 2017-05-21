@@ -21,6 +21,7 @@ use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout, handlers, 
 use reqwest::Method;
 use router::Router;
 use ruma_client_api::Endpoint;
+use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json::to_string;
@@ -301,7 +302,6 @@ fn login_via_rest_api_with_invalid_payload() {
                                                 &HashMap::new(),
                                                 None)
             .unwrap();
-    println!("MSG: {}", &response);
     assert!(response.contains("Could not process request, the submitted data is not valid"));
     assert_eq!(status_code, status::UnprocessableEntity);
 }
@@ -357,9 +357,16 @@ fn login_via_rest_api_with_a_user_that_has_no_connected_admin_room_for_the_rocke
 
 #[test]
 fn the_user_can_login_again_on_the_same_server_with_a_new_admin_room() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let leave_room = handlers::MatrixLeaveRoom {
+        as_url: test.config.as_url.clone(),
+        user_id: UserId::try_from("@rocketchat:localhost").unwrap(),
+    };
+    matrix_router.post(LeaveRoomEndpoint::router_path(), leave_room, "leave_room");
+
     let mut rocketchat_router = Router::new();
     rocketchat_router.post(LOGIN_PATH,
                            handlers::RocketchatLogin {
@@ -367,8 +374,7 @@ fn the_user_can_login_again_on_the_same_server_with_a_new_admin_room() {
                                rocketchat_user_id: None,
                            },
                            "login");
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()

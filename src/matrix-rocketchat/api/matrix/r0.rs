@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::convert::TryFrom;
 
 use pulldown_cmark::{Options, Parser, html};
 use reqwest::StatusCode;
@@ -13,6 +14,7 @@ use ruma_client_api::r0::room::create_room::{self, Endpoint as CreateRoomEndpoin
 use ruma_client_api::r0::send::send_message_event::{self, Endpoint as SendMessageEventEndpoint};
 use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint as SendStateEventForEmptyKeyEndpoint};
 use ruma_client_api::r0::sync::get_member_events::{self, Endpoint as GetMemberEventsEndpoint};
+use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKeyEndpoint};
 use ruma_events::EventType;
 use ruma_events::room::member::MemberEvent;
 use ruma_events::room::message::MessageType;
@@ -95,6 +97,32 @@ impl super::MatrixApi for MatrixApi {
         }
         Ok(())
     }
+
+    fn get_room_creator(&self, matrix_room_id: RoomId) -> Result<UserId> {
+        let path_params = get_state_events_for_empty_key::PathParams {
+            room_id: matrix_room_id,
+            event_type: EventType::RoomCreate.to_string(),
+        };
+        let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
+        let params = self.params_hash();
+
+        let (body, status_code) = RestApi::call_matrix(GetStateEventsForEmptyKeyEndpoint::method(), &endpoint, "{}", &params)?;
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        let room_create: Value = serde_json::from_str(&body)
+            .chain_err(|| {
+                ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix get_state_events_for_empty_key \
+                                               API endpoint: `{}`",
+                                               body))
+            })?;
+
+        let room_creator = room_create["creator"].to_string().replace("\"", "");
+        let user_id = UserId::try_from(&room_creator).chain_err(|| ErrorKind::InvalidUserId(room_creator))?;
+        Ok(user_id)
+    }
+
 
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>> {
         let path_params = get_member_events::PathParams { room_id: matrix_room_id.clone() };

@@ -21,6 +21,8 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn create_room(&self, room_name: String, room_alias_name: Option<String>) -> Result<RoomId>;
     /// Forget a room.
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()>;
+    /// Get the `user_id` of the user that created the room.
+    fn get_room_creator(&self, matrix_room_id: RoomId) -> Result<UserId>;
     /// Get the list of members for this room.
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>>;
     /// Invite a user to a room.

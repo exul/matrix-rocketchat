@@ -6,9 +6,11 @@ use std::sync::mpsc::Receiver;
 
 use iron::prelude::*;
 use iron::url::Url;
+use iron::url::percent_encoding::percent_decode;
 use iron::{Chain, Handler, status};
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
 use persistent::Write;
+use router::Router;
 use ruma_client_api::r0::account::register;
 use ruma_client_api::r0::room::create_room;
 use ruma_client_api::r0::sync::get_member_events;
@@ -16,7 +18,7 @@ use ruma_events::EventType;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
 use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json;
-use super::{Message, MessageForwarder, UsernameList};
+use super::{Message, MessageForwarder, UsernameList, helpers};
 
 #[derive(Serialize)]
 pub struct RocketchatInfo {
@@ -271,6 +273,49 @@ impl Handler for RoomMembers {
         let response = get_member_events::Response { chunk: member_events };
         let payload = serde_json::to_string(&response).unwrap();
         Ok(Response::with((status::Ok, payload)))
+    }
+}
+
+pub struct RoomStateCreate {
+    pub creator: UserId,
+}
+
+impl Handler for RoomStateCreate {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let mut values = serde_json::Map::new();
+        values.insert("creator".to_string(), serde_json::Value::String(self.creator.to_string()));
+        let payload = serde_json::to_string(&values).unwrap();
+        Ok(Response::with((status::Ok, payload)))
+    }
+}
+
+pub struct MatrixLeaveRoom {
+    pub as_url: String,
+    pub user_id: UserId,
+}
+
+impl MatrixLeaveRoom {
+    pub fn with_forwarder(as_url: String, user_id: UserId) -> (Chain, Receiver<String>) {
+        let (message_forwarder, receiver) = MessageForwarder::new();
+        let mut chain = Chain::new(MatrixLeaveRoom {
+                                       as_url: as_url,
+                                       user_id: user_id,
+                                   });
+        chain.link_before(message_forwarder);;
+        (chain, receiver)
+    }
+}
+
+impl Handler for MatrixLeaveRoom {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        let params = request.extensions.get::<Router>().unwrap().clone();
+        let url_room_id = params.find("room_id").unwrap();
+        let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
+        let room_id = RoomId::try_from(&decoded_room_id).unwrap();
+
+        helpers::leave_room(&self.as_url, room_id, self.user_id.clone());
+
+        Ok(Response::with((status::Ok, "{}")))
     }
 }
 

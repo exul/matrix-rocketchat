@@ -52,6 +52,7 @@ use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
+use ruma_client_api::r0::sync::get_state_events_for_empty_key::Endpoint as GetStateEventsForEmptyKey;
 use slog::{DrainExt, Record};
 use tempdir::TempDir;
 
@@ -66,7 +67,7 @@ pub const HS_TOKEN: &'static str = "ht";
 /// Rocket.Chat token used in the tests
 pub const RS_TOKEN: &'static str = "rt";
 /// Number of threads that iron uses when running tests
-pub const IRON_THREADS: usize = 1;
+pub const IRON_THREADS: usize = 2;
 /// The version the mock Rocket.Chat server announces
 pub const DEFAULT_ROCKETCHAT_VERSION: &'static str = "0.49.0";
 
@@ -177,6 +178,12 @@ impl Test {
         self
     }
 
+    /// Creates a test with a custom configuration
+    pub fn with_custom_config(mut self, config: Config) -> Test {
+        self.config = config;
+        self
+    }
+
     /// Login the user on the Rocket.Chat server
     pub fn with_logged_in_user(mut self) -> Test {
         self.with_logged_in_user = true;
@@ -251,12 +258,17 @@ impl Test {
         router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "versions");
         router.post("*", handlers::EmptyJson {}, "default_post");
         router.put("*", handlers::EmptyJson {}, "default_put");
+
         if self.with_admin_room || self.with_connected_admin_room {
+            let room_creator = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
+            router.get(GetStateEventsForEmptyKey::router_path(), room_creator, "get_state_events_for_empty_key");
+
             let room_members = handlers::RoomMembers {
                 room_id: RoomId::try_from("!admin:localhost").unwrap(),
                 members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
                               UserId::try_from("@rocketchat:localhost").unwrap()],
             };
+
             router.get(GetMemberEventsEndpoint::router_path(), room_members, "room_members");
             router.post(RegisterEndpoint::router_path(), handlers::MatrixRegister {}, "register");
         }
@@ -433,6 +445,7 @@ pub fn build_test_config(temp_dir: &TempDir) -> Config {
         hs_domain: "localhost".to_string(),
         sender_localpart: "rocketchat".to_string(),
         database_url: database_url.to_string(),
+        accept_remote_invites: false,
         use_ssl: false,
         ssl_certificate_path: None,
         ssl_key_path: None,

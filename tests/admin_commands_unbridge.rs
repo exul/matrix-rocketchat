@@ -1,10 +1,11 @@
 #![feature(try_from)]
 
-extern crate ruma_client_api;
-extern crate ruma_identifiers;
 extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
 extern crate router;
+extern crate ruma_client_api;
+extern crate ruma_events;
+extern crate ruma_identifiers;
 extern crate serde_json;
 
 use std::collections::HashMap;
@@ -16,6 +17,8 @@ use matrix_rocketchat::db::Room;
 use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
+use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
+use ruma_events::EventType;
 use ruma_identifiers::{RoomId, UserId};
 use router::Router;
 use serde_json::to_string;
@@ -94,6 +97,14 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
+    let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!other_admin:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+                      admin_room_creator_handler,
+                      "get_room_creator_admin_room");
 
     let mut rocketchat_router = Router::new();
     rocketchat_router.post(LOGIN_PATH,

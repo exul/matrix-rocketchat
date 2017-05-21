@@ -5,6 +5,7 @@ extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
 extern crate router;
 extern crate ruma_client_api;
+extern crate ruma_events;
 extern crate ruma_identifiers;
 
 use std::convert::TryFrom;
@@ -18,6 +19,8 @@ use matrix_rocketchat_test::{DEFAULT_ROCKETCHAT_VERSION, IRON_THREADS, MessageFo
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
+use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
+use ruma_events::EventType;
 use ruma_identifiers::{RoomId, UserId};
 
 #[test]
@@ -253,6 +256,7 @@ fn attempt_to_connect_with_a_rocketchat_server_id_that_is_already_in_use() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+
     let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
 
     let (tx, rx) = channel::<Listening>();
@@ -308,6 +312,14 @@ fn connect_an_existing_server() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
+    let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!other_admin:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+                      admin_room_creator_handler,
+                      "get_room_creator_admin_room");
 
     let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().run();
 
@@ -339,6 +351,14 @@ fn attempt_to_connect_to_an_existing_server_with_a_token() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
+    let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!other_admin:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+                      admin_room_creator_handler,
+                      "get_room_creator_admin_room");
 
     let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().run();
 
@@ -412,6 +432,14 @@ fn attempt_to_connect_a_server_with_a_token_that_is_already_in_use() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = Router::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
+    let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!other_admin:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+                      admin_room_creator_handler,
+                      "get_room_creator_admin_room");
 
     let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().run();
 

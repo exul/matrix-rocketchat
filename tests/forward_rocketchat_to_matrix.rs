@@ -23,6 +23,7 @@ use ruma_client_api::Endpoint;
 use ruma_client_api::r0::membership::invite_user::Endpoint as InviteUserEndpoint;
 use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinRoomByIdEndpoint;
 use ruma_client_api::r0::profile::set_display_name::Endpoint as SetDisplayNameEndpoint;
+use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json::to_string;
@@ -255,6 +256,67 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("spec_message 2"));
+}
+
+#[test]
+fn successfully_forwards_a_direct_message() {
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = Router::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
+
+    let test = Test::new()
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .run();
+
+    let first_direct_message = Message {
+        message_id: "spec_id_1".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "direct_message_channel_id".to_string(),
+        channel_name: None,
+        user_id: "rocketchat_user_id".to_string(),
+        user_name: "rocketchat_user".to_string(),
+        text: "Hey there".to_string(),
+    };
+    let first_direct_message_payload = to_string(&first_direct_message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &first_direct_message_payload);
+
+    let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat_rc_id_direct_message_channel_id\""));
+
+    let first_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(first_message_received_by_matrix.contains("Hey there"));
+
+    let connection = test.connection_pool.get().unwrap();
+    let room = Room::find_by_rocketchat_room_id(&connection, "rc_id".to_string(), "direct_message_channel_id".to_string())
+        .unwrap()
+        .unwrap();
+
+    let users = room.users(&connection).unwrap();
+    assert_eq!(users.len(), 2);
+    assert!(users.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat_user_id_rc_id:localhost").unwrap()));
+    assert!(users.iter().any(|u| u.matrix_user_id == UserId::try_from("@spec_user:localhost").unwrap()));
+
+    let second_direct_message = Message {
+        message_id: "spec_id_2".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "direct_message_channel_id".to_string(),
+        channel_name: None,
+        user_id: "rocketchat_user_id".to_string(),
+        user_name: "rocketchat_user".to_string(),
+        text: "Yay".to_string(),
+    };
+    let second_direct_message_payload = to_string(&second_direct_message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &second_direct_message_payload);
+
+    let second_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(second_message_received_by_matrix.contains("Hey there"));
 }
 
 #[test]

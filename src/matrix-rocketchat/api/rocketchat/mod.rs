@@ -51,7 +51,7 @@ pub struct Message {
     /// ID of the channel from which the message was sent
     pub channel_id: String,
     /// Name of the channel from which the message was sent
-    pub channel_name: String,
+    pub channel_name: Option<String>,
     /// ID of the user who sent the message
     pub user_id: String,
     /// Name of the user who sent the message

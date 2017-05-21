@@ -42,7 +42,7 @@ fn successfully_unbridge_a_rocketchat_room() {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "bridged_channel_id".to_string(),
-        channel_name: "bridged_channel".to_string(),
+        channel_name: Some("bridged_channel".to_string()),
         user_id: "new_user_id".to_string(),
         user_name: "new_user".to_string(),
         text: "spec_message".to_string(),

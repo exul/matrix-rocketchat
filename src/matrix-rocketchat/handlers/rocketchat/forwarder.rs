@@ -3,12 +3,14 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
 use slog::Logger;
+use ruma_identifiers::RoomId;
 
-use api::MatrixApi;
+use api::{MatrixApi, RocketchatApi};
 use api::rocketchat::Message;
 use config::Config;
 use db::{RocketchatServer, Room, UserInRoom, UserOnRocketchatServer};
 use errors::*;
+use handlers::events::RoomHandler;
 use handlers::rocketchat::VirtualUserHandler;
 
 const RESEND_THRESHOLD_IN_SECONDS: i64 = 3;
@@ -48,15 +50,29 @@ impl<'a> Forwarder<'a> {
             return Ok(());
         }
 
+
         let matrix_room_id = match Room::find_by_rocketchat_room_id(self.connection,
                                                                     rocketchat_server.id.clone(),
                                                                     message.channel_id.clone())? {
             Some(ref room) if room.is_bridged => room.matrix_room_id.clone(),
-            _ => {
+            Some(ref room) => {
                 debug!(self.logger,
-                       "Ignoring message from Rocket.Chat channel `{}`, because the channel is not bridged.",
-                       message.channel_id);
+                       "Ignoring message from Rocket.Chat channel `{}`, because the channel was bridged \
+                       with the matrix_room_id {}, but is not bridged anymore.",
+                       message.channel_id,
+                       &room.matrix_room_id);
                 return Ok(());
+            }
+            None => {
+                match self.auto_bridge_direct_message_channel(rocketchat_server, message)? {
+                    Some(matrix_room_id) => matrix_room_id,
+                    None => {
+                        debug!(self.logger,
+                               "Ignoring message from Rocket.Chat channel `{}`, because the channel is not bridged.",
+                               message.channel_id);
+                        return Ok(());
+                    }
+                }
             }
         };
 
@@ -101,5 +117,63 @@ impl<'a> Forwarder<'a> {
             }
             None => Ok(true),
         }
+    }
+
+    fn auto_bridge_direct_message_channel(&self,
+                                          rocketchat_server: &RocketchatServer,
+                                          message: &Message)
+                                          -> Result<Option<RoomId>> {
+        debug!(self.logger, "Got a potential direct message with channel_id `{}`", &message.channel_id);
+
+        let user_on_rocketchat_server = match self.find_matching_user_for_direct_message(rocketchat_server, message)? {
+            Some(user_on_rocketchat_server) => user_on_rocketchat_server,
+            None => {
+                debug!(self.logger, "No matching user found. Not bridging channel {} automatically", message.channel_id);
+                return Ok(None);
+            }
+        };
+
+        let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())?
+            .with_credentials(user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
+                              user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default());
+
+        if let Some(direct_message_channel) =
+            rocketchat_api.direct_messages_list()?.iter().find(|dm| dm.id == message.channel_id) {
+            let room_handler = RoomHandler::new(self.config, self.connection, self.logger, self.matrix_api);
+            let room = room_handler
+                .bridge_new_room(rocketchat_api,
+                                 rocketchat_server,
+                                 direct_message_channel,
+                                 user_on_rocketchat_server.matrix_user_id.clone())?;
+
+            Ok(Some(room.matrix_room_id.clone()))
+        } else {
+            debug!(self.logger,
+                   "User {} matched the channel_id, but does not have access to the channel. \
+                   Not bridging channel {} automatically",
+                   user_on_rocketchat_server.matrix_user_id,
+                   message.channel_id);
+            Ok(None)
+        }
+    }
+
+    fn find_matching_user_for_direct_message(&self,
+                                             rocketchat_server: &RocketchatServer,
+                                             message: &Message)
+                                             -> Result<Option<UserOnRocketchatServer>> {
+        for user_on_rocketchat_server in rocketchat_server.logged_in_users_on_rocketchat_server(self.connection)? {
+            if let Some(rocketchat_user_id) = user_on_rocketchat_server.rocketchat_user_id.clone() {
+                if message.channel_id.contains(&rocketchat_user_id) {
+                    debug!(self.logger,
+                           "Matching user with rocketchat_user_id `{}` for channel_id `{}` found, \
+                           auto bridging direct message.",
+                           rocketchat_user_id,
+                           &message.channel_id);
+                    return Ok(Some(user_on_rocketchat_server));
+                }
+            }
+        }
+
+        Ok(None)
     }
 }

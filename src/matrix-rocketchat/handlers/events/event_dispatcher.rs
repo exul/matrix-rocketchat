@@ -39,11 +39,8 @@ impl<'a> EventDispatcher<'a> {
         for event in events {
             match *event {
                 Event::RoomMember(member_event) => {
-                    if let Err(err) = RoomHandler::new(self.config,
-                                                       self.connection,
-                                                       self.logger.clone(),
-                                                       self.matrix_api.clone())
-                               .process(&member_event) {
+                    if let Err(err) = RoomHandler::new(self.config, self.connection, self.logger, &self.matrix_api)
+                           .process(&member_event) {
                         return self.handle_error(err, member_event.room_id, &member_event.user_id);
                     }
                 }

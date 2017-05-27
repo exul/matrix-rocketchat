@@ -36,7 +36,7 @@ pub struct Channel {
     #[serde(rename = "_id")]
     pub id: String,
     /// Name of the Rocket.Chat room
-    pub name: String,
+    pub name: Option<String>,
     /// List of users in the room
     pub usernames: Vec<String>,
 }
@@ -76,6 +76,8 @@ pub trait RocketchatApi {
     fn channels_list(&self) -> Result<Vec<Channel>>;
     /// Get the logged in users username
     fn current_username(&self) -> Result<String>;
+    /// List of direct messages the user is part of
+    fn direct_messages_list(&self) -> Result<Vec<Channel>>;
     /// Login a user on the Rocket.Chat server
     fn login(&self, username: &str, password: &str) -> Result<(String, String)>;
     /// Post a chat message

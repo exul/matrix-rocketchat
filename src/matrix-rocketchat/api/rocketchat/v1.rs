@@ -18,6 +18,8 @@ pub const ME_PATH: &'static str = "/api/v1/me";
 pub const USERS_INFO_PATH: &'static str = "/api/v1/users.info";
 /// Channels list endpoint path
 pub const CHANNELS_LIST_PATH: &'static str = "/api/v1/channels.list";
+/// Direct messages list endpoint path
+pub const DIRECT_MESSAGES_LIST_PATH: &'static str = "/api/v1/dm.list";
 /// Post chat message endpoint path
 pub const POST_CHAT_MESSAGE_PATH: &'static str = "/api/v1/chat.postMessage";
 
@@ -147,6 +149,13 @@ pub struct Credentials {
     pub user_id: String,
 }
 
+/// Response payload from the Rocket.Chat im.list endpoint.
+#[derive(Deserialize)]
+pub struct DirectMessagesListResponse {
+    /// A list of direct messages that the user is part of.
+    pub ims: Vec<Channel>,
+}
+
 #[derive(Deserialize)]
 /// Response payload from the Rocket.Chat login endpoint.
 pub struct LoginResponse {
@@ -244,6 +253,32 @@ impl super::RocketchatApi for RocketchatApi {
             })?;
 
         Ok(me_response.username)
+    }
+
+    fn direct_messages_list(&self) -> Result<Vec<Channel>> {
+        debug!(self.logger, format!("Getting direct messages list from Rocket.Chat server {}", &self.base_url));
+
+        let direct_messages_list_endpoint = GetWithAuthEndpoint {
+            base_url: self.base_url.clone(),
+            user_id: self.user_id.clone(),
+            auth_token: self.auth_token.clone(),
+            path: DIRECT_MESSAGES_LIST_PATH,
+            query_params: HashMap::new(),
+        };
+
+        let (body, status_code) = RestApi::call_rocketchat(&direct_messages_list_endpoint)?;
+        if !status_code.is_success() {
+            return Err(build_error(&direct_messages_list_endpoint.url(), &body, &status_code));
+        }
+
+        let direct_messages_list_response: DirectMessagesListResponse = serde_json::from_str(&body)
+            .chain_err(|| {
+                           ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat dm.list API \
+                                                endpoint: `{}`",
+                                                          body))
+                       })?;
+
+        Ok(direct_messages_list_response.ims)
     }
 
     fn login(&self, username: &str, password: &str) -> Result<(String, String)> {

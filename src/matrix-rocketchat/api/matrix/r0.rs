@@ -56,12 +56,12 @@ impl MatrixApi {
 }
 
 impl super::MatrixApi for MatrixApi {
-    fn create_room(&self, room_name: String, room_alias_name: Option<String>) -> Result<RoomId> {
+    fn create_room(&self, room_name: Option<String>, room_alias_name: Option<String>) -> Result<RoomId> {
         let endpoint = self.base_url.clone() + &CreateRoomEndpoint::request_path(());
         let body_params = create_room::BodyParams {
             creation_content: None,
             invite: vec![],
-            name: Some(room_name),
+            name: room_name,
             preset: Some(RoomPreset::PrivateChat),
             room_alias_name: room_alias_name,
             topic: None,

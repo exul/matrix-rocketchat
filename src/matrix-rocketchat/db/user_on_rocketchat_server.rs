@@ -10,6 +10,7 @@ use super::{RocketchatServer, User};
 /// A user on a Rocket.Chat server.
 #[derive(Associations, Debug, Identifiable, Queryable)]
 #[belongs_to(RocketchatServer, foreign_key = "rocketchat_server_id")]
+#[belongs_to(User, foreign_key = "matrix_user_id")]
 #[primary_key(matrix_user_id, rocketchat_server_id)]
 #[table_name="users_on_rocketchat_servers"]
 pub struct UserOnRocketchatServer {

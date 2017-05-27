@@ -7,11 +7,13 @@ use ruma_events::room::member::{MemberEvent, MembershipState};
 use ruma_identifiers::{RoomId, UserId};
 use slog::Logger;
 
-use api::MatrixApi;
+use api::{MatrixApi, RocketchatApi};
+use api::rocketchat::Channel;
 use config::Config;
-use db::{NewRoom, NewUserInRoom, Room, User, UserInRoom};
+use db::{NewRoom, NewUserInRoom, RocketchatServer, Room, User, UserInRoom};
 use errors::*;
 use handlers::ErrorNotifier;
+use handlers::rocketchat::VirtualUserHandler;
 use i18n::*;
 use super::CommandHandler;
 
@@ -19,16 +21,16 @@ use super::CommandHandler;
 pub struct RoomHandler<'a> {
     config: &'a Config,
     connection: &'a SqliteConnection,
-    logger: Logger,
-    matrix_api: Box<MatrixApi>,
+    logger: &'a Logger,
+    matrix_api: &'a Box<MatrixApi>,
 }
 
 impl<'a> RoomHandler<'a> {
     /// Create a new `RoomHandler`.
     pub fn new(config: &'a Config,
                connection: &'a SqliteConnection,
-               logger: Logger,
-               matrix_api: Box<MatrixApi>)
+               logger: &'a Logger,
+               matrix_api: &'a Box<MatrixApi>)
                -> RoomHandler<'a> {
         RoomHandler {
             config: config,
@@ -59,7 +61,7 @@ impl<'a> RoomHandler<'a> {
                 self.handle_bot_join(event.room_id.clone(), matrix_bot_user_id)?;
             }
             MembershipState::Join => {
-                let msg = format!("Received join eent for user {} and room {}", &state_key, &event.room_id);
+                let msg = format!("Received join event for user {} and room {}", &state_key, &event.room_id);
                 debug!(self.logger, msg);
 
                 self.handle_user_join(state_key, event.room_id.clone())?;
@@ -85,6 +87,19 @@ impl<'a> RoomHandler<'a> {
         }
 
         Ok(())
+    }
+
+    /// Bridges a new room between Rocket.Chat and Matrix. It creates the room on the Matrix
+    /// homeserver and manages the rooms virtual users.
+    pub fn bridge_new_room(&self,
+                           rocketchat_api: Box<RocketchatApi>,
+                           rocketchat_server: &RocketchatServer,
+                           channel: &Channel,
+                           user_id: UserId)
+                           -> Result<Room> {
+        let room = self.create_room(channel, rocketchat_server.id.clone(), user_id)?;
+        self.add_virtual_users_to_room(rocketchat_api, channel, rocketchat_server.id.clone(), room.matrix_room_id.clone())?;
+        Ok(room)
     }
 
     fn handle_bot_invite(&self, matrix_room_id: RoomId, invited_user_id: UserId, sender_id: UserId) -> Result<()> {
@@ -113,10 +128,11 @@ impl<'a> RoomHandler<'a> {
                     matrix_user_id: user.matrix_user_id,
                     matrix_room_id: room.matrix_room_id,
                 };
-                UserInRoom::insert(self.connection, &user_in_room)?;
-                self.matrix_api.join(matrix_room_id, invited_user_id)
+                UserInRoom::insert(self.connection, &user_in_room)
             })
-            .map_err(Error::from)
+            .map_err(Error::from)?;
+
+        self.matrix_api.join(matrix_room_id, invited_user_id)
     }
 
     fn handle_bot_join(&self, matrix_room_id: RoomId, matrix_bot_user_id: UserId) -> Result<()> {
@@ -225,7 +241,6 @@ impl<'a> RoomHandler<'a> {
             Ok(room_creator_id) => {
                 if invitation_submitter.matrix_user_id != room_creator_id {
                     self.handle_admin_room_not_created_by_inviter(room,
-                                                                  matrix_bot_user_id.clone(),
                                                                   &invitation_submitter.matrix_user_id,
                                                                   &room_creator_id)?;
                     return Ok(());
@@ -235,8 +250,8 @@ impl<'a> RoomHandler<'a> {
                 let error_notifier = ErrorNotifier {
                     config: self.config,
                     connection: self.connection,
-                    logger: &self.logger,
-                    matrix_api: &self.matrix_api,
+                    logger: self.logger,
+                    matrix_api: self.matrix_api,
                 };
                 error_notifier.send_message_to_user(&err, room.matrix_room_id.clone(), &invitation_submitter.matrix_user_id)?;
                 self.leave_and_forget_room(room)?;
@@ -255,8 +270,8 @@ impl<'a> RoomHandler<'a> {
                 let error_notifier = ErrorNotifier {
                     config: self.config,
                     connection: self.connection,
-                    logger: &self.logger,
-                    matrix_api: &self.matrix_api,
+                    logger: self.logger,
+                    matrix_api: self.matrix_api,
                 };
                 error_notifier.send_message_to_user(&err, room.matrix_room_id.clone(), &invitation_submitter.matrix_user_id)?;
                 self.leave_and_forget_room(room)?;
@@ -282,11 +297,9 @@ impl<'a> RoomHandler<'a> {
 
     fn handle_admin_room_not_created_by_inviter(&self,
                                                 room: &Room,
-                                                invited_user_id: UserId,
                                                 sender_id: &UserId,
                                                 room_creator_id: &UserId)
                                                 -> Result<()> {
-        self.matrix_api.join(room.matrix_room_id.clone(), invited_user_id)?;
         let body = t!(["admin_room", "only_room_creator_can_invite_bot_user"]).l(DEFAULT_LANGUAGE);
         self.matrix_api.send_text_message_event(room.matrix_room_id.clone(), self.config.matrix_bot_user_id()?, body)?;
         info!(self.logger,
@@ -295,5 +308,54 @@ impl<'a> RoomHandler<'a> {
               &room.matrix_room_id,
               room_creator_id);
         self.leave_and_forget_room(room)
+    }
+
+    fn create_room(&self, channel: &Channel, rocketchat_server_id: String, user_id: UserId) -> Result<Room> {
+        let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
+        let room_alias_name = format!("{}_{}_{}", self.config.sender_localpart, rocketchat_server_id, channel.id);
+        let matrix_room_id = self.matrix_api.create_room(channel.name.clone(), Some(room_alias_name))?;
+        self.matrix_api.set_default_powerlevels(matrix_room_id.clone(), bot_matrix_user_id.clone())?;
+        self.matrix_api.invite(matrix_room_id.clone(), user_id.clone())?;
+        let new_room = NewRoom {
+            matrix_room_id: matrix_room_id.clone(),
+            display_name: channel.name.clone().unwrap_or_else(|| channel.id.clone()),
+            rocketchat_server_id: Some(rocketchat_server_id),
+            rocketchat_room_id: Some(channel.id.clone()),
+            is_admin_room: false,
+            is_bridged: true,
+        };
+        let room = Room::insert(self.connection, &new_room)?;
+
+        Ok(room)
+    }
+
+    /// Add all users that are in a Rocket.Chat room to the Matrix room.
+    pub fn add_virtual_users_to_room(&self,
+                                     rocketchat_api: Box<RocketchatApi>,
+                                     channel: &Channel,
+                                     rocketchat_server_id: String,
+                                     matrix_room_id: RoomId)
+                                     -> Result<()> {
+        debug!(self.logger, "Starting to add virtual users to room {}", matrix_room_id);
+
+        let virtual_user_handler = VirtualUserHandler {
+            config: self.config,
+            connection: self.connection,
+            logger: self.logger,
+            matrix_api: self.matrix_api,
+        };
+
+        //TODO: Check if a max number of users per channel has to be defined to avoid problems when
+        //there are several thousand users in a channel.
+        for username in &channel.usernames {
+            let rocketchat_user = rocketchat_api.users_info(username)?;
+            let user_on_rocketchat_server =
+                virtual_user_handler.find_or_register(rocketchat_server_id.clone(), rocketchat_user.id, username.to_string())?;
+            virtual_user_handler.add_to_room(user_on_rocketchat_server.matrix_user_id, matrix_room_id.clone())?;
+        }
+
+        debug!(self.logger, "Successfully added {} virtual users to room {}", channel.usernames.len(), matrix_room_id);
+
+        Ok(())
     }
 }

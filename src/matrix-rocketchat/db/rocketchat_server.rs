@@ -6,8 +6,8 @@ use ruma_identifiers::UserId;
 
 use i18n::*;
 use errors::*;
-use super::{Room, User, UserInRoom};
-use super::schema::{rocketchat_servers, rooms, users_in_rooms};
+use super::{Room, User, UserInRoom, UserOnRocketchatServer};
+use super::schema::{rocketchat_servers, rooms, users_in_rooms, users_on_rocketchat_servers};
 
 /// A Rocket.Chat server.
 #[derive(Associations, Debug, Identifiable, Queryable)]
@@ -93,6 +93,15 @@ impl RocketchatServer {
             .load::<RocketchatServer>(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rocketchat_servers)
+    }
+
+    /// Get all users that are connected to this Rocket.Chat server.
+    pub fn logged_in_users_on_rocketchat_server(&self, connection: &SqliteConnection) -> Result<Vec<UserOnRocketchatServer>> {
+        let users_on_rocketchat_server: Vec<UserOnRocketchatServer> = UserOnRocketchatServer::belonging_to(self)
+            .filter(users_on_rocketchat_servers::rocketchat_auth_token.is_not_null())
+            .load(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(users_on_rocketchat_server)
     }
 
     /// Get the admin room for this Rocket.Chat server and a given user.

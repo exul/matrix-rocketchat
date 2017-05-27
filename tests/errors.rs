@@ -37,15 +37,16 @@ fn error_descriptions_from_the_error_chain_are_passed_to_the_outer_error() {
 
 #[test]
 fn errors_when_sending_a_message_are_handled_gracefully() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put("/_matrix/client/r0/rooms/!room:localhost/send/:event_type/:txn_id",
                       message_forwarder,
                       "send_message_event_success");
     matrix_router.put(SendMessageEventEndpoint::router_path(),
                       handlers::InvalidJsonResponse { status: status::InternalServerError },
                       "send_message_event_fail");
-    let test = Test::new().with_matrix_routes(matrix_router).with_admin_room().run();
+    let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     matrix_api
@@ -61,13 +62,13 @@ fn errors_when_sending_a_message_are_handled_gracefully() {
 
 #[test]
 fn the_user_gets_a_message_when_the_rocketchat_error_cannot_be_deserialized() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
     rocketchat_router.post(LOGIN_PATH, handlers::InvalidJsonResponse { status: status::InternalServerError }, "login");
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()

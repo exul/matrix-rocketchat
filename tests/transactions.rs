@@ -13,7 +13,6 @@ use matrix_rocketchat::api::RestApi;
 use matrix_rocketchat::models::Events;
 use matrix_rocketchat_test::{HS_TOKEN, MessageForwarder, Test, default_timeout, helpers};
 use reqwest::{Method, StatusCode};
-use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_events::EventType;
@@ -39,10 +38,11 @@ fn homeserver_sends_malformated_json() {
 
 #[test]
 fn unknown_event_types_are_skipped() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new().with_matrix_routes(matrix_router).run();
+    let test = test.with_matrix_routes(matrix_router).run();
 
     let unknown_event = HangupEvent {
         content: HangupEventContent {

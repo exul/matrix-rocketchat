@@ -9,7 +9,6 @@ extern crate ruma_identifiers;
 use std::convert::TryFrom;
 
 use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
-use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
@@ -19,10 +18,11 @@ use ruma_identifiers::{RoomId, UserId};
 
 #[test]
 fn help_command_when_not_connected_and_no_one_else_has_connected_a_server_yet() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
+    let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
 
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),
@@ -41,8 +41,9 @@ fn help_command_when_not_connected_and_no_one_else_has_connected_a_server_yet() 
 
 #[test]
 fn help_command_when_not_connected_and_someone_else_has_connected_a_server_already() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
@@ -53,13 +54,13 @@ fn help_command_when_not_connected_and_someone_else_has_connected_a_server_alrea
                       admin_room_creator_handler,
                       "get_room_creator_admin_room");
 
-    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
+    let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
 
     // other user creates admin room
-    helpers::create_admin_room(&test.config.as_url,
-                               RoomId::try_from("!other_admin:localhost").unwrap(),
-                               UserId::try_from("@other_user:localhost").unwrap(),
-                               UserId::try_from("@rocketchat:localhost").unwrap());
+    helpers::invite(&test.config.as_url,
+                    RoomId::try_from("!other_admin:localhost").unwrap(),
+                    UserId::try_from("@other_user:localhost").unwrap(),
+                    UserId::try_from("@rocketchat:localhost").unwrap());
 
     // other user connects the Rocket.Chat server
     helpers::send_room_message_from_matrix(&test.config.as_url,
@@ -92,10 +93,11 @@ fn help_command_when_not_connected_and_someone_else_has_connected_a_server_alrea
 
 #[test]
 fn help_command_when_connected() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new().with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().run();
+    let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().run();
 
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),
@@ -114,15 +116,12 @@ fn help_command_when_connected() {
 
 #[test]
 fn help_command_when_logged_in() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .run();
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     helpers::send_room_message_from_matrix(&test.config.as_url,
                                            RoomId::try_from("!admin:localhost").unwrap(),

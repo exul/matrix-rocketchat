@@ -1,4 +1,5 @@
 use rand::{Rng, thread_rng};
+use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io::Read;
@@ -125,6 +126,39 @@ impl Handler for RocketchatChannelsList {
     }
 }
 
+pub struct RocketchatDirectMessagesList {
+    pub direct_messages: HashMap<&'static str, Vec<&'static str>>,
+    pub status: status::Status,
+}
+
+impl Handler for RocketchatDirectMessagesList {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let mut dms = Vec::new();
+        for (id, user_names) in self.direct_messages.iter() {
+            let dm = r#"{
+                "_id": "DIRECT_MESSAGE_ID",
+                "_updatedAt": "2017-05-25T21:51:04.429Z",
+                "t": "d",
+                "msgs": 5,
+                "ts": "2017-05-12T14:49:01.806Z",
+                "lm": "2017-05-25T21:51:04.414Z",
+                "username": "admin",
+                "usernames": [
+                    "USER_NAMES"
+                ]}"#
+                    .replace("DIRECT_MESSAGE_ID", id)
+                    .replace("USER_NAMES", &user_names.join("\",\""));
+            dms.push(dm);
+        }
+
+        let payload = "{ \"ims\": [".to_string() + &dms.join(",") + "]}";
+
+        Ok(Response::with((status::Ok, payload)))
+    }
+}
+
+
+
 pub struct RocketchatUsersInfo {}
 
 impl Handler for RocketchatUsersInfo {
@@ -234,7 +268,8 @@ impl Handler for MatrixCreateRoom {
         let request_payload = extract_payload(request);
         let create_room_payload: create_room::BodyParams = serde_json::from_str(&request_payload).unwrap();
 
-        let room_id = RoomId::try_from(&format!("!{}_id:localhost", create_room_payload.name.unwrap())).unwrap();
+        let room_id = RoomId::try_from(&format!("!{}_id:localhost", create_room_payload.name.unwrap_or("1234".to_string())))
+            .unwrap();
         let response = create_room::Response { room_id: room_id };
         let payload = serde_json::to_string(&response).unwrap();
         Ok(Response::with((status::Ok, payload)))
@@ -289,18 +324,47 @@ impl Handler for RoomStateCreate {
     }
 }
 
+pub struct MatrixJoinRoom {
+    pub as_url: String,
+}
+
+impl MatrixJoinRoom {
+    pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
+        let (message_forwarder, receiver) = MessageForwarder::new();
+        let mut chain = Chain::new(MatrixJoinRoom { as_url: as_url });
+        chain.link_before(message_forwarder);;
+        (chain, receiver)
+    }
+}
+
+impl Handler for MatrixJoinRoom {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        let params = request.extensions.get::<Router>().unwrap().clone();
+        let url_room_id = params.find("room_id").unwrap();
+        let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
+        let room_id = RoomId::try_from(&decoded_room_id).unwrap();
+
+        let url: Url = request.url.clone().into();
+        let mut query_pairs = url.query_pairs();
+        let (_, user_id_param) =
+            query_pairs.find(|&(ref key, _)| key == "user_id").unwrap_or((Cow::from("user_id"),
+                                                                          Cow::from("@rocketchat:localhost")));
+        let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
+
+        helpers::join(&self.as_url, room_id, user_id);
+
+        Ok(Response::with((status::Ok, "{}")))
+    }
+}
+
 pub struct MatrixLeaveRoom {
     pub as_url: String,
-    pub user_id: UserId,
 }
 
 impl MatrixLeaveRoom {
-    pub fn with_forwarder(as_url: String, user_id: UserId) -> (Chain, Receiver<String>) {
+    pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
-        let mut chain = Chain::new(MatrixLeaveRoom {
-                                       as_url: as_url,
-                                       user_id: user_id,
-                                   });
+        let mut chain = Chain::new(MatrixLeaveRoom { as_url: as_url });
         chain.link_before(message_forwarder);;
         (chain, receiver)
     }
@@ -313,7 +377,14 @@ impl Handler for MatrixLeaveRoom {
         let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
         let room_id = RoomId::try_from(&decoded_room_id).unwrap();
 
-        helpers::leave_room(&self.as_url, room_id, self.user_id.clone());
+        let url: Url = request.url.clone().into();
+        let mut query_pairs = url.query_pairs();
+        let (_, user_id_param) =
+            query_pairs.find(|&(ref key, _)| key == "user_id").unwrap_or((Cow::from("user_id"),
+                                                                          Cow::from("@rocketchat:localhost")));
+        let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
+
+        helpers::leave_room(&self.as_url, room_id, user_id);
 
         Ok(Response::with((status::Ok, "{}")))
     }

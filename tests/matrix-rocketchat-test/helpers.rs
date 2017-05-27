@@ -11,11 +11,6 @@ use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json::to_string;
 use super::HS_TOKEN;
 
-pub fn create_admin_room(as_url: &str, admin_room_id: RoomId, test_user_id: UserId, bot_user_id: UserId) {
-    invite(as_url, admin_room_id.clone(), test_user_id.clone(), bot_user_id.clone());
-    join(as_url, admin_room_id, bot_user_id);
-}
-
 pub fn invite(as_url: &str, room_id: RoomId, sender_id: UserId, user_id: UserId) {
     let invite_event = MemberEvent {
         content: MemberEventContent {

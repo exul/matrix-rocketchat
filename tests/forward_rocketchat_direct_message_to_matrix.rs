@@ -30,7 +30,7 @@ fn successfully_forwards_a_direct_message() {
     let test = Test::new();
     let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
     let mut rocketchat_router = Router::new();

@@ -25,12 +25,12 @@ use serde_json::to_string;
 
 #[test]
 fn successfully_unbridge_a_rocketchat_room() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
 
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
@@ -50,10 +50,6 @@ fn successfully_unbridge_a_rocketchat_room() {
     let payload = to_string(&message).unwrap();
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
-
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
-                  UserId::try_from("@rocketchat_new_user_id_rc_id:localhost").unwrap());
 
     helpers::leave_room(&test.config.as_url,
                         RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
@@ -94,8 +90,9 @@ fn successfully_unbridge_a_rocketchat_room() {
 
 #[test]
 fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
@@ -116,8 +113,7 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
 
 
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -126,10 +122,10 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
         .run();
 
     // create other admin room
-    helpers::create_admin_room(&test.config.as_url,
-                               RoomId::try_from("!other_admin:localhost").unwrap(),
-                               UserId::try_from("@other_user:localhost").unwrap(),
-                               UserId::try_from("@rocketchat:localhost").unwrap());
+    helpers::invite(&test.config.as_url,
+                    RoomId::try_from("!other_admin:localhost").unwrap(),
+                    UserId::try_from("@other_user:localhost").unwrap(),
+                    UserId::try_from("@rocketchat:localhost").unwrap());
 
     // connect other admin room
     helpers::send_room_message_from_matrix(&test.config.as_url,
@@ -184,13 +180,13 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
 
 #[test]
 fn attempting_to_unbridge_a_non_existing_channel_returns_an_error() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut channels = HashMap::new();
     channels.insert("normal_channel", Vec::new());
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
@@ -215,13 +211,13 @@ fn attempting_to_unbridge_a_non_existing_channel_returns_an_error() {
 
 #[test]
 fn attempting_to_unbridge_an_channel_that_is_not_bridged_returns_an_error() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut channels = HashMap::new();
     channels.insert("normal_channel", Vec::new());
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()

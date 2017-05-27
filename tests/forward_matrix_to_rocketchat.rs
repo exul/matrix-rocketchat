@@ -23,12 +23,12 @@ use serde_json::to_string;
 
 #[test]
 fn successfully_forwards_a_text_message_from_matrix_to_rocketchat() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_matrix_routes();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
-    let test = Test::new()
-        .with_rocketchat_mock()
+    let test = test.with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
@@ -47,12 +47,12 @@ fn successfully_forwards_a_text_message_from_matrix_to_rocketchat() {
 
 #[test]
 fn do_not_forward_messages_from_the_bot_user_to_avoid_loops() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_matrix_routes();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
-    let test = Test::new()
-        .with_rocketchat_mock()
+    let test = test.with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
@@ -69,12 +69,12 @@ fn do_not_forward_messages_from_the_bot_user_to_avoid_loops() {
 
 #[test]
 fn do_not_forward_messages_from_virtual_user_to_avoid_loops() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_matrix_routes();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
-    let test = Test::new()
-        .with_rocketchat_mock()
+    let test = test.with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
@@ -104,12 +104,12 @@ fn do_not_forward_messages_from_virtual_user_to_avoid_loops() {
 
 #[test]
 fn ignore_messages_from_unbridged_rooms() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_matrix_routes();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
-    let test = Test::new()
-        .with_rocketchat_mock()
+    let test = test.with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
@@ -125,12 +125,12 @@ fn ignore_messages_from_unbridged_rooms() {
 
 #[test]
 fn ignore_messages_with_a_message_type_that_is_not_supported() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_matrix_routes();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
-    let test = Test::new()
-        .with_rocketchat_mock()
+    let test = test.with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
@@ -161,8 +161,9 @@ fn ignore_messages_with_a_message_type_that_is_not_supported() {
 
 #[test]
 fn the_user_gets_a_message_when_forwarding_a_message_failes() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH,
@@ -172,8 +173,7 @@ fn the_user_gets_a_message_when_forwarding_a_message_failes() {
                            },
                            "post_chat_message");
 
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()

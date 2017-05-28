@@ -40,7 +40,7 @@ fn successfully_forwards_a_direct_message() {
         direct_messages: direct_messages,
         status: status::Ok,
     };
-    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "post_chat_message");
+    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -106,4 +106,162 @@ fn successfully_forwards_a_direct_message() {
 
     let second_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(second_message_received_by_matrix.contains("Yay"));
+}
+
+#[test]
+fn no_room_is_created_when_the_user_doesn_not_have_access_to_the_matching_direct_message_channel() {
+    let test = Test::new();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
+    let mut rocketchat_router = Router::new();
+    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
+        direct_messages: HashMap::new(),
+        status: status::Ok,
+    };
+    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .run();
+
+    let direct_message = Message {
+        message_id: "spec_id_1".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_user_id_other_user_id".to_string(),
+        channel_name: None,
+        user_id: "other_user_id".to_string(),
+        user_name: "other_user".to_string(),
+        text: "Hey there".to_string(),
+    };
+    let direct_message_payload = to_string(&direct_message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &direct_message_payload);
+
+    // no room is created on the Matrix server
+    create_room_receiver.recv_timeout(default_timeout()).is_err();
+
+    let connection = test.connection_pool.get().unwrap();
+    let room_option =
+        Room::find_by_rocketchat_room_id(&connection, "rc_id".to_string(), "spec_user_id_other_user_id".to_string()).unwrap();
+    assert!(room_option.is_none());
+}
+
+#[test]
+fn no_room_is_created_when_no_matching_user_for_the_room_name_is_found() {
+    let test = Test::new();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
+
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
+
+    let direct_message = Message {
+        message_id: "spec_id_1".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "no_user_matches_this_channel_id".to_string(),
+        channel_name: None,
+        user_id: "other_user_id".to_string(),
+        user_name: "other_user".to_string(),
+        text: "Hey there".to_string(),
+    };
+    let direct_message_payload = to_string(&direct_message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &direct_message_payload);
+
+    // no room is created on the Matrix server
+    create_room_receiver.recv_timeout(default_timeout()).is_err();
+
+    let connection = test.connection_pool.get().unwrap();
+    let room_option =
+        Room::find_by_rocketchat_room_id(&connection, "rc_id".to_string(), "no_user_matches_this_channel_id".to_string())
+            .unwrap();
+    assert!(room_option.is_none());
+}
+
+#[test]
+fn no_room_is_created_when_getting_the_direct_message_list_failes() {
+    let test = Test::new();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
+    let mut rocketchat_router = Router::new();
+    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH,
+                          handlers::RocketchatErrorResponder {
+                              status: status::InternalServerError,
+                              message: "Getting DMs failed".to_string(),
+                          },
+                          "direct_messages_list");
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .run();
+
+    let direct_message = Message {
+        message_id: "spec_id_1".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_user_id_other_user_id".to_string(),
+        channel_name: None,
+        user_id: "other_user_id".to_string(),
+        user_name: "other_user".to_string(),
+        text: "Hey there".to_string(),
+    };
+    let direct_message_payload = to_string(&direct_message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &direct_message_payload);
+
+    // no room is created on the Matrix server
+    create_room_receiver.recv_timeout(default_timeout()).is_err();
+
+    let connection = test.connection_pool.get().unwrap();
+    let room_option =
+        Room::find_by_rocketchat_room_id(&connection, "rc_id".to_string(), "spec_user_id_other_user_id".to_string()).unwrap();
+    assert!(room_option.is_none());
+}
+
+#[test]
+fn no_room_is_created_when_the_direct_message_list_response_cannot_be_deserialized() {
+    let test = Test::new();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
+    let mut rocketchat_router = Router::new();
+    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH,
+                          handlers::InvalidJsonResponse { status: status::Ok },
+                          "direct_messages_list");
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .run();
+
+    let direct_message = Message {
+        message_id: "spec_id_1".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_user_id_other_user_id".to_string(),
+        channel_name: None,
+        user_id: "other_user_id".to_string(),
+        user_name: "other_user".to_string(),
+        text: "Hey there".to_string(),
+    };
+    let direct_message_payload = to_string(&direct_message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &direct_message_payload);
+
+    // no room is created on the Matrix server
+    create_room_receiver.recv_timeout(default_timeout()).is_err();
+
+    let connection = test.connection_pool.get().unwrap();
+    let room_option =
+        Room::find_by_rocketchat_room_id(&connection, "rc_id".to_string(), "spec_user_id_other_user_id".to_string()).unwrap();
+    assert!(room_option.is_none());
 }

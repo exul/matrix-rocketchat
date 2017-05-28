@@ -157,6 +157,11 @@ impl<'a> Forwarder<'a> {
         }
     }
 
+    // this is a pretty hacky way to find a Matrix user that could be the recipient for this
+    // message. The message itself doesn't contain any information about the recipient so the
+    // channel ID has to be checked against all users that use the application service and are
+    // logged in on the sending Rocket.Chat server, because direct message channel IDs consist of
+    // the `user_id`s of the two participants.
     fn find_matching_user_for_direct_message(&self,
                                              rocketchat_server: &RocketchatServer,
                                              message: &Message)
@@ -165,8 +170,7 @@ impl<'a> Forwarder<'a> {
             if let Some(rocketchat_user_id) = user_on_rocketchat_server.rocketchat_user_id.clone() {
                 if message.channel_id.contains(&rocketchat_user_id) {
                     debug!(self.logger,
-                           "Matching user with rocketchat_user_id `{}` for channel_id `{}` found, \
-                           auto bridging direct message.",
+                           "Matching user with rocketchat_user_id `{}` for channel_id `{}` found.",
                            rocketchat_user_id,
                            &message.channel_id);
                     return Ok(Some(user_on_rocketchat_server));

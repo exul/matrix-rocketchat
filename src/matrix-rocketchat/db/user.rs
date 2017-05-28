@@ -27,7 +27,7 @@ pub struct User {
 }
 
 /// A new Matrix `User`, not yet saved.
-#[derive(Insertable)]
+#[derive(Insertable, Debug)]
 #[table_name="users"]
 pub struct NewUser<'a> {
     /// The users unique id on the Matrix server.

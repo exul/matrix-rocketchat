@@ -229,6 +229,15 @@ impl Handler for MatrixVersion {
 
 pub struct MatrixRegister {}
 
+impl MatrixRegister {
+    pub fn with_forwarder() -> (Chain, Receiver<String>) {
+        let (message_forwarder, receiver) = MessageForwarder::new();
+        let mut chain = Chain::new(MatrixRegister {});
+        chain.link_before(message_forwarder);;
+        (chain, receiver)
+    }
+}
+
 impl Handler for MatrixRegister {
     fn handle(&self, request: &mut Request) -> IronResult<Response> {
         let request_payload = extract_payload(request);
@@ -251,14 +260,16 @@ impl Handler for MatrixRegister {
     }
 }
 
-pub struct MatrixCreateRoom {}
+pub struct MatrixCreateRoom {
+    pub as_url: String,
+}
 
 impl MatrixCreateRoom {
     /// Create a `MatrixCreateRoom` handler with a message forwarder middleware.
-    pub fn with_forwarder() -> (Chain, Receiver<String>) {
+    pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
-        let mut chain = Chain::new(MatrixCreateRoom {});
-        chain.link_before(message_forwarder);;
+        let mut chain = Chain::new(MatrixCreateRoom { as_url: as_url });
+        chain.link_before(message_forwarder);
         (chain, receiver)
     }
 }
@@ -270,8 +281,20 @@ impl Handler for MatrixCreateRoom {
 
         let room_id = RoomId::try_from(&format!("!{}_id:localhost", create_room_payload.name.unwrap_or("1234".to_string())))
             .unwrap();
+
+        let url: Url = request.url.clone().into();
+        let mut query_pairs = url.query_pairs();
+        let (_, user_id_param) =
+            query_pairs.find(|&(ref key, _)| key == "user_id").unwrap_or((Cow::from("user_id"),
+                                                                          Cow::from("@rocketchat:localhost")));
+        let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
+
+        // join event that is triggered when the room creator enters the room
+        helpers::join(&self.as_url, room_id.clone(), user_id);
+
         let response = create_room::Response { room_id: room_id };
         let payload = serde_json::to_string(&response).unwrap();
+
         Ok(Response::with((status::Ok, payload)))
     }
 }

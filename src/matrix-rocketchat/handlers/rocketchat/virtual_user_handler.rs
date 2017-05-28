@@ -19,7 +19,7 @@ pub struct VirtualUserHandler<'a> {
     /// Logger context
     pub logger: &'a Logger,
     /// Matrix REST API
-    pub matrix_api: &'a Box<MatrixApi>,
+    pub matrix_api: &'a MatrixApi,
 }
 
 impl<'a> VirtualUserHandler<'a> {
@@ -31,21 +31,25 @@ impl<'a> VirtualUserHandler<'a> {
     }
 
     /// Register a virtual user on the Matrix server and assign it to a Rocket.Chat server.
-    pub fn find_or_register(&self,
-                            rocketchat_server_id: String,
-                            rocketchat_user_id: String,
-                            rocketchat_user_name: String)
-                            -> Result<UserOnRocketchatServer> {
+    pub fn find_or_register(
+        &self,
+        rocketchat_server_id: String,
+        rocketchat_user_id: String,
+        rocketchat_user_name: String,
+    ) -> Result<UserOnRocketchatServer> {
         let user_id_local_part =
             format!("{}_{}_{}", self.config.sender_localpart, &rocketchat_user_id, rocketchat_server_id.clone());
         let user_id = format!("@{}:{}", user_id_local_part, self.config.hs_domain);
         let matrix_user_id = UserId::try_from(&user_id).chain_err(|| ErrorKind::InvalidUserId(user_id))?;
 
         if let Some(user_on_rocketchat_server) =
-            UserOnRocketchatServer::find_by_rocketchat_user_id(self.connection,
-                                                               rocketchat_server_id.clone(),
-                                                               rocketchat_user_id.clone(),
-                                                               true)? {
+            UserOnRocketchatServer::find_by_rocketchat_user_id(
+                self.connection,
+                rocketchat_server_id.clone(),
+                rocketchat_user_id.clone(),
+                true,
+            )?
+        {
             return Ok(user_on_rocketchat_server);
         }
 
@@ -66,13 +70,20 @@ impl<'a> VirtualUserHandler<'a> {
         let user_on_rocketchat_server = UserOnRocketchatServer::upsert(self.connection, &new_user_on_rocketchat_server)?;
 
         self.matrix_api.register(user_id_local_part.clone())?;
-        if let Err(err) = self.matrix_api.set_display_name(user_on_rocketchat_server.matrix_user_id.clone(),
-                                                           rocketchat_user_name.clone()) {
-            info!(self.logger,
-                  format!("Setting display name `{}`, for user `{}` failed with {}",
-                          &user_on_rocketchat_server.matrix_user_id,
-                          &rocketchat_user_name,
-                          err));
+        if let Err(err) = self.matrix_api.set_display_name(
+            user_on_rocketchat_server.matrix_user_id.clone(),
+            rocketchat_user_name.clone(),
+        )
+        {
+            info!(
+                self.logger,
+                format!(
+                    "Setting display name `{}`, for user `{}` failed with {}",
+                    &user_on_rocketchat_server.matrix_user_id,
+                    &rocketchat_user_name,
+                    err
+                )
+            );
         }
 
         Ok(user_on_rocketchat_server)

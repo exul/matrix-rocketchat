@@ -19,6 +19,8 @@ use matrix_rocketchat::db::Room;
 use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
+use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
+use ruma_client_api::r0::membership::invite_user::Endpoint as InviteEndpoint;
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_identifiers::{RoomId, UserId};
@@ -28,11 +30,15 @@ use serde_json::to_string;
 #[test]
 fn successfully_forwards_a_direct_message() {
     let test = Test::new();
-    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
+    let (register_forwarder, register_receiver) = handlers::MatrixRegister::with_forwarder();
+    let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
+    matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
+    matrix_router.post(RegisterEndpoint::router_path(), register_forwarder, "register");
     let mut rocketchat_router = Router::new();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
@@ -62,13 +68,23 @@ fn successfully_forwards_a_direct_message() {
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &first_direct_message_payload);
 
-    // spec user accepts the invite
     helpers::join(&test.config.as_url,
                   RoomId::try_from("!1234_id:localhost").unwrap(),
                   UserId::try_from("@spec_user:localhost").unwrap());
 
     let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat_rc_id_spec_user_id_other_user_id\""));
+
+    // discard bot registration
+    register_receiver.recv_timeout(default_timeout()).unwrap();
+
+    let register_message = register_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(register_message.contains("\"username\":\"rocketchat_other_user_id_rc_id\""));
+
+    let spec_user_invite = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(spec_user_invite.contains("\"user_id\":\"@spec_user:localhost\""));
+    // the users rocket.chat virtual user is not invited into direct message rooms
+    assert!(invite_receiver.recv_timeout(default_timeout()).is_err());
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -86,9 +102,8 @@ fn successfully_forwards_a_direct_message() {
         .unwrap();
 
     let users = room.users(&connection).unwrap();
-    assert_eq!(users.len(), 3);
+    assert_eq!(users.len(), 2);
     assert!(users.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat_other_user_id_rc_id:localhost").unwrap()));
-    assert!(users.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat_spec_user_id_rc_id:localhost").unwrap()));
     assert!(users.iter().any(|u| u.matrix_user_id == UserId::try_from("@spec_user:localhost").unwrap()));
 
     let second_direct_message = Message {
@@ -111,7 +126,7 @@ fn successfully_forwards_a_direct_message() {
 #[test]
 fn no_room_is_created_when_the_user_doesn_not_have_access_to_the_matching_direct_message_channel() {
     let test = Test::new();
-    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
     let mut rocketchat_router = Router::new();
@@ -153,7 +168,7 @@ fn no_room_is_created_when_the_user_doesn_not_have_access_to_the_matching_direct
 #[test]
 fn no_room_is_created_when_no_matching_user_for_the_room_name_is_found() {
     let test = Test::new();
-    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
 
@@ -186,7 +201,7 @@ fn no_room_is_created_when_no_matching_user_for_the_room_name_is_found() {
 #[test]
 fn no_room_is_created_when_getting_the_direct_message_list_failes() {
     let test = Test::new();
-    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
     let mut rocketchat_router = Router::new();
@@ -229,7 +244,7 @@ fn no_room_is_created_when_getting_the_direct_message_list_failes() {
 #[test]
 fn no_room_is_created_when_the_direct_message_list_response_cannot_be_deserialized() {
     let test = Test::new();
-    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
     let mut rocketchat_router = Router::new();

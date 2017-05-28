@@ -25,7 +25,7 @@ pub struct UserInRoom {
 }
 
 /// A new `UserInRoom`, not yet saved.
-#[derive(Insertable)]
+#[derive(Insertable, Debug)]
 #[table_name="users_in_rooms"]
 pub struct NewUserInRoom {
     /// The users unique id on the Matrix server.

@@ -407,7 +407,9 @@ impl Test {
 
         router.get(GetMemberEventsEndpoint::router_path(), room_members, "room_members");
         router.post(RegisterEndpoint::router_path(), handlers::MatrixRegister {}, "register");
-        router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
+        router.post(CreateRoomEndpoint::router_path(),
+                    handlers::MatrixCreateRoom { as_url: self.config.as_url.clone() },
+                    "create_room");
         router.post("*", handlers::EmptyJson {}, "default_post");
         router.put("*", handlers::EmptyJson {}, "default_put");
 

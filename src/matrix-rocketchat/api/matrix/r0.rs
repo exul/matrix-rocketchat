@@ -56,7 +56,11 @@ impl MatrixApi {
 }
 
 impl super::MatrixApi for MatrixApi {
-    fn create_room(&self, room_name: Option<String>, room_alias_name: Option<String>) -> Result<RoomId> {
+    fn create_room(&self,
+                   room_name: Option<String>,
+                   room_alias_name: Option<String>,
+                   room_creator_id: &UserId)
+                   -> Result<RoomId> {
         let endpoint = self.base_url.clone() + &CreateRoomEndpoint::request_path(());
         let body_params = create_room::BodyParams {
             creation_content: None,
@@ -69,7 +73,9 @@ impl super::MatrixApi for MatrixApi {
         };
         let payload = serde_json::to_string(&body_params)
             .chain_err(|| ErrorKind::InvalidJSON("Could not serialize create_room body params".to_string()))?;
-        let params = self.params_hash();
+        let user_id = room_creator_id.to_string();
+        let mut params = self.params_hash();
+        params.insert("user_id", &user_id);
 
         let (body, status_code) = RestApi::call_matrix(CreateRoomEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {

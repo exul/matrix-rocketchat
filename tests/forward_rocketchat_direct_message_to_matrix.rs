@@ -68,9 +68,11 @@ fn successfully_forwards_a_direct_message() {
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &first_direct_message_payload);
 
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!1234_id:localhost").unwrap(),
-                  UserId::try_from("@spec_user:localhost").unwrap());
+    helpers::join(
+        &test.config.as_url,
+        RoomId::try_from("!1234_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
 
     let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat_rc_id_spec_user_id_other_user_id\""));
@@ -205,12 +207,14 @@ fn no_room_is_created_when_getting_the_direct_message_list_failes() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH,
-                          handlers::RocketchatErrorResponder {
-                              status: status::InternalServerError,
-                              message: "Getting DMs failed".to_string(),
-                          },
-                          "direct_messages_list");
+    rocketchat_router.get(
+        DIRECT_MESSAGES_LIST_PATH,
+        handlers::RocketchatErrorResponder {
+            status: status::InternalServerError,
+            message: "Getting DMs failed".to_string(),
+        },
+        "direct_messages_list",
+    );
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -248,9 +252,11 @@ fn no_room_is_created_when_the_direct_message_list_response_cannot_be_deserializ
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH,
-                          handlers::InvalidJsonResponse { status: status::Ok },
-                          "direct_messages_list");
+    rocketchat_router.get(
+        DIRECT_MESSAGES_LIST_PATH,
+        handlers::InvalidJsonResponse { status: status::Ok },
+        "direct_messages_list",
+    );
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()

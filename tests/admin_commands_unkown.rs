@@ -22,10 +22,12 @@ fn unknown_commands_from_the_admin_room_are_ignored() {
 
     let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bogus command".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bogus command".to_string(),
+    );
 
     // we don't get a message, because the command is ignored and no error occurs
     receiver.recv_timeout(default_timeout()).is_err();
@@ -40,10 +42,12 @@ fn unknown_content_types_from_the_admin_room_are_ignored() {
 
     let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
 
-    helpers::send_emote_message_from_matrix(&test.config.as_url,
-                                            RoomId::try_from("!admin:localhost").unwrap(),
-                                            UserId::try_from("@spec_user:localhost").unwrap(),
-                                            "emote message".to_string());
+    helpers::send_emote_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "emote message".to_string(),
+    );
 
     // we don't get a message, because unknown content types are ignored and no error occurs
     receiver.recv_timeout(default_timeout()).is_err();
@@ -58,10 +62,12 @@ fn messages_from_the_bot_user_are_ignored() {
 
     let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@rocketchat:localhost").unwrap(),
-                                           "bot message".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
+        "bot message".to_string(),
+    );
 
     // we don't get a message, because messages from the bot user are ignored and no error occurs
     receiver.recv_timeout(default_timeout()).is_err();

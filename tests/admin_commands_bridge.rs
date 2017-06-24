@@ -57,10 +57,12 @@ fn successfully_bridge_a_rocketchat_room() {
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge joined_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
 
     let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(create_room_message.contains("\"name\":\"joined_channel\""));
@@ -91,13 +93,17 @@ fn successfully_bridge_a_rocketchat_room() {
     assert!(power_levels_received_by_matrix.contains("\"redact\":50"));
     assert!(power_levels_received_by_matrix.contains("@rocketchat:localhost"));
 
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!joined_channel_id:localhost").unwrap(),
-                  UserId::try_from("@rocketchat:localhost").unwrap());
+    helpers::join(
+        &test.config.as_url,
+        RoomId::try_from("!joined_channel_id:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
+    );
 
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!joined_channel_id:localhost").unwrap(),
-                  UserId::try_from("@spec_user:localhost").unwrap());
+    helpers::join(
+        &test.config.as_url,
+        RoomId::try_from("!joined_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
 
     let connection = test.connection_pool.get().unwrap();
     let room = Room::find(&connection, &RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();
@@ -146,18 +152,22 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
         room_id: other_admin_room_id.clone(),
         event_type: EventType::RoomCreate.to_string(),
     };
-    matrix_router.get(GetStateEventsForEmptyKey::request_path(other_admin_room_creator_params),
-                      other_admin_room_creator_handler,
-                      "get_room_creator_other_admin_room");
+    matrix_router.get(
+        GetStateEventsForEmptyKey::request_path(other_admin_room_creator_params),
+        other_admin_room_creator_handler,
+        "get_room_creator_other_admin_room",
+    );
 
 
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(LOGIN_PATH,
-                           handlers::RocketchatLogin {
-                               successful: true,
-                               rocketchat_user_id: None,
-                           },
-                           "login");
+    rocketchat_router.post(
+        LOGIN_PATH,
+        handlers::RocketchatLogin {
+            successful: true,
+            rocketchat_user_id: None,
+        },
+        "login",
+    );
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
     rocketchat_router.get(USERS_INFO_PATH, handlers::RocketchatUsersInfo {}, "users_info");
 
@@ -172,39 +182,51 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
         .run();
 
     // login spec user
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           admin_room_id.clone(),
-                                           spec_user_id.clone(),
-                                           "login spec_user secret".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        admin_room_id.clone(),
+        spec_user_id.clone(),
+        "login spec_user secret".to_string(),
+    );
 
     // create other admin room
-    helpers::invite(&test.config.as_url,
-                    RoomId::try_from("!other_admin:localhost").unwrap(),
-                    other_user_id.clone(),
-                    bot_user_id.clone());
+    helpers::invite(
+        &test.config.as_url,
+        RoomId::try_from("!other_admin:localhost").unwrap(),
+        other_user_id.clone(),
+        bot_user_id.clone(),
+    );
 
     // connect other admin room
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!other_admin:localhost").unwrap(),
-                                           other_user_id.clone(),
-                                           format!("connect {}", test.rocketchat_mock_url.clone().unwrap()));
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!other_admin:localhost").unwrap(),
+        other_user_id.clone(),
+        format!("connect {}", test.rocketchat_mock_url.clone().unwrap()),
+    );
 
 
     // login other user
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!other_admin:localhost").unwrap(),
-                                           other_user_id.clone(),
-                                           "login other_user secret".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!other_admin:localhost").unwrap(),
+        other_user_id.clone(),
+        "login other_user secret".to_string(),
+    );
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           admin_room_id,
-                                           spec_user_id.clone(),
-                                           "bridge joined_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        admin_room_id,
+        spec_user_id.clone(),
+        "bridge joined_channel".to_string(),
+    );
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!other_admin:localhost").unwrap(),
-                                           other_user_id.clone(),
-                                           "bridge joined_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!other_admin:localhost").unwrap(),
+        other_user_id.clone(),
+        "bridge joined_channel".to_string(),
+    );
 
     // discard welcome message for spec user
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -268,23 +290,31 @@ fn susccessfully_bridge_a_rocketchat_room_that_was_unbridged_before() {
         .with_bridged_room(("joined_channel", "spec_user"))
         .run();
 
-    helpers::leave_room(&test.config.as_url,
-                        RoomId::try_from("!joined_channel_id:localhost").unwrap(),
-                        UserId::try_from("@spec_user:localhost").unwrap());
+    helpers::leave_room(
+        &test.config.as_url,
+        RoomId::try_from("!joined_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "unbridge joined_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "unbridge joined_channel".to_string(),
+    );
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge joined_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
 
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!joined_channel_id:localhost").unwrap(),
-                  UserId::try_from("@spec_user:localhost").unwrap());
+    helpers::join(
+        &test.config.as_url,
+        RoomId::try_from("!joined_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -337,15 +367,19 @@ fn successfully_bridge_two_different_rocketchat_rooms() {
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge first_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge first_channel".to_string(),
+    );
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge second_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge second_channel".to_string(),
+    );
 
     let first_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(first_message_received_by_matrix.contains("first_channel is now bridged."));
@@ -353,21 +387,29 @@ fn successfully_bridge_two_different_rocketchat_rooms() {
     let second_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(second_message_received_by_matrix.contains("second_channel is now bridged."));
 
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!first_channel_id:localhost").unwrap(),
-                  UserId::try_from("@rocketchat:localhost").unwrap());
+    helpers::join(
+        &test.config.as_url,
+        RoomId::try_from("!first_channel_id:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
+    );
 
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!first_channel_id:localhost").unwrap(),
-                  UserId::try_from("@spec_user:localhost").unwrap());
+    helpers::join(
+        &test.config.as_url,
+        RoomId::try_from("!first_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
 
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!second_channel_id:localhost").unwrap(),
-                  UserId::try_from("@rocketchat:localhost").unwrap());
+    helpers::join(
+        &test.config.as_url,
+        RoomId::try_from("!second_channel_id:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
+    );
 
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!second_channel_id:localhost").unwrap(),
-                  UserId::try_from("@spec_user:localhost").unwrap());
+    helpers::join(
+        &test.config.as_url,
+        RoomId::try_from("!second_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
 
     let connection = test.connection_pool.get().unwrap();
     let first_room = Room::find(&connection, &RoomId::try_from("!first_channel_id:localhost").unwrap()).unwrap();
@@ -417,14 +459,18 @@ fn do_not_allow_to_bridge_channels_that_the_user_has_not_joined_on_the_rocketcha
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge normal_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge normal_channel".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("You have to join the channel normal_channel on the Rocket.Chat server \
-                                                before you can bridge it."));
+    assert!(message_received_by_matrix.contains(
+        "You have to join the channel normal_channel on the Rocket.Chat server \
+                                                before you can bridge it.",
+    ));
 }
 
 #[test]
@@ -449,10 +495,12 @@ fn attempting_to_bridge_a_non_existing_channel_returns_an_error() {
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge nonexisting_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge nonexisting_channel".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("No channel with the name nonexisting_channel found."));
@@ -480,23 +528,29 @@ fn attempting_to_bridge_an_already_bridged_channel_returns_an_error() {
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge joined_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
 
     // spec_user accepts invite from bot user
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!joined_channel_id:localhost").unwrap(),
-                  UserId::try_from("@spec_user:localhost").unwrap());
+    helpers::join(
+        &test.config.as_url,
+        RoomId::try_from("!joined_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
 
     // discard successful bridge message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge joined_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("The channel joined_channel is already bridged."));
@@ -508,12 +562,14 @@ fn the_user_gets_a_message_when_creating_the_room_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.post(CreateRoomEndpoint::router_path(),
-                       handlers::MatrixErrorResponder {
-                           status: status::InternalServerError,
-                           message: "Could not create room".to_string(),
-                       },
-                       "create_room");
+    matrix_router.post(
+        CreateRoomEndpoint::router_path(),
+        handlers::MatrixErrorResponder {
+            status: status::InternalServerError,
+            message: "Could not create room".to_string(),
+        },
+        "create_room",
+    );
     let mut channels = HashMap::new();
     channels.insert("joined_channel", vec!["spec_user"]);
     let test = test.with_matrix_routes(matrix_router)
@@ -530,10 +586,12 @@ fn the_user_gets_a_message_when_creating_the_room_failes() {
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge joined_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("An internal error occurred"));
@@ -545,13 +603,15 @@ fn the_user_gets_a_message_when_setting_the_powerlevels_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(),
-                      handlers::MatrixConditionalErrorResponder {
-                          status: status::InternalServerError,
-                          message: "Could not set power levels".to_string(),
-                          conditional_content: "invite",
-                      },
-                      "set_power_levels");
+    matrix_router.put(
+        SendStateEventForEmptyKeyEndpoint::router_path(),
+        handlers::MatrixConditionalErrorResponder {
+            status: status::InternalServerError,
+            message: "Could not set power levels".to_string(),
+            conditional_content: "invite",
+        },
+        "set_power_levels",
+    );
     let mut channels = HashMap::new();
     channels.insert("joined_channel", vec!["spec_user"]);
     let test = test.with_matrix_routes(matrix_router)
@@ -568,10 +628,12 @@ fn the_user_gets_a_message_when_setting_the_powerlevels_failes() {
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge joined_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("An internal error occurred"));
@@ -583,12 +645,14 @@ fn the_user_gets_a_message_when_inviting_the_user_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.post(InviteEndpoint::router_path(),
-                       handlers::MatrixErrorResponder {
-                           status: status::InternalServerError,
-                           message: "Could not invite user".to_string(),
-                       },
-                       "invite");
+    matrix_router.post(
+        InviteEndpoint::router_path(),
+        handlers::MatrixErrorResponder {
+            status: status::InternalServerError,
+            message: "Could not invite user".to_string(),
+        },
+        "invite",
+    );
     let mut channels = HashMap::new();
     channels.insert("joined_channel", vec!["spec_user"]);
     let test = test.with_matrix_routes(matrix_router)
@@ -605,10 +669,12 @@ fn the_user_gets_a_message_when_inviting_the_user_failes() {
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge joined_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("An internal error occurred"));
@@ -624,19 +690,23 @@ fn the_user_gets_a_message_when_getting_the_users_info_failes() {
     channels.insert("joined_channel", vec!["spec_user"]);
 
     let mut rocketchat_router = test.default_matrix_routes();
-    rocketchat_router.post(LOGIN_PATH,
-                           handlers::RocketchatLogin {
-                               successful: true,
-                               rocketchat_user_id: None,
-                           },
-                           "login");
+    rocketchat_router.post(
+        LOGIN_PATH,
+        handlers::RocketchatLogin {
+            successful: true,
+            rocketchat_user_id: None,
+        },
+        "login",
+    );
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
-    rocketchat_router.get(USERS_INFO_PATH,
-                          handlers::RocketchatErrorResponder {
-                              message: "Rocketh.Chat users.info error".to_string(),
-                              status: status::InternalServerError,
-                          },
-                          "users_info");
+    rocketchat_router.get(
+        USERS_INFO_PATH,
+        handlers::RocketchatErrorResponder {
+            message: "Rocketh.Chat users.info error".to_string(),
+            status: status::InternalServerError,
+        },
+        "users_info",
+    );
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -645,15 +715,19 @@ fn the_user_gets_a_message_when_getting_the_users_info_failes() {
         .with_custom_channel_list(channels)
         .run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "login spec_user secret".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "login spec_user secret".to_string(),
+    );
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge joined_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -689,10 +763,12 @@ fn the_user_gets_a_message_when_the_create_room_response_cannot_be_deserialized(
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge joined_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("An internal error occurred"));
@@ -708,12 +784,14 @@ fn the_user_gets_a_message_when_the_users_info_response_cannot_be_deserialized()
     channels.insert("joined_channel", vec!["spec_user"]);
 
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(LOGIN_PATH,
-                           handlers::RocketchatLogin {
-                               successful: true,
-                               rocketchat_user_id: None,
-                           },
-                           "login");
+    rocketchat_router.post(
+        LOGIN_PATH,
+        handlers::RocketchatLogin {
+            successful: true,
+            rocketchat_user_id: None,
+        },
+        "login",
+    );
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
     rocketchat_router.get(USERS_INFO_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "users_info");
 
@@ -724,15 +802,19 @@ fn the_user_gets_a_message_when_the_users_info_response_cannot_be_deserialized()
         .with_custom_channel_list(channels)
         .run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "login spec_user secret".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "login spec_user secret".to_string(),
+    );
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "bridge joined_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();

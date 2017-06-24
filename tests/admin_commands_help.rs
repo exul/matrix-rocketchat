@@ -24,18 +24,22 @@ fn help_command_when_not_connected_and_no_one_else_has_connected_a_server_yet() 
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "help".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "help".to_string(),
+    );
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("You have to connect this room to a Rocket.Chat server. To do so you can \
+    assert!(message_received_by_matrix.contains(
+        "You have to connect this room to a Rocket.Chat server. To do so you can \
                                                 either use an already connected server (if there is one) or connect to a \
-                                                new server."));
+                                                new server.",
+    ));
     assert!(message_received_by_matrix.contains("No Rocket.Chat server is connected yet."));
 }
 
@@ -50,31 +54,37 @@ fn help_command_when_not_connected_and_someone_else_has_connected_a_server_alrea
         room_id: RoomId::try_from("!other_admin:localhost").unwrap(),
         event_type: EventType::RoomCreate.to_string(),
     };
-    matrix_router.get(GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
-                      admin_room_creator_handler,
-                      "get_room_creator_admin_room");
+    matrix_router.get(
+        GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+        admin_room_creator_handler,
+        "get_room_creator_admin_room",
+    );
 
     let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
 
     // other user creates admin room
-    helpers::invite(&test.config.as_url,
-                    RoomId::try_from("!other_admin:localhost").unwrap(),
-                    UserId::try_from("@other_user:localhost").unwrap(),
-                    UserId::try_from("@rocketchat:localhost").unwrap());
+    helpers::invite(
+        &test.config.as_url,
+        RoomId::try_from("!other_admin:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
+    );
 
     // other user connects the Rocket.Chat server
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!other_admin:localhost").unwrap(),
-                                           UserId::try_from("@other_user:localhost").unwrap(),
-                                           format!("connect {} {} other_id",
-                                                   test.rocketchat_mock_url.clone().unwrap(),
-                                                   RS_TOKEN));
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!other_admin:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+        format!("connect {} {} other_id", test.rocketchat_mock_url.clone().unwrap(), RS_TOKEN),
+    );
 
     // spec user gets the already connected server list
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "help".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "help".to_string(),
+    );
 
     // discard other users welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -85,9 +95,11 @@ fn help_command_when_not_connected_and_someone_else_has_connected_a_server_alrea
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("You have to connect this room to a Rocket.Chat server. To do so you can \
+    assert!(message_received_by_matrix.contains(
+        "You have to connect this room to a Rocket.Chat server. To do so you can \
                                                 either use an already connected server (if there is one) or connect to a \
-                                                new server."));
+                                                new server.",
+    ));
     assert!(message_received_by_matrix.contains(&test.rocketchat_mock_url.clone().unwrap()));
 }
 
@@ -99,18 +111,22 @@ fn help_command_when_connected() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "help".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "help".to_string(),
+    );
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     let expected_curl_command = format!("curl http://{}", test.as_listening.as_ref().unwrap().socket);
-    assert!(message_received_by_matrix.contains("You have to login before you can use the application service, \
-                                                there are two ways to do that"));
+    assert!(message_received_by_matrix.contains(
+        "You have to login before you can use the application service, \
+                                                there are two ways to do that",
+    ));
     assert!(message_received_by_matrix.contains(&expected_curl_command));
 }
 
@@ -123,10 +139,12 @@ fn help_command_when_logged_in() {
     let test =
         test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "help".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "help".to_string(),
+    );
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -138,6 +156,8 @@ fn help_command_when_logged_in() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("`list` Lists all public rooms from the Rocket.Chat server"));
     assert!(message_received_by_matrix.contains("`bridge rocketchatroomnname` Bridge a Rocket.Chat room"));
-    assert!(message_received_by_matrix.contains("`unbridge rocketchatroomnname` Unbridge a Rocket.Chat room \
-                                                (messages are no longer forwarded)"));
+    assert!(message_received_by_matrix.contains(
+        "`unbridge rocketchatroomnname` Unbridge a Rocket.Chat room \
+                                                (messages are no longer forwarded)",
+    ));
 }

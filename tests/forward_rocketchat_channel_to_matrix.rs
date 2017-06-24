@@ -106,10 +106,10 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let users_iter = users.iter();
     let user_ids = users_iter
         .filter_map(|u| if u.matrix_user_id != bot_user_id && u.matrix_user_id != spec_user_id {
-                        Some(u.matrix_user_id.clone())
-                    } else {
-                        None
-                    })
+            Some(u.matrix_user_id.clone())
+        } else {
+            None
+        })
         .collect::<Vec<UserId>>();
     let new_user_id = user_ids.iter().next().unwrap();
 
@@ -215,10 +215,10 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let users_iter = users.iter();
     let user_ids = users_iter
         .filter_map(|u| if u.matrix_user_id != bot_user_id && u.matrix_user_id != spec_user_id {
-                        Some(u.matrix_user_id.clone())
-                    } else {
-                        None
-                    })
+            Some(u.matrix_user_id.clone())
+        } else {
+            None
+        })
         .collect::<Vec<UserId>>();
     let new_user_id = user_ids.iter().next().unwrap();
 
@@ -298,12 +298,13 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
     let connection = test.connection_pool.get().unwrap();
     let admin_room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
     let rocketchat_server_id = admin_room.rocketchat_server_id.unwrap();
-    let user_on_rocketchat_server = UserOnRocketchatServer::find_by_rocketchat_user_id(&connection,
-                                                                                       rocketchat_server_id,
-                                                                                       "virtual_spec_user_id".to_string(),
-                                                                                       true)
-            .unwrap()
-            .unwrap();
+    let user_on_rocketchat_server = UserOnRocketchatServer::find_by_rocketchat_user_id(
+        &connection,
+        rocketchat_server_id,
+        "virtual_spec_user_id".to_string(),
+        true,
+    ).unwrap()
+        .unwrap();
     assert_eq!(user_on_rocketchat_server.rocketchat_username.unwrap(), "virtual_spec_user_new".to_string());
 }
 
@@ -313,12 +314,14 @@ fn message_is_forwarded_even_if_setting_the_display_name_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.put(SetDisplayNameEndpoint::router_path(),
-                      handlers::MatrixErrorResponder {
-                          status: status::InternalServerError,
-                          message: "Could not set display name".to_string(),
-                      },
-                      "set_display_name");
+    matrix_router.put(
+        SetDisplayNameEndpoint::router_path(),
+        handlers::MatrixErrorResponder {
+            status: status::InternalServerError,
+            message: "Could not set display name".to_string(),
+        },
+        "set_display_name",
+    );
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -372,13 +375,15 @@ fn no_message_is_forwarded_when_inviting_the_user_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.post(InviteUserEndpoint::router_path(),
-                       handlers::MatrixConditionalErrorResponder {
-                           status: status::InternalServerError,
-                           message: "Could not invite user".to_string(),
-                           conditional_content: "new_user",
-                       },
-                       "invite_user");
+    matrix_router.post(
+        InviteUserEndpoint::router_path(),
+        handlers::MatrixConditionalErrorResponder {
+            status: status::InternalServerError,
+            message: "Could not invite user".to_string(),
+            conditional_content: "new_user",
+        },
+        "invite_user",
+    );
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -498,12 +503,14 @@ fn do_not_forward_messages_when_the_channel_was_bridged_but_is_unbridged_now() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.put(SetDisplayNameEndpoint::router_path(),
-                      handlers::MatrixErrorResponder {
-                          status: status::InternalServerError,
-                          message: "Could not set display name".to_string(),
-                      },
-                      "set_display_name");
+    matrix_router.put(
+        SetDisplayNameEndpoint::router_path(),
+        handlers::MatrixErrorResponder {
+            status: status::InternalServerError,
+            message: "Could not set display name".to_string(),
+        },
+        "set_display_name",
+    );
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -512,14 +519,18 @@ fn do_not_forward_messages_when_the_channel_was_bridged_but_is_unbridged_now() {
         .with_bridged_room(("spec_channel", "spec_user"))
         .run();
 
-    helpers::leave_room(&test.config.as_url,
-                        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
-                        UserId::try_from("@spec_user:localhost").unwrap());
+    helpers::leave_room(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "unbridge spec_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "unbridge spec_channel".to_string(),
+    );
 
     let message = Message {
         message_id: "spec_id".to_string(),

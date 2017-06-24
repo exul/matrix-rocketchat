@@ -35,10 +35,12 @@ fn successfully_forwards_a_text_message_from_matrix_to_rocketchat() {
         .with_bridged_room(("spec_channel", "spec_user"))
         .run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!spec_channel_id:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "spec message".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "spec message".to_string(),
+    );
 
     let message_received_by_rocketchat = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_rocketchat.contains("spec message"));
@@ -59,10 +61,12 @@ fn do_not_forward_messages_from_the_bot_user_to_avoid_loops() {
         .with_bridged_room(("spec_channel", "spec_user"))
         .run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!spec_channel_id:localhost").unwrap(),
-                                           UserId::try_from("@rocketchat:localhost").unwrap(),
-                                           "spec message".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
+        "spec message".to_string(),
+    );
 
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
@@ -94,10 +98,12 @@ fn do_not_forward_messages_from_virtual_user_to_avoid_loops() {
     let payload = to_string(&message).unwrap();
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!spec_channel_id:localhost").unwrap(),
-                                           UserId::try_from("@rocketchat_virtual_spec_user_id_1:localhost").unwrap(),
-                                           "spec message".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@rocketchat_virtual_spec_user_id_1:localhost").unwrap(),
+        "spec message".to_string(),
+    );
 
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
@@ -115,10 +121,12 @@ fn ignore_messages_from_unbridged_rooms() {
         .with_logged_in_user()
         .run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!not_bridged_channel_id:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "spec message".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!not_bridged_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "spec message".to_string(),
+    );
 
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
@@ -150,10 +158,12 @@ fn ignore_messages_with_a_message_type_that_is_not_supported() {
     let payload = to_string(&message).unwrap();
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
-    helpers::send_emote_message_from_matrix(&test.config.as_url,
-                                            RoomId::try_from("!spec_channel_id:localhost").unwrap(),
-                                            UserId::try_from("@spec_user:localhost").unwrap(),
-                                            "emote message".to_string());
+    helpers::send_emote_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "emote message".to_string(),
+    );
 
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
@@ -166,12 +176,14 @@ fn the_user_gets_a_message_when_forwarding_a_message_failes() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(POST_CHAT_MESSAGE_PATH,
-                           handlers::RocketchatErrorResponder {
-                               message: "Rocketh.Chat chat.postMessage error".to_string(),
-                               status: status::InternalServerError,
-                           },
-                           "post_chat_message");
+    rocketchat_router.post(
+        POST_CHAT_MESSAGE_PATH,
+        handlers::RocketchatErrorResponder {
+            message: "Rocketh.Chat chat.postMessage error".to_string(),
+            status: status::InternalServerError,
+        },
+        "post_chat_message",
+    );
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -181,10 +193,12 @@ fn the_user_gets_a_message_when_forwarding_a_message_failes() {
         .with_bridged_room(("spec_channel", "spec_user"))
         .run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!spec_channel_id:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "spec message".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "spec message".to_string(),
+    );
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();

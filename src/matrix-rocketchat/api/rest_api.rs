@@ -13,11 +13,12 @@ pub struct RestApi {}
 
 impl RestApi {
     /// Call a matrix REST API endpoint
-    pub fn call_matrix<'a>(method: RumaHttpMethod,
-                           url: &str,
-                           payload: &str,
-                           params: &HashMap<&str, &'a str>)
-                           -> Result<(String, StatusCode)> {
+    pub fn call_matrix<'a>(
+        method: RumaHttpMethod,
+        url: &str,
+        payload: &str,
+        params: &HashMap<&str, &'a str>,
+    ) -> Result<(String, StatusCode)> {
         let method = match method {
             RumaHttpMethod::Delete => Method::Delete,
             RumaHttpMethod::Get => Method::Get,
@@ -34,12 +35,13 @@ impl RestApi {
     }
 
     /// Call a REST API endpoint
-    pub fn call<'a>(method: Method,
-                    url: &str,
-                    payload: &str,
-                    params: &HashMap<&str, &'a str>,
-                    headers: Option<Headers>)
-                    -> Result<(String, StatusCode)> {
+    pub fn call<'a>(
+        method: Method,
+        url: &str,
+        payload: &str,
+        params: &HashMap<&str, &'a str>,
+        headers: Option<Headers>,
+    ) -> Result<(String, StatusCode)> {
         let client = Client::new().chain_err(|| ErrorKind::ApiCallFailed(url.to_string()))?;
         let encoded_url = RestApi::encode_url(url.to_string(), params)?;
 

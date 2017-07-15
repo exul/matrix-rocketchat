@@ -60,6 +60,10 @@ impl<'a> Forwarder<'a> {
             message.channel_id.clone(),
         )? {
             Some(ref room) if room.is_bridged => room.matrix_room_id.clone(),
+            Some(ref mut room) if room.is_direct_message_room => {
+                room.set_is_bridged(self.connection, true)?;
+                room.matrix_room_id.clone()
+            }
             Some(ref room) => {
                 debug!(
                     self.logger,
@@ -129,7 +133,11 @@ impl<'a> Forwarder<'a> {
         rocketchat_server: &RocketchatServer,
         message: &Message,
     ) -> Result<Option<RoomId>> {
-        debug!(self.logger, "Got a potential direct message with channel_id `{}`", &message.channel_id);
+        debug!(
+            self.logger,
+            "Got a message for a room that is not bridged yet (channel_id `{}`), checking if it's a direct message",
+            &message.channel_id
+        );
 
         let user_on_rocketchat_server = match self.find_matching_user_for_direct_message(rocketchat_server, message)? {
             Some(user_on_rocketchat_server) => user_on_rocketchat_server,

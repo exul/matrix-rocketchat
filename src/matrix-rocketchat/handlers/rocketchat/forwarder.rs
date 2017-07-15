@@ -160,6 +160,7 @@ impl<'a> Forwarder<'a> {
                 rocketchat_server.id.clone(),
                 direct_message_sender.matrix_user_id.clone(),
                 user_on_rocketchat_server.matrix_user_id.clone(),
+                true,
             )?;
 
             Ok(Some(room.matrix_room_id.clone()))

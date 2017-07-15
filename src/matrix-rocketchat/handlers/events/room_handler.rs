@@ -102,7 +102,7 @@ impl<'a> RoomHandler<'a> {
         room_creator_id: UserId,
         invited_user_id: UserId,
     ) -> Result<Room> {
-        let room = self.create_room(channel, rocketchat_server.id.clone(), room_creator_id, invited_user_id)?;
+        let room = self.create_room(channel, rocketchat_server.id.clone(), room_creator_id, invited_user_id, false)?;
         self.add_virtual_users_to_room(rocketchat_api, channel, rocketchat_server.id.clone(), room.matrix_room_id.clone())?;
         Ok(room)
     }
@@ -129,6 +129,7 @@ impl<'a> RoomHandler<'a> {
                     rocketchat_room_id: None,
                     is_admin_room: true,
                     is_bridged: false,
+                    is_direct_message_room: false,
                 };
                 Room::insert(self.connection, &room)?;
                 let user_in_room = NewUserInRoom {
@@ -189,13 +190,17 @@ impl<'a> RoomHandler<'a> {
     }
 
     fn handle_user_leave(&self, matrix_user_id: &UserId, matrix_room_id: &RoomId) -> Result<()> {
-        let room = match Room::find_by_matrix_room_id(self.connection, matrix_room_id)? {
+        let mut room = match Room::find_by_matrix_room_id(self.connection, matrix_room_id)? {
             Some(room) => room,
             None => return Ok(()),
         };
 
         if room.is_admin_room {
             return self.leave_and_forget_room(&room);
+        }
+
+        if room.is_direct_message_room {
+            room.set_is_bridged(self.connection, false)?;
         }
 
         if let Some(user_in_room) =
@@ -312,6 +317,7 @@ impl<'a> RoomHandler<'a> {
         rocketchat_server_id: String,
         room_creator_id: UserId,
         invited_user_id: UserId,
+        is_direct_message_room: bool,
     ) -> Result<Room> {
         let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
         let room_alias_name = format!("{}_{}_{}", self.config.sender_localpart, rocketchat_server_id, channel.id);
@@ -325,6 +331,7 @@ impl<'a> RoomHandler<'a> {
             rocketchat_room_id: Some(channel.id.clone()),
             is_admin_room: false,
             is_bridged: true,
+            is_direct_message_room: is_direct_message_room,
         };
         let room = Room::insert(self.connection, &new_room)?;
 
@@ -376,7 +383,7 @@ impl<'a> RoomHandler<'a> {
             None => {
                 info!(
                     self.logger,
-                    "Received join event for bot user {} and room {}, but the room wasn't persisted to the database. \
+                    "Received join event for user {} and room {}, but the room wasn't persisted to the database. \
                       This is usually because the join event was finished before the room was stored in the database. \
                       That's not an issue, because room creators are saved to the database when the room is created.",
                     &matrix_user_id,
@@ -398,8 +405,8 @@ impl<'a> RoomHandler<'a> {
         }
 
         let user_in_room = NewUserInRoom {
-            matrix_user_id: matrix_user_id,
-            matrix_room_id: matrix_room_id,
+            matrix_user_id: matrix_user_id.clone(),
+            matrix_room_id: matrix_room_id.clone(),
         };
         UserInRoom::insert(self.connection, &user_in_room)?;
 

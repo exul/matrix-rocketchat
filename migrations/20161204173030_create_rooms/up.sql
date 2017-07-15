@@ -5,6 +5,7 @@ CREATE TABLE rooms (
   rocketchat_server_id VARCHAR,
   is_admin_room BOOLEAN NOT NULL DEFAULT false,
   is_bridged BOOLEAN NOT NULL DEFAULT false,
+  is_direct_message_room BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT rooms_pk PRIMARY KEY (matrix_room_id)

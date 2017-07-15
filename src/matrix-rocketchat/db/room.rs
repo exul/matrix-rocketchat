@@ -27,6 +27,8 @@ pub struct Room {
     pub is_admin_room: bool,
     /// A flag to indicate if the room is bridged to Rocket.Chat
     pub is_bridged: bool,
+    /// A flag to indicate if the room is used to send direct messages between two users.
+    pub is_direct_message_room: bool,
     /// created timestamp
     pub created_at: String,
     /// updated timestamp
@@ -34,7 +36,7 @@ pub struct Room {
 }
 
 /// A new `Room`, not yet saved.
-#[derive(Insertable)]
+#[derive(Debug, Insertable)]
 #[table_name = "rooms"]
 pub struct NewRoom {
     /// The rooms unique id on the matrix server.
@@ -50,6 +52,8 @@ pub struct NewRoom {
     pub is_admin_room: bool,
     /// A flag to indicate if the room is bridged to Rocket.Chat
     pub is_bridged: bool,
+    /// A flag to indicate if the room is used to send direct messages between two users.
+    pub is_direct_message_room: bool,
 }
 
 impl Room {

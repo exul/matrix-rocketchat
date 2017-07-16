@@ -296,7 +296,7 @@ impl<'a> CommandHandler<'a> {
 
         let room = match Room::find_by_rocketchat_room_id(self.connection, rocketchat_server.id.clone(), channel.id.clone())? {
             Some(mut room) => {
-                self.matrix_api.invite(room.matrix_room_id.clone(), event.user_id.clone())?;
+                self.matrix_api.invite(room.matrix_room_id.clone(), event.user_id.clone(), bot_matrix_user_id.clone())?;
                 room.set_is_bridged(self.connection, true)?;
                 room
             }

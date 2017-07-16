@@ -26,7 +26,7 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     /// Get the list of members for this room.
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>>;
     /// Invite a user to a room.
-    fn invite(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
+    fn invite(&self, matrix_room_id: RoomId, receiver_matrix_user_id: UserId, sender_matrix_user_id: UserId) -> Result<()>;
     /// Join a room with a user.
     fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
     /// Leave a room.
@@ -37,7 +37,7 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn send_text_message_event(&self, matrix_room_id: RoomId, matrix_user_id: UserId, body: String) -> Result<()>;
     /// Set the default power levels for a room. Only the bot will be able to control the room.
     /// The power levels for invite, kick, ban, and redact are all set to 50.
-    fn set_default_powerlevels(&self, matrix_room_id: RoomId, bot_user_id: UserId) -> Result<()>;
+    fn set_default_powerlevels(&self, matrix_room_id: RoomId, room_creator_matrix_user_id: UserId) -> Result<()>;
     /// Set the display name for a user
     fn set_display_name(&self, matrix_user_id: UserId, name: String) -> Result<()>;
     /// Set the name for a room

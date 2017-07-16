@@ -152,11 +152,13 @@ impl super::MatrixApi for MatrixApi {
         Ok(room_member_events.chunk)
     }
 
-    fn invite(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {
+    fn invite(&self, matrix_room_id: RoomId, receiver_matrix_user_id: UserId, sender_matrix_user_id: UserId) -> Result<()> {
         let path_params = invite_user::PathParams { room_id: matrix_room_id.clone() };
         let endpoint = self.base_url.clone() + &InviteUserEndpoint::request_path(path_params);
-        let params = self.params_hash();
-        let body_params = invite_user::BodyParams { user_id: matrix_user_id.clone() };
+        let user_id = sender_matrix_user_id.to_string();
+        let mut params = self.params_hash();
+        params.insert("user_id", &user_id);
+        let body_params = invite_user::BodyParams { user_id: receiver_matrix_user_id.clone() };
         let payload = serde_json::to_string(&body_params).chain_err(|| {
             ErrorKind::InvalidJSON("Could not serialize invite user params".to_string())
         })?;
@@ -166,7 +168,13 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        debug!(self.logger, "User {} successfully invited into room {}", matrix_user_id, matrix_room_id);
+        debug!(
+            self.logger,
+            "User {} successfully invited into room {} by {}",
+            receiver_matrix_user_id,
+            matrix_room_id,
+            sender_matrix_user_id
+        );
         Ok(())
     }
 
@@ -251,16 +259,18 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn set_default_powerlevels(&self, matrix_room_id: RoomId, bot_user_id: UserId) -> Result<()> {
+    fn set_default_powerlevels(&self, matrix_room_id: RoomId, room_creator_matrix_user_id: UserId) -> Result<()> {
         let path_params = send_state_event_for_empty_key::PathParams {
             room_id: matrix_room_id,
             event_type: EventType::RoomPowerLevels,
         };
         let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
-        let params = self.params_hash();
+        let user_id = room_creator_matrix_user_id.to_string();
+        let mut params = self.params_hash();
+        params.insert("user_id", &user_id);
         let mut body_params = serde_json::Map::new();
         let mut users = serde_json::Map::new();
-        users.insert(bot_user_id.to_string(), json!(100));
+        users.insert(room_creator_matrix_user_id.to_string(), json!(100));
         body_params.insert("invite".to_string(), json!(50));
         body_params.insert("kick".to_string(), json!(50));
         body_params.insert("ban".to_string(), json!(50));

@@ -103,7 +103,12 @@ impl<'a> Forwarder<'a> {
             &matrix_room_id,
         )?;
         if user_in_room.is_none() {
-            virtual_user_handler.add_to_room(user_on_rocketchat_server.matrix_user_id.clone(), matrix_room_id.clone())?;
+            let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
+            virtual_user_handler.add_to_room(
+                user_on_rocketchat_server.matrix_user_id.clone(),
+                bot_matrix_user_id,
+                matrix_room_id.clone(),
+            )?;
         }
 
         self.matrix_api.send_text_message_event(matrix_room_id, user_on_rocketchat_server.matrix_user_id, message.text.clone())
@@ -163,6 +168,7 @@ impl<'a> Forwarder<'a> {
             )?;
             let room_handler = RoomHandler::new(self.config, self.connection, self.logger, self.matrix_api);
 
+            debug!(self.logger, "Automatically creating room, because the message is a direct message");
             let room = room_handler.create_room(
                 direct_message_channel,
                 rocketchat_server.id.clone(),
@@ -170,6 +176,7 @@ impl<'a> Forwarder<'a> {
                 user_on_rocketchat_server.matrix_user_id.clone(),
                 true,
             )?;
+            debug!(self.logger, "Direct message room {} successfully created", &room.matrix_room_id);
 
             Ok(Some(room.matrix_room_id.clone()))
         } else {

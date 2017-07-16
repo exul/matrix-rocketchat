@@ -319,11 +319,13 @@ impl<'a> RoomHandler<'a> {
         invited_user_id: UserId,
         is_direct_message_room: bool,
     ) -> Result<Room> {
-        let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
         let room_alias_name = format!("{}_{}_{}", self.config.sender_localpart, rocketchat_server_id, channel.id);
         let matrix_room_id = self.matrix_api.create_room(channel.name.clone(), Some(room_alias_name), &room_creator_id)?;
-        self.matrix_api.set_default_powerlevels(matrix_room_id.clone(), bot_matrix_user_id.clone())?;
-        self.matrix_api.invite(matrix_room_id.clone(), invited_user_id.clone())?;
+        debug!(self.logger, "Successfully created room, matrix_room_id is {}", &matrix_room_id);
+        self.matrix_api.set_default_powerlevels(matrix_room_id.clone(), room_creator_id.clone())?;
+        debug!(self.logger, "Successfully set powerlevels for room {}", &matrix_room_id);
+        self.matrix_api.invite(matrix_room_id.clone(), invited_user_id.clone(), room_creator_id.clone())?;
+        debug!(self.logger, "{} successfully invited {} into room {}", &room_creator_id, &invited_user_id, &matrix_room_id);
         let new_room = NewRoom {
             matrix_room_id: matrix_room_id.clone(),
             display_name: channel.name.clone().unwrap_or_else(|| channel.id.clone()),
@@ -365,11 +367,16 @@ impl<'a> RoomHandler<'a> {
 
         //TODO: Check if a max number of users per channel has to be defined to avoid problems when
         //there are several thousand users in a channel.
+        let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
         for username in &channel.usernames {
             let rocketchat_user = rocketchat_api.users_info(username)?;
             let user_on_rocketchat_server =
                 virtual_user_handler.find_or_register(rocketchat_server_id.clone(), rocketchat_user.id, username.to_string())?;
-            virtual_user_handler.add_to_room(user_on_rocketchat_server.matrix_user_id, matrix_room_id.clone())?;
+            virtual_user_handler.add_to_room(
+                user_on_rocketchat_server.matrix_user_id,
+                bot_matrix_user_id.clone(),
+                matrix_room_id.clone(),
+            )?;
         }
 
         debug!(self.logger, "Successfully added {} virtual users to room {}", channel.usernames.len(), matrix_room_id);

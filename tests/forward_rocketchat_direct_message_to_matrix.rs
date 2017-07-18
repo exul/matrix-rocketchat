@@ -209,7 +209,9 @@ fn successfully_forwards_a_direct_message_to_a_room_that_was_bridged_before() {
 
     let mut matrix_router = test.default_matrix_routes();
     let (message_forwarder, receiver) = MessageForwarder::new();
+    let (invite_forwarder, invite_receiver) = MessageForwarder::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -240,6 +242,9 @@ fn successfully_forwards_a_direct_message_to_a_room_that_was_bridged_before() {
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("Hey there"));
+
+    let initial_invite = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(initial_invite.contains("@spec_user:localhost"));
 
     helpers::join(
         &test.config.as_url,
@@ -272,6 +277,9 @@ fn successfully_forwards_a_direct_message_to_a_room_that_was_bridged_before() {
     let direct_message_payload = to_string(&direct_message).unwrap();
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &direct_message_payload);
+
+    let invite_to_rejoin = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(invite_to_rejoin.contains("@spec_user:localhost"));
 
     helpers::join(
         &test.config.as_url,

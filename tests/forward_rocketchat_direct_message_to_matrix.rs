@@ -15,7 +15,7 @@ use std::convert::TryFrom;
 use iron::status;
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::api::rocketchat::v1::DIRECT_MESSAGES_LIST_PATH;
-use matrix_rocketchat::db::Room;
+use matrix_rocketchat::db::{Room, UserOnRocketchatServer};
 use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
@@ -294,6 +294,91 @@ fn successfully_forwards_a_direct_message_to_a_room_that_was_bridged_before() {
         .unwrap();
 
     assert!(room.is_bridged);
+}
+
+#[test]
+fn do_not_forwards_a_direct_message_to_a_room_if_the_user_is_no_longer_logged_in_on_the_rocketchat_server() {
+    let test = Test::new();
+
+    let mut rocketchat_router = Router::new();
+    let mut direct_messages = HashMap::new();
+    direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
+    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
+        direct_messages: direct_messages,
+        status: status::Ok,
+    };
+    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+
+    let mut matrix_router = test.default_matrix_routes();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let (invite_forwarder, invite_receiver) = MessageForwarder::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .run();
+
+    let direct_message = Message {
+        message_id: "spec_id_1".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_user_id_other_user_id".to_string(),
+        channel_name: None,
+        user_id: "other_user_id".to_string(),
+        user_name: "other_user".to_string(),
+        text: "Hey there".to_string(),
+    };
+    let direct_message_payload = to_string(&direct_message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &direct_message_payload);
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("Hey there"));
+
+    let initial_invite = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(initial_invite.contains("@spec_user:localhost"));
+
+    helpers::join(
+        &test.config.as_url,
+        RoomId::try_from("!1234_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
+    helpers::leave_room(
+        &test.config.as_url,
+        RoomId::try_from("!1234_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
+    let connection = test.connection_pool.get().unwrap();
+    let receier_user_id = UserId::try_from("@spec_user:localhost").unwrap();
+    let user = UserOnRocketchatServer::find(&connection, &receier_user_id, "rc_id".to_string()).unwrap();
+    helpers::logout_user_from_rocketchat_server_on_bridge(&connection, "rc_id".to_string(), &user.matrix_user_id);
+
+    let direct_message = Message {
+        message_id: "spec_id_2".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_user_id_other_user_id".to_string(),
+        channel_name: None,
+        user_id: "other_user_id".to_string(),
+        user_name: "other_user".to_string(),
+        text: "Hey again".to_string(),
+    };
+    let direct_message_payload = to_string(&direct_message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &direct_message_payload);
+
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 
 #[test]

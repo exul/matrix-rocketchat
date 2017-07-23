@@ -13,10 +13,11 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use iron::status;
+use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::api::rocketchat::v1::DIRECT_MESSAGES_LIST_PATH;
 use matrix_rocketchat::db::{Room, UserOnRocketchatServer};
-use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
@@ -71,10 +72,13 @@ fn successfully_forwards_a_direct_message() {
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &first_direct_message_payload);
 
     helpers::join(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
+
+    // discard admin room creation message
+    create_room_receiver.recv_timeout(default_timeout()).unwrap();
 
     let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat_rc_id_spec_user_id_other_user_id\""));
@@ -88,7 +92,8 @@ fn successfully_forwards_a_direct_message() {
 
     let spec_user_invite = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_invite.contains("\"user_id\":\"@spec_user:localhost\""));
-    // the users rocket.chat virtual user is not invited into direct message rooms
+
+    // the spec users rocket.chat virtual user is not invited into direct message rooms
     assert!(invite_receiver.recv_timeout(default_timeout()).is_err());
 
     // discard welcome message
@@ -106,10 +111,11 @@ fn successfully_forwards_a_direct_message() {
         .unwrap()
         .unwrap();
 
-    let users = room.users(&connection).unwrap();
-    assert_eq!(users.len(), 2);
-    assert!(users.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat_other_user_id_rc_id:localhost").unwrap()));
-    assert!(users.iter().any(|u| u.matrix_user_id == UserId::try_from("@spec_user:localhost").unwrap()));
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    let user_ids = room.user_ids(&(*matrix_api)).unwrap();
+    assert_eq!(user_ids.len(), 2);
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_other_user_id_rc_id:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
 
     let second_direct_message = Message {
         message_id: "spec_id_2".to_string(),
@@ -168,18 +174,21 @@ fn the_bot_user_stays_in_the_direct_message_room_if_the_user_leaves() {
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &direct_message_payload);
 
     helpers::join(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     helpers::leave_room(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
-    // no calls to the leave and forget endpoints, because the virtual user stays in the room
+    // spec user leaves
+    assert!(leave_receiver.recv_timeout(default_timeout()).is_ok());
+
+    // no more calls to the leave and forget endpoints, because the virtual user stays in the room
     assert!(leave_receiver.recv_timeout(default_timeout()).is_err());
     assert!(forget_receiver.recv_timeout(default_timeout()).is_err());
 
@@ -188,9 +197,10 @@ fn the_bot_user_stays_in_the_direct_message_room_if_the_user_leaves() {
         .unwrap()
         .unwrap();
 
-    let users = room.users(&connection).unwrap();
-    assert_eq!(users.len(), 1);
-    assert!(users.iter().any(|u| u.matrix_user_id == UserId::try_from("@rocketchat_other_user_id_rc_id:localhost").unwrap()));
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    let user_ids = room.user_ids(&(*matrix_api)).unwrap();
+    assert_eq!(user_ids.len(), 1);
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_other_user_id_rc_id:localhost").unwrap()));
 
     assert!(!room.is_bridged)
 }
@@ -248,13 +258,13 @@ fn successfully_forwards_a_direct_message_to_a_room_that_was_bridged_before() {
     assert!(initial_invite.contains("@spec_user:localhost"));
 
     helpers::join(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     helpers::leave_room(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
@@ -283,7 +293,7 @@ fn successfully_forwards_a_direct_message_to_a_room_that_was_bridged_before() {
     assert!(invite_to_rejoin.contains("@spec_user:localhost"));
 
     helpers::join(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
@@ -350,13 +360,13 @@ fn do_not_forwards_a_direct_message_to_a_room_if_the_user_is_no_longer_logged_in
     assert!(initial_invite.contains("@spec_user:localhost"));
 
     helpers::join(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     helpers::leave_room(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );

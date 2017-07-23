@@ -9,7 +9,7 @@ use i18n::*;
 use api::{MatrixApi, RocketchatApi};
 use api::rocketchat::Message;
 use config::Config;
-use db::{RocketchatServer, Room, UserInRoom, UserOnRocketchatServer};
+use db::{RocketchatServer, Room, UserOnRocketchatServer};
 use errors::*;
 use handlers::events::RoomHandler;
 use handlers::rocketchat::VirtualUserHandler;
@@ -84,7 +84,15 @@ impl<'a> Forwarder<'a> {
                 }
                 room.matrix_room_id.clone()
             }
-            Some(ref room) if room.is_bridged => room.matrix_room_id.clone(),
+            Some(ref room) if room.is_bridged => {
+                let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
+                virtual_user_handler.add_to_room(
+                    user_on_rocketchat_server.matrix_user_id.clone(),
+                    bot_matrix_user_id,
+                    room.matrix_room_id.clone(),
+                )?;
+                room.matrix_room_id.clone()
+            }
             Some(ref room) => {
                 debug!(
                     self.logger,
@@ -115,21 +123,6 @@ impl<'a> Forwarder<'a> {
                 user_on_rocketchat_server.set_rocketchat_username(self.connection, Some(message.user_name.clone()))?;
                 self.matrix_api.set_display_name(user_on_rocketchat_server.matrix_user_id.clone(), message.user_name.clone())
             })?;
-        }
-
-
-        let user_in_room = UserInRoom::find_by_matrix_user_id_and_matrix_room_id(
-            self.connection,
-            &user_on_rocketchat_server.matrix_user_id,
-            &matrix_room_id,
-        )?;
-        if user_in_room.is_none() {
-            let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
-            virtual_user_handler.add_to_room(
-                user_on_rocketchat_server.matrix_user_id.clone(),
-                bot_matrix_user_id,
-                matrix_room_id.clone(),
-            )?;
         }
 
         self.matrix_api.send_text_message_event(matrix_room_id, user_on_rocketchat_server.matrix_user_id, message.text.clone())

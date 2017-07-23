@@ -30,6 +30,7 @@ impl<'a> VirtualUserHandler<'a> {
         sender_matrix_user_id: UserId,
         matrix_room_id: RoomId,
     ) -> Result<()> {
+        info!(self.logger, "Adding virtual user {} to room {}", receiver_matrix_user_id, matrix_room_id);
         self.matrix_api.invite(matrix_room_id.clone(), receiver_matrix_user_id.clone(), sender_matrix_user_id)?;
         self.matrix_api.join(matrix_room_id, receiver_matrix_user_id)?;
         Ok(())

@@ -4,6 +4,8 @@ use std::convert::TryFrom;
 use pulldown_cmark::{Options, Parser, html};
 use reqwest::StatusCode;
 use ruma_client_api::Endpoint;
+use ruma_client_api::r0::alias;
+use ruma_client_api::r0::alias::get_alias::{self, Endpoint as GetAliasEndpoint};
 use ruma_client_api::r0::account::register::{self, Endpoint as RegisterEndpoint};
 use ruma_client_api::r0::membership::forget_room::{self, Endpoint as ForgetRoomEndpoint};
 use ruma_client_api::r0::membership::invite_user::{self, Endpoint as InviteUserEndpoint};
@@ -18,7 +20,7 @@ use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint a
 use ruma_events::EventType;
 use ruma_events::room::member::MemberEvent;
 use ruma_events::room::message::MessageType;
-use ruma_identifiers::{EventId, RoomId, UserId};
+use ruma_identifiers::{EventId, RoomAliasId, RoomId, UserId};
 use serde_json::Map;
 use slog::Logger;
 use serde_json::{self, Value};
@@ -105,6 +107,29 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
         Ok(())
+    }
+
+    fn get_alias(&self, matrix_room_alias: RoomAliasId) -> Result<Option<RoomId>> {
+        let path_params = alias::PathParams { room_alias: matrix_room_alias };
+        let endpoint = self.base_url.clone() + &GetAliasEndpoint::request_path(path_params);
+        let params = self.params_hash();
+
+        let (body, status_code) = RestApi::call_matrix(ForgetRoomEndpoint::method(), &endpoint, "{}", &params)?;
+        if status_code == StatusCode::NotFound {
+            return Ok(None);
+        } else if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        let get_alias_response: get_alias::Response = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Matrix get_alias API endpoint: \
+                                                `{}`",
+                body
+            ))
+        })?;
+
+        Ok(Some(get_alias_response.room_id))
     }
 
     fn get_room_creator(&self, matrix_room_id: RoomId) -> Result<UserId> {
@@ -194,10 +219,13 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn leave_room(&self, matrix_room_id: RoomId) -> Result<()> {
+    fn leave_room(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {
         let path_params = leave_room::PathParams { room_id: matrix_room_id };
         let endpoint = self.base_url.clone() + &LeaveRoomEndpoint::request_path(path_params);
-        let params = self.params_hash();
+        let user_id = matrix_user_id.to_string();
+        let mut params = self.params_hash();
+        params.insert("user_id", &user_id);
+
 
         let (body, status_code) = RestApi::call_matrix(LeaveRoomEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {

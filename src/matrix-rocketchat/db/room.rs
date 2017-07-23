@@ -1,11 +1,13 @@
 use diesel;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
+use ruma_events::room::member::MembershipState;
 use ruma_identifiers::{RoomId, UserId};
 
+use api::MatrixApi;
 use errors::*;
-use super::schema::{rocketchat_servers, rooms, users, users_in_rooms, users_on_rocketchat_servers};
-use super::{RocketchatServer, User, UserInRoom, UserOnRocketchatServer};
+use super::schema::{rocketchat_servers, rooms};
+use super::RocketchatServer;
 
 /// A room that is managed by the application service. This can be either a bridged room or an
 /// admin room.
@@ -107,12 +109,13 @@ impl Room {
     /// Indicates if the room is bridged for a given user.
     pub fn is_bridged_for_user(
         connection: &SqliteConnection,
+        matrix_api: &MatrixApi,
         rocketchat_server_id: String,
         rocketchat_room_id: String,
         matrix_user_id: &UserId,
     ) -> Result<bool> {
         if let Some(room) = Room::find_by_rocketchat_room_id(connection, rocketchat_server_id, rocketchat_room_id)? {
-            Ok(room.is_bridged && room.users(connection)?.iter().any(|u| &u.matrix_user_id == matrix_user_id))
+            Ok(room.is_bridged && room.user_ids(matrix_api)?.iter().any(|id| id == matrix_user_id))
         } else {
             Ok(false)
         }
@@ -163,37 +166,19 @@ impl Room {
         self.rocketchat_server_id.is_some()
     }
 
-    /// Returns all `User`s in the room.
-    pub fn users(&self, connection: &SqliteConnection) -> Result<Vec<User>> {
-        let users: Vec<User> = users::table
-            .filter(users::matrix_user_id.eq_any(UserInRoom::belonging_to(self).select(users_in_rooms::matrix_user_id)))
-            .load(connection)
-            .chain_err(|| ErrorKind::DBSelectError)?;
-        Ok(users)
-    }
+    /// Users that are currently in the room.
+    pub fn user_ids(&self, matrix_api: &MatrixApi) -> Result<Vec<UserId>> {
+        let member_events = matrix_api.get_room_members(self.matrix_room_id.clone())?;
+        let user_ids = member_events
+            .into_iter()
+            .filter_map(|member_event| if member_event.content.membership == MembershipState::Join {
+                Some(member_event.user_id)
+            } else {
+                None
+            })
+            .collect();
 
-    /// Returns all `Users`s in the room that are not virtual users.
-    pub fn non_virtual_users(&self, connection: &SqliteConnection) -> Result<Vec<User>> {
-        let rocketchat_server = match self.rocketchat_server(connection)? {
-            Some(rocketchat_server) => rocketchat_server,
-            None => {
-                return self.users(connection);
-            }
-        };
-
-        let users: Vec<User> = users::table
-            .filter(
-                users::matrix_user_id.eq_any(UserInRoom::belonging_to(self).select(users_in_rooms::matrix_user_id)).and(
-                    users::matrix_user_id.eq_any(
-                        UserOnRocketchatServer::belonging_to(&rocketchat_server)
-                            .filter(users_on_rocketchat_servers::is_virtual_user.eq(false))
-                            .select(users_on_rocketchat_servers::matrix_user_id),
-                    ),
-                ),
-            )
-            .load(connection)
-            .chain_err(|| ErrorKind::DBSelectError)?;
-        Ok(users)
+        Ok(user_ids)
     }
 
     /// Update the is_bridged flag for the room.
@@ -208,7 +193,6 @@ impl Room {
 
     /// Delete a room, this also deletes any users_in_rooms relations for that room.
     pub fn delete(&self, connection: &SqliteConnection) -> Result<()> {
-        diesel::delete(UserInRoom::belonging_to(self)).execute(connection).chain_err(|| ErrorKind::DBDeleteError)?;
         diesel::delete(rooms::table.filter(rooms::matrix_room_id.eq(self.matrix_room_id.clone())))
             .execute(connection)
             .chain_err(|| ErrorKind::DBDeleteError)?;

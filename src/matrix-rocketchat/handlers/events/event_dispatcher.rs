@@ -4,7 +4,6 @@ use ruma_identifiers::{RoomId, UserId};
 use slog::Logger;
 
 use api::MatrixApi;
-use db::UserInRoom;
 use config::Config;
 use errors::*;
 use handlers::ErrorNotifier;
@@ -64,22 +63,16 @@ impl<'a> EventDispatcher<'a> {
     /// If the error cannot be sent to the user or the error doesn't contain a readable user
     /// message it is returned to the caller so that the caller can take care of the error.
     pub fn handle_error(&self, err: Error, room_id: RoomId, user_id: &UserId) -> Result<()> {
-        let matrix_bot_id = self.config.matrix_bot_user_id()?;
-        let bot_user_is_in_room =
-            UserInRoom::find_by_matrix_user_id_and_matrix_room_id(self.connection, &matrix_bot_id, &room_id)?.is_some();
+        debug!(self.logger, "Sending error message to room {}", &room_id);
+        let error_notifier = ErrorNotifier {
+            config: self.config,
+            connection: self.connection,
+            logger: self.logger,
+            matrix_api: self.matrix_api.as_ref(),
+        };
 
-        if bot_user_is_in_room {
-            let error_notifier = ErrorNotifier {
-                config: self.config,
-                connection: self.connection,
-                logger: self.logger,
-                matrix_api: self.matrix_api.as_ref(),
-            };
-            error_notifier.send_message_to_user(&err, room_id, user_id)?;
-        }
-
-        if !bot_user_is_in_room || err.user_message.is_none() {
-            debug!(self.logger, "Unable to send a useful error message to the user");
+        if let Err(err) = error_notifier.send_message_to_user(&err, room_id.clone(), user_id) {
+            debug!(self.logger, "Unable to send an error message to the user");
             return Err(err);
         }
 

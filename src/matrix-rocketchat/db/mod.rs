@@ -10,8 +10,6 @@ pub mod room;
 pub mod schema;
 /// `User` entry
 pub mod user;
-/// `UserInRoom` entry
-pub mod user_in_room;
 /// `UserOnRocketchatServer` entry
 pub mod user_on_rocketchat_server;
 
@@ -19,5 +17,4 @@ pub use self::connection_pool::ConnectionPool;
 pub use self::rocketchat_server::{NewRocketchatServer, RocketchatServer};
 pub use self::room::{NewRoom, Room};
 pub use self::user::{NewUser, User};
-pub use self::user_in_room::{NewUserInRoom, UserInRoom};
 pub use self::user_on_rocketchat_server::{NewUserOnRocketchatServer, UserOnRocketchatServer};

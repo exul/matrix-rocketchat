@@ -2,13 +2,12 @@ use rand::{Rng, thread_rng};
 use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::io::Read;
 use std::sync::mpsc::Receiver;
 
 use iron::prelude::*;
 use iron::url::Url;
 use iron::url::percent_encoding::percent_decode;
-use iron::{Chain, Handler, status};
+use iron::{BeforeMiddleware, Chain, Handler, status};
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
 use persistent::Write;
 use router::Router;
@@ -19,7 +18,7 @@ use ruma_events::EventType;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
 use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json;
-use super::{Message, MessageForwarder, UsernameList, helpers};
+use super::{Message, MessageForwarder, TestError, UsernameList, UsersInRoomMap, extract_payload, helpers};
 
 #[derive(Serialize)]
 pub struct RocketchatInfo {
@@ -286,7 +285,6 @@ impl Handler for MatrixCreateRoom {
     fn handle(&self, request: &mut Request) -> IronResult<Response> {
         let request_payload = extract_payload(request);
         let create_room_payload: create_room::BodyParams = serde_json::from_str(&request_payload).unwrap();
-
         let room_id_local_part: String = create_room_payload
             .name
             .unwrap_or("1234".to_string())
@@ -305,8 +303,9 @@ impl Handler for MatrixCreateRoom {
         ));
         let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
 
-        // join event that is triggered when the room creator enters the room
-        helpers::join(&self.as_url, room_id.clone(), user_id);
+        add_user_to_users_in_room(request, user_id.clone(), room_id.clone());
+
+        helpers::send_join_event_from_matrix(&self.as_url, room_id.clone(), user_id);
 
         let response = create_room::Response { room_id: room_id };
         let payload = serde_json::to_string(&response).unwrap();
@@ -316,38 +315,70 @@ impl Handler for MatrixCreateRoom {
 }
 
 
-pub struct RoomMembers {
-    pub members: Vec<UserId>,
-    pub room_id: RoomId,
-}
+pub struct RoomMembers {}
 
 impl Handler for RoomMembers {
-    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
-        let mut member_events = Vec::with_capacity(2);
-        for member in self.members.iter() {
-            let member_event = MemberEvent {
-                content: MemberEventContent {
-                    avatar_url: None,
-                    displayname: None,
-                    membership: MembershipState::Join,
-                    third_party_invite: None,
-                },
-                event_id: EventId::new("localhost").unwrap(),
-                event_type: EventType::RoomMember,
-                invite_room_state: None,
-                prev_content: None,
-                room_id: self.room_id.clone(),
-                state_key: member.to_string(),
-                unsigned: None,
-                user_id: member.clone(),
-            };
-            member_events.push(member_event);
-        }
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        let params = request.extensions.get::<Router>().unwrap().clone();
+        let url_room_id = params.find("room_id").unwrap();
+        let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
+        let room_id = RoomId::try_from(&decoded_room_id).unwrap();
+
+        let mutex = request.get::<Write<UsersInRoomMap>>().unwrap();
+        let user_in_room_map = mutex.lock().unwrap();
+        let empty_users = Vec::new();
+        let user_ids = &user_in_room_map.get(&room_id).unwrap_or(&empty_users);
+
+        let member_events = build_member_events_from_user_ids(user_ids, room_id);
 
         let response = get_member_events::Response { chunk: member_events };
         let payload = serde_json::to_string(&response).unwrap();
         Ok(Response::with((status::Ok, payload)))
     }
+}
+
+pub struct StaticRoomMembers {
+    pub user_ids: Vec<UserId>,
+}
+
+impl Handler for StaticRoomMembers {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        let params = request.extensions.get::<Router>().unwrap().clone();
+        let url_room_id = params.find("room_id").unwrap();
+        let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
+        let room_id = RoomId::try_from(&decoded_room_id).unwrap();
+
+        let member_events = build_member_events_from_user_ids(&self.user_ids, room_id);
+
+        let response = get_member_events::Response { chunk: member_events };
+        let payload = serde_json::to_string(&response).unwrap();
+        Ok(Response::with((status::Ok, payload)))
+    }
+}
+
+fn build_member_events_from_user_ids(users: &Vec<UserId>, room_id: RoomId) -> Vec<MemberEvent> {
+    let mut member_events = Vec::new();
+    for user in users.iter() {
+        let member_event = MemberEvent {
+            content: MemberEventContent {
+                avatar_url: None,
+                displayname: None,
+                membership: MembershipState::Join,
+                third_party_invite: None,
+            },
+            event_id: EventId::new("localhost").unwrap(),
+            event_type: EventType::RoomMember,
+            invite_room_state: None,
+            prev_content: None,
+            room_id: room_id.clone(),
+            state_key: user.to_string(),
+            unsigned: None,
+            user_id: user.clone(),
+        };
+        member_events.push(member_event);
+    }
+
+    member_events
 }
 
 pub struct RoomStateCreate {
@@ -359,6 +390,7 @@ impl Handler for RoomStateCreate {
         let mut values = serde_json::Map::new();
         values.insert("creator".to_string(), serde_json::Value::String(self.creator.to_string()));
         let payload = serde_json::to_string(&values).unwrap();
+
         Ok(Response::with((status::Ok, payload)))
     }
 }
@@ -391,7 +423,9 @@ impl Handler for MatrixJoinRoom {
         ));
         let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
 
-        helpers::join(&self.as_url, room_id, user_id);
+        add_user_to_users_in_room(request, user_id.clone(), room_id.clone());
+
+        helpers::send_join_event_from_matrix(&self.as_url, room_id, user_id);
 
         Ok(Response::with((status::Ok, "{}")))
     }
@@ -425,7 +459,9 @@ impl Handler for MatrixLeaveRoom {
         ));
         let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
 
-        helpers::leave_room(&self.as_url, room_id, user_id);
+        remove_user_from_users_in_room(request, user_id.clone(), room_id.clone());
+
+        helpers::send_leave_event_from_matrix(&self.as_url, room_id, user_id);
 
         Ok(Response::with((status::Ok, "{}")))
     }
@@ -461,6 +497,43 @@ pub struct MatrixConditionalErrorResponder {
     pub conditional_content: &'static str,
 }
 
+impl MatrixConditionalErrorResponder {
+    pub fn with_forwarder(error_message: String, conditional_content: &'static str) -> (Chain, Receiver<String>) {
+        let (message_forwarder, receiver) = MessageForwarder::new();
+
+        let conditional_error_responder = MatrixConditionalErrorResponder {
+            status: status::InternalServerError,
+            message: error_message,
+            conditional_content: conditional_content,
+        };
+
+        let mut chain = Chain::new(conditional_error_responder);
+        chain.link_after(message_forwarder);;
+        (chain, receiver)
+    }
+}
+
+impl BeforeMiddleware for MatrixConditionalErrorResponder {
+    fn before(&self, request: &mut Request) -> IronResult<()> {
+        let request_payload = extract_payload(request);
+
+        if request_payload.contains(self.conditional_content) {
+            let error_response = MatrixErrorResponse {
+                errcode: "1234".to_string(),
+                error: self.message.clone(),
+            };
+            let payload = serde_json::to_string(&error_response).unwrap();
+            let err = IronError::new(TestError("Conditional Error".to_string()), (self.status, payload));
+            return Err(err.into());
+        }
+
+        let message = Message { payload: request_payload };
+        request.extensions.insert::<Message>(message);
+
+        Ok(())
+    }
+}
+
 impl Handler for MatrixConditionalErrorResponder {
     fn handle(&self, request: &mut Request) -> IronResult<Response> {
         let request_payload = extract_payload(request);
@@ -478,6 +551,28 @@ impl Handler for MatrixConditionalErrorResponder {
     }
 }
 
+pub struct ConditionalInvalidJsonResponse {
+    pub status: status::Status,
+    pub conditional_content: &'static str,
+}
+
+impl BeforeMiddleware for ConditionalInvalidJsonResponse {
+    fn before(&self, request: &mut Request) -> IronResult<()> {
+        let request_payload = extract_payload(request);
+
+        if request_payload.contains(self.conditional_content) {
+            let err =
+                IronError::new(TestError("Conditional invalid JSON".to_string()), (self.status, "invalid json".to_string()));
+            return Err(err.into());
+        }
+
+        let message = Message { payload: request_payload };
+        request.extensions.insert::<Message>(message);
+
+        Ok(())
+    }
+}
+
 pub struct InvalidJsonResponse {
     pub status: status::Status,
 }
@@ -488,16 +583,26 @@ impl Handler for InvalidJsonResponse {
     }
 }
 
-fn extract_payload(request: &mut Request) -> String {
-    let mut payload = String::new();
-    request.body.read_to_string(&mut payload).unwrap();
-
-    // if the request payload is empty, try to get it from the middleware
-    if payload.is_empty() {
-        if let Some(message) = request.extensions.get::<Message>() {
-            payload = message.payload.clone()
-        }
+fn add_user_to_users_in_room(request: &mut Request, user_id: UserId, room_id: RoomId) {
+    let mutex = request.get::<Write<UsersInRoomMap>>().unwrap();
+    let mut user_in_room_map = mutex.lock().unwrap();
+    if !user_in_room_map.contains_key(&room_id) {
+        user_in_room_map.insert(room_id.clone(), Vec::new());
     }
 
-    payload
+    let mut users = user_in_room_map.get_mut(&room_id).unwrap();
+
+    if users.iter().any(|id| id == &user_id) {
+        return;
+    }
+
+    users.push(user_id);
+}
+
+fn remove_user_from_users_in_room(request: &mut Request, user_id: UserId, room_id: RoomId) {
+    let mutex = request.get::<Write<UsersInRoomMap>>().unwrap();
+    let mut user_in_room_map = mutex.lock().unwrap();
+    let mut empty_users = Vec::new();
+    let mut users = user_in_room_map.get_mut(&room_id).unwrap_or(&mut empty_users);
+    users.retain(|ref u| *u != &user_id);
 }

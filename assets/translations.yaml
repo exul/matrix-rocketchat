@@ -72,9 +72,8 @@ en:
     internal_error: "An internal error occurred"
   handlers:
     welcome: "Your Rocket.Chat <-> Matrix application service is running"
-    rocketchat_login_successful: "You are logged in. Return to your Matrix client and follow the instructions there."
+    rocketchat_login_successful: "You are logged in. Return to your Matrix client and enter help in the admin room for more instructions."
   errors:
-    admin_room_for_rocketchat_server_not_found: "No admin room found that is connected to the Rocket.Chat server ${rocketchat_url}"
     authentication_failed: "Authentication failed!"
     connect_without_rocketchat_server_id: "You have to provide an id to connect to a Rocket.Chat server. It can contain any alphanumeric character and `_`. For example `connect https://rocketchat.example.com my_token rocketchat_example`"
     connect_with_invalid_rocketchat_server_id: "The provided Rocket.Chat server ID `${rocketchat_server_id}` is not valid, it can only contain lowercase alphanumeric characters and `_`. The maximum length is ${max_rocketchat_server_id_length} characters."
@@ -86,6 +85,7 @@ en:
     rocketchat_token_missing: "A token is needed to connect new Rocket.Chat servers"
     rocketchat_server_already_connected: "The Rocket.Chat server ${rocketchat_url} is already connected, connect without a token if you want to connect to the server"
     rocketchat_server_id_already_in_use: "The provided ID `${rocketchat_server_id}` is already in use, please choose another one."
+    rocketchat_server_not_found: "Rocket.Chat server ${rocketchat_url} not found, it is probably not connected."
     rocketchat_server_unreachable: "Could not reach Rocket.Chat server ${rocketchat_url}"
     rocketchat_join_first: "You have to join the channel ${channel_name} on the Rocket.Chat server before you can bridge it."
     room_already_connected: "This room is already connected"

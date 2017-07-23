@@ -5,6 +5,7 @@ use diesel::sqlite::SqliteConnection;
 use slog::Logger;
 use ruma_identifiers::RoomId;
 
+use i18n::*;
 use api::{MatrixApi, RocketchatApi};
 use api::rocketchat::Message;
 use config::Config;
@@ -61,7 +62,6 @@ impl<'a> Forwarder<'a> {
         )? {
             Some(ref mut room) if room.is_direct_message_room => {
                 debug!(self.logger, "Got a message for a direct message room (channel_id `{}`)", &message.channel_id);
-                let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
                 let receiver_matrix_user_id = match self.find_matching_user_for_direct_message(rocketchat_server, message)? {
                     Some(user_on_rocketchat_server) => user_on_rocketchat_server.matrix_user_id.clone(),
                     None => {
@@ -73,8 +73,15 @@ impl<'a> Forwarder<'a> {
                         return Ok(());
                     }
                 };
-                self.matrix_api.invite(room.matrix_room_id.clone(), receiver_matrix_user_id, bot_matrix_user_id)?;
-                room.set_is_bridged(self.connection, true)?;
+
+                if !room.is_bridged {
+                    self.matrix_api.invite(
+                        room.matrix_room_id.clone(),
+                        receiver_matrix_user_id,
+                        user_on_rocketchat_server.matrix_user_id.clone(),
+                    )?;
+                    room.set_is_bridged(self.connection, true)?;
+                }
                 room.matrix_room_id.clone()
             }
             Some(ref room) if room.is_bridged => room.matrix_room_id.clone(),
@@ -182,11 +189,16 @@ impl<'a> Forwarder<'a> {
             )?;
             let room_handler = RoomHandler::new(self.config, self.connection, self.logger, self.matrix_api);
 
+            let direct_message_receiver = user_on_rocketchat_server.user(self.connection)?;
+            let room_display_name_suffix =
+                t!(["defaults", "direct_message_room_display_name_suffix"]).l(&direct_message_receiver.language);
+            let room_display_name = format!("{} {}", message.user_name, room_display_name_suffix);
             let room = room_handler.create_room(
-                direct_message_channel,
+                direct_message_channel.id.clone(),
                 rocketchat_server.id.clone(),
                 direct_message_sender.matrix_user_id.clone(),
                 user_on_rocketchat_server.matrix_user_id.clone(),
+                Some(room_display_name),
                 true,
             )?;
             debug!(self.logger, "Direct message room {} successfully created", &room.matrix_room_id);

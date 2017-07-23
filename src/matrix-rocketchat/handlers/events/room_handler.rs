@@ -102,7 +102,14 @@ impl<'a> RoomHandler<'a> {
         room_creator_id: UserId,
         invited_user_id: UserId,
     ) -> Result<Room> {
-        let room = self.create_room(channel, rocketchat_server.id.clone(), room_creator_id, invited_user_id, false)?;
+        let room = self.create_room(
+            channel.id.clone(),
+            rocketchat_server.id.clone(),
+            room_creator_id,
+            invited_user_id,
+            channel.name.clone(),
+            false,
+        )?;
         self.add_virtual_users_to_room(rocketchat_api, channel, rocketchat_server.id.clone(), room.matrix_room_id.clone())?;
         Ok(room)
     }
@@ -313,14 +320,15 @@ impl<'a> RoomHandler<'a> {
     /// Create a room on the Matrix homeserver with the power levels for a bridged room.
     pub fn create_room(
         &self,
-        channel: &Channel,
+        rocketchat_room_id: String,
         rocketchat_server_id: String,
         room_creator_id: UserId,
         invited_user_id: UserId,
+        room_display_name: Option<String>,
         is_direct_message_room: bool,
     ) -> Result<Room> {
-        let room_alias_name = format!("{}_{}_{}", self.config.sender_localpart, rocketchat_server_id, channel.id);
-        let matrix_room_id = self.matrix_api.create_room(channel.name.clone(), Some(room_alias_name), &room_creator_id)?;
+        let room_alias_name = format!("{}_{}_{}", self.config.sender_localpart, rocketchat_server_id, rocketchat_room_id);
+        let matrix_room_id = self.matrix_api.create_room(room_display_name.clone(), Some(room_alias_name), &room_creator_id)?;
         debug!(self.logger, "Successfully created room, matrix_room_id is {}", &matrix_room_id);
         self.matrix_api.set_default_powerlevels(matrix_room_id.clone(), room_creator_id.clone())?;
         debug!(self.logger, "Successfully set powerlevels for room {}", &matrix_room_id);
@@ -328,9 +336,9 @@ impl<'a> RoomHandler<'a> {
         debug!(self.logger, "{} successfully invited {} into room {}", &room_creator_id, &invited_user_id, &matrix_room_id);
         let new_room = NewRoom {
             matrix_room_id: matrix_room_id.clone(),
-            display_name: channel.name.clone().unwrap_or_else(|| channel.id.clone()),
+            display_name: room_display_name.unwrap_or_else(|| rocketchat_room_id.clone()),
             rocketchat_server_id: Some(rocketchat_server_id),
-            rocketchat_room_id: Some(channel.id.clone()),
+            rocketchat_room_id: Some(rocketchat_room_id),
             is_admin_room: false,
             is_bridged: true,
             is_direct_message_room: is_direct_message_room,

@@ -72,12 +72,13 @@ fn successfully_forwards_a_direct_message() {
 
     helpers::join(
         &test.config.as_url,
-        RoomId::try_from("!1234_id:localhost").unwrap(),
+        RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat_rc_id_spec_user_id_other_user_id\""));
+    assert!(create_room_message.contains("\"name\":\"other_user (DM Rocket.Chat)\""));
 
     // discard bot registration
     register_receiver.recv_timeout(default_timeout()).unwrap();
@@ -168,13 +169,13 @@ fn the_bot_user_stays_in_the_direct_message_room_if_the_user_leaves() {
 
     helpers::join(
         &test.config.as_url,
-        RoomId::try_from("!1234_id:localhost").unwrap(),
+        RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     helpers::leave_room(
         &test.config.as_url,
-        RoomId::try_from("!1234_id:localhost").unwrap(),
+        RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
@@ -248,13 +249,13 @@ fn successfully_forwards_a_direct_message_to_a_room_that_was_bridged_before() {
 
     helpers::join(
         &test.config.as_url,
-        RoomId::try_from("!1234_id:localhost").unwrap(),
+        RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     helpers::leave_room(
         &test.config.as_url,
-        RoomId::try_from("!1234_id:localhost").unwrap(),
+        RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
@@ -283,7 +284,7 @@ fn successfully_forwards_a_direct_message_to_a_room_that_was_bridged_before() {
 
     helpers::join(
         &test.config.as_url,
-        RoomId::try_from("!1234_id:localhost").unwrap(),
+        RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
@@ -350,13 +351,13 @@ fn do_not_forwards_a_direct_message_to_a_room_if_the_user_is_no_longer_logged_in
 
     helpers::join(
         &test.config.as_url,
-        RoomId::try_from("!1234_id:localhost").unwrap(),
+        RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     helpers::leave_room(
         &test.config.as_url,
-        RoomId::try_from("!1234_id:localhost").unwrap(),
+        RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 

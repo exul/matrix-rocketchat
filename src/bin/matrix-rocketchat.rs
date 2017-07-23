@@ -53,9 +53,11 @@ fn build_logger(log_file_path: &str) -> slog::Logger {
     let file = OpenOptions::new().create(true).write(true).truncate(true).open(path).expect("Log file creation failed");
     let file_drain = slog_stream::stream(file, slog_json::new().add_default_keys().build());
     let term_drain = slog_term::streamer().stderr().full().build();
-    slog::Logger::root(slog::duplicate(term_drain, file_drain).fuse(),
-                       o!("version" => env!("CARGO_PKG_VERSION"),
-                          "place" => file_line_logger_format))
+    slog::Logger::root(
+        slog::duplicate(term_drain, file_drain).fuse(),
+        o!("version" => env!("CARGO_PKG_VERSION"),
+                          "place" => file_line_logger_format),
+    )
 }
 
 fn file_line_logger_format(info: &Record) -> String {

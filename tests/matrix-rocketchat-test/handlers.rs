@@ -1,4 +1,5 @@
 use rand::{Rng, thread_rng};
+use std::borrow::{Borrow, Cow};
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::io::Read;
@@ -30,7 +31,7 @@ impl Handler for RocketchatInfo {
         let payload = r#"{
             "version": "VERSION"
         }"#
-                .replace("VERSION", self.version);
+            .replace("VERSION", self.version);
 
         Ok(Response::with((status::Ok, payload)))
     }
@@ -48,23 +49,27 @@ impl Handler for RocketchatLogin {
             true => {
                 let user_id: String =
                     self.rocketchat_user_id.clone().unwrap_or(thread_rng().gen_ascii_chars().take(10).collect());
-                (status::Ok,
-                 r#"{
+                (
+                    status::Ok,
+                    r#"{
                     "status": "success",
                     "data": {
                         "authToken": "spec_auth_token",
                         "userId": "USER_ID"
                     }
                  }"#
-                         .replace("USER_ID", &user_id))
+                        .replace("USER_ID", &user_id),
+                )
             }
             false => {
-                (status::Unauthorized,
-                 r#"{
+                (
+                    status::Unauthorized,
+                    r#"{
                     "status": "error",
                     "message": "Unauthorized"
                 }"#
-                         .to_string())
+                        .to_string(),
+                )
             }
         };
 
@@ -81,7 +86,7 @@ impl Handler for RocketchatMe {
         let payload = r#"{
             "username": "USERNAME"
         }"#
-                .replace("USERNAME", &self.username);
+            .replace("USERNAME", &self.username);
 
         Ok(Response::with((status::Ok, payload)))
     }
@@ -114,8 +119,8 @@ impl Handler for RocketchatChannelsList {
                 "sysMes": true,
                 "_updatedAt": "2017-02-12T13:20:22.092Z"
             }"#
-                    .replace("CHANNEL_NAME", channel_name)
-                    .replace("CHANNEL_USERNAMES", &user_names.join("\",\""));
+                .replace("CHANNEL_NAME", channel_name)
+                .replace("CHANNEL_USERNAMES", &user_names.join("\",\""));
             channels.push(channel);
         }
 
@@ -124,6 +129,39 @@ impl Handler for RocketchatChannelsList {
         Ok(Response::with((self.status, payload)))
     }
 }
+
+pub struct RocketchatDirectMessagesList {
+    pub direct_messages: HashMap<&'static str, Vec<&'static str>>,
+    pub status: status::Status,
+}
+
+impl Handler for RocketchatDirectMessagesList {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        let mut dms = Vec::new();
+        for (id, user_names) in self.direct_messages.iter() {
+            let dm = r#"{
+                "_id": "DIRECT_MESSAGE_ID",
+                "_updatedAt": "2017-05-25T21:51:04.429Z",
+                "t": "d",
+                "msgs": 5,
+                "ts": "2017-05-12T14:49:01.806Z",
+                "lm": "2017-05-25T21:51:04.414Z",
+                "username": "admin",
+                "usernames": [
+                    "USER_NAMES"
+                ]}"#
+                .replace("DIRECT_MESSAGE_ID", id)
+                .replace("USER_NAMES", &user_names.join("\",\""));
+            dms.push(dm);
+        }
+
+        let payload = "{ \"ims\": [".to_string() + &dms.join(",") + "]}";
+
+        Ok(Response::with((status::Ok, payload)))
+    }
+}
+
+
 
 pub struct RocketchatUsersInfo {}
 
@@ -134,8 +172,9 @@ impl Handler for RocketchatUsersInfo {
 
         let (status, payload) = match query_pairs.find(|&(ref key, _)| key == "username") {
             Some((_, ref username)) => {
-                (status::Ok,
-                 r#"{
+                (
+                    status::Ok,
+                    r#"{
                     "user": {
                         "name": "Name USERNAME",
                         "username": "USERNAME",
@@ -147,16 +186,19 @@ impl Handler for RocketchatUsersInfo {
                     },
                     "success": true
                 }"#
-                         .replace("USERNAME", username))
+                        .replace("USERNAME", username),
+                )
             }
             None => {
-                (status::BadRequest,
-                 r#"{
+                (
+                    status::BadRequest,
+                    r#"{
                     "success": false,
                     "error": "The required \"userId\" or \"username\" param was not provided [error-user-param-not-provided]",
                     "errorType": "error-user-param-not-provided"
                     }"#
-                         .to_string())
+                        .to_string(),
+                )
             }
         };
 
@@ -195,6 +237,15 @@ impl Handler for MatrixVersion {
 
 pub struct MatrixRegister {}
 
+impl MatrixRegister {
+    pub fn with_forwarder() -> (Chain, Receiver<String>) {
+        let (message_forwarder, receiver) = MessageForwarder::new();
+        let mut chain = Chain::new(MatrixRegister {});
+        chain.link_before(message_forwarder);;
+        (chain, receiver)
+    }
+}
+
 impl Handler for MatrixRegister {
     fn handle(&self, request: &mut Request) -> IronResult<Response> {
         let request_payload = extract_payload(request);
@@ -217,14 +268,16 @@ impl Handler for MatrixRegister {
     }
 }
 
-pub struct MatrixCreateRoom {}
+pub struct MatrixCreateRoom {
+    pub as_url: String,
+}
 
 impl MatrixCreateRoom {
     /// Create a `MatrixCreateRoom` handler with a message forwarder middleware.
-    pub fn with_forwarder() -> (Chain, Receiver<String>) {
+    pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
-        let mut chain = Chain::new(MatrixCreateRoom {});
-        chain.link_before(message_forwarder);;
+        let mut chain = Chain::new(MatrixCreateRoom { as_url: as_url });
+        chain.link_before(message_forwarder);
         (chain, receiver)
     }
 }
@@ -234,9 +287,30 @@ impl Handler for MatrixCreateRoom {
         let request_payload = extract_payload(request);
         let create_room_payload: create_room::BodyParams = serde_json::from_str(&request_payload).unwrap();
 
-        let room_id = RoomId::try_from(&format!("!{}_id:localhost", create_room_payload.name.unwrap())).unwrap();
+        let room_id_local_part: String = create_room_payload
+            .name
+            .unwrap_or("1234".to_string())
+            .chars()
+            .into_iter()
+            .filter(|c| c.is_alphanumeric() || c == &'_')
+            .collect();
+        let test_room_id = format!("!{}_id:localhost", &room_id_local_part);
+        let room_id = RoomId::try_from(&test_room_id).unwrap();
+
+        let url: Url = request.url.clone().into();
+        let mut query_pairs = url.query_pairs();
+        let (_, user_id_param) = query_pairs.find(|&(ref key, _)| key == "user_id").unwrap_or((
+            Cow::from("user_id"),
+            Cow::from("@rocketchat:localhost"),
+        ));
+        let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
+
+        // join event that is triggered when the room creator enters the room
+        helpers::join(&self.as_url, room_id.clone(), user_id);
+
         let response = create_room::Response { room_id: room_id };
         let payload = serde_json::to_string(&response).unwrap();
+
         Ok(Response::with((status::Ok, payload)))
     }
 }
@@ -289,18 +363,48 @@ impl Handler for RoomStateCreate {
     }
 }
 
+pub struct MatrixJoinRoom {
+    pub as_url: String,
+}
+
+impl MatrixJoinRoom {
+    pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
+        let (message_forwarder, receiver) = MessageForwarder::new();
+        let mut chain = Chain::new(MatrixJoinRoom { as_url: as_url });
+        chain.link_before(message_forwarder);;
+        (chain, receiver)
+    }
+}
+
+impl Handler for MatrixJoinRoom {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        let params = request.extensions.get::<Router>().unwrap().clone();
+        let url_room_id = params.find("room_id").unwrap();
+        let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
+        let room_id = RoomId::try_from(&decoded_room_id).unwrap();
+
+        let url: Url = request.url.clone().into();
+        let mut query_pairs = url.query_pairs();
+        let (_, user_id_param) = query_pairs.find(|&(ref key, _)| key == "user_id").unwrap_or((
+            Cow::from("user_id"),
+            Cow::from("@rocketchat:localhost"),
+        ));
+        let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
+
+        helpers::join(&self.as_url, room_id, user_id);
+
+        Ok(Response::with((status::Ok, "{}")))
+    }
+}
+
 pub struct MatrixLeaveRoom {
     pub as_url: String,
-    pub user_id: UserId,
 }
 
 impl MatrixLeaveRoom {
-    pub fn with_forwarder(as_url: String, user_id: UserId) -> (Chain, Receiver<String>) {
+    pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
-        let mut chain = Chain::new(MatrixLeaveRoom {
-                                       as_url: as_url,
-                                       user_id: user_id,
-                                   });
+        let mut chain = Chain::new(MatrixLeaveRoom { as_url: as_url });
         chain.link_before(message_forwarder);;
         (chain, receiver)
     }
@@ -313,7 +417,15 @@ impl Handler for MatrixLeaveRoom {
         let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
         let room_id = RoomId::try_from(&decoded_room_id).unwrap();
 
-        helpers::leave_room(&self.as_url, room_id, self.user_id.clone());
+        let url: Url = request.url.clone().into();
+        let mut query_pairs = url.query_pairs();
+        let (_, user_id_param) = query_pairs.find(|&(ref key, _)| key == "user_id").unwrap_or((
+            Cow::from("user_id"),
+            Cow::from("@rocketchat:localhost"),
+        ));
+        let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
+
+        helpers::leave_room(&self.as_url, room_id, user_id);
 
         Ok(Response::with((status::Ok, "{}")))
     }

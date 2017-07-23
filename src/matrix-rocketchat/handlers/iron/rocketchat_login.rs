@@ -33,14 +33,20 @@ impl Handler for RocketchatLogin {
             config: &self.config,
             connection: &connection,
             logger: &logger,
-            matrix_api: &self.matrix_api,
+            matrix_api: self.matrix_api.as_ref(),
         };
         let rocketchat_server = match RocketchatServer::find_by_url(&connection, credentials.rocketchat_url.clone())? {
             Some(rocketchat_server) => rocketchat_server,
             None => {
-                return Err(user_error!(ErrorKind::AdminRoomForRocketchatServerNotFound(credentials.rocketchat_url.clone()),
-                                       t!(["errors", "admin_room_for_rocketchat_server_not_found"])
-                                           .with_vars(vec![("rocketchat_url", credentials.rocketchat_url.clone())])))?;
+                return Err(user_error!(
+                    ErrorKind::AdminRoomForRocketchatServerNotFound(credentials.rocketchat_url.clone()),
+                    t!(["errors", "admin_room_for_rocketchat_server_not_found"]).with_vars(vec![
+                        (
+                            "rocketchat_url",
+                            credentials.rocketchat_url.clone()
+                        ),
+                    ])
+                ))?;
             }
         };
 
@@ -50,7 +56,7 @@ impl Handler for RocketchatLogin {
                     config: &self.config,
                     connection: &connection,
                     logger: &logger,
-                    matrix_api: &self.matrix_api,
+                    matrix_api: self.matrix_api.as_ref(),
                 };
                 error_notifier.send_message_to_user(&err, admin_room.matrix_room_id.clone(), &credentials.matrix_user_id)?;
             }

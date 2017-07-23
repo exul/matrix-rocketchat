@@ -36,7 +36,7 @@ pub struct Channel {
     #[serde(rename = "_id")]
     pub id: String,
     /// Name of the Rocket.Chat room
-    pub name: String,
+    pub name: Option<String>,
     /// List of users in the room
     pub usernames: Vec<String>,
 }
@@ -51,7 +51,7 @@ pub struct Message {
     /// ID of the channel from which the message was sent
     pub channel_id: String,
     /// Name of the channel from which the message was sent
-    pub channel_name: String,
+    pub channel_name: Option<String>,
     /// ID of the user who sent the message
     pub user_id: String,
     /// Name of the user who sent the message
@@ -76,6 +76,8 @@ pub trait RocketchatApi {
     fn channels_list(&self) -> Result<Vec<Channel>>;
     /// Get the logged in users username
     fn current_username(&self) -> Result<String>;
+    /// List of direct messages the user is part of
+    fn direct_messages_list(&self) -> Result<Vec<Channel>>;
     /// Login a user on the Rocket.Chat server
     fn login(&self, username: &str, password: &str) -> Result<(String, String)>;
     /// Post a chat message
@@ -103,14 +105,18 @@ impl RocketchatApi {
             Ok((body, status_code)) => (body, status_code),
             Err(err) => {
                 debug!(logger, err);
-                bail_error!(ErrorKind::RocketchatServerUnreachable(url.clone()),
-                            t!(["errors", "rocketchat_server_unreachable"]).with_vars(vec![("rocketchat_url", url)]));
+                bail_error!(
+                    ErrorKind::RocketchatServerUnreachable(url.clone()),
+                    t!(["errors", "rocketchat_server_unreachable"]).with_vars(vec![("rocketchat_url", url)])
+                );
             }
         };
 
         if !status_code.is_success() {
-            bail_error!(ErrorKind::NoRocketchatServer(url.clone()),
-                        t!(["errors", "no_rocketchat_server"]).with_vars(vec![("rocketchat_url", url.clone())]));
+            bail_error!(
+                ErrorKind::NoRocketchatServer(url.clone()),
+                t!(["errors", "no_rocketchat_server"]).with_vars(vec![("rocketchat_url", url.clone())])
+            );
         }
 
         let rocketchat_info: GetInfoResponse =
@@ -137,11 +143,12 @@ impl RocketchatApi {
 
         let min_version = "0.49".to_string();
         Err(Error {
-                error_chain: ErrorKind::UnsupportedRocketchatApiVersion(min_version.clone(), version.clone()).into(),
-                user_message: Some(t!(["errors", "unsupported_rocketchat_api_version"]).with_vars(vec![("min_version",
-                                                                                                        min_version),
-                                                                                                       ("version", version)])),
-            })
+            error_chain: ErrorKind::UnsupportedRocketchatApiVersion(min_version.clone(), version.clone()).into(),
+            user_message: Some(t!(["errors", "unsupported_rocketchat_api_version"]).with_vars(vec![
+                ("min_version", min_version),
+                ("version", version),
+            ])),
+        })
     }
 }
 

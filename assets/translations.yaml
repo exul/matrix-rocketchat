@@ -68,6 +68,7 @@ en:
     room_successfully_unbridged: "${channel_name} is now unbridged."
   defaults:
     admin_room_display_name: "Admin Room (Rocket.Chat)"
+    direct_message_room_display_name_suffix: "(DM Rocket.Chat)"
     internal_error: "An internal error occurred"
   handlers:
     welcome: "Your Rocket.Chat <-> Matrix application service is running"

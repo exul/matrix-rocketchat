@@ -20,19 +20,21 @@ use ruma_identifiers::{RoomId, UserId};
 
 #[test]
 fn error_message_language_falls_back_to_the_default_language_if_the_sender_is_not_found() {
-    let mut matrix_router = Router::new();
+    let test = Test::new();
+    let mut matrix_router = test.default_matrix_routes();
     let (message_forwarder, receiver) = MessageForwarder::new();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(POST_CHAT_MESSAGE_PATH,
-                           handlers::RocketchatErrorResponder {
-                               message: "Rocketh.Chat chat.postMessage error".to_string(),
-                               status: status::InternalServerError,
-                           },
-                           "post_chat_message");
+    rocketchat_router.post(
+        POST_CHAT_MESSAGE_PATH,
+        handlers::RocketchatErrorResponder {
+            message: "Rocketh.Chat chat.postMessage error".to_string(),
+            status: status::InternalServerError,
+        },
+        "post_chat_message",
+    );
 
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -40,10 +42,12 @@ fn error_message_language_falls_back_to_the_default_language_if_the_sender_is_no
         .with_bridged_room(("spec_channel", "spec_user"))
         .run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!spec_channel_id:localhost").unwrap(),
-                                           UserId::try_from("@unknown_user:localhost").unwrap(),
-                                           "spec message".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@unknown_user:localhost").unwrap(),
+        "spec message".to_string(),
+    );
 
 
     // discard welcome message

@@ -49,8 +49,10 @@ impl Handler for Transactions {
 
         let connection = ConnectionPool::from_request(request)?;
 
-        if let Err(err) = EventDispatcher::new(&self.config, &connection, &logger, self.matrix_api.clone())
-               .process(events_batch.events) {
+        if let Err(err) = EventDispatcher::new(&self.config, &connection, &logger, self.matrix_api.clone()).process(
+            events_batch.events,
+        )
+        {
             log::log_error(&logger, &err);
         }
 
@@ -63,9 +65,11 @@ fn deserialize_events(body: &mut Body) -> Result<Events> {
     body.read_to_string(&mut payload).chain_err(|| ErrorKind::InternalServerError)?;
     serde_json::from_str(&payload)
         .chain_err(|| {
-            ErrorKind::InvalidJSON(format!("Could not deserialize events that were sent to the transactions endpoint: \
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize events that were sent to the transactions endpoint: \
                                             `{}`",
-                                           payload))
+                payload
+            ))
         })
         .map_err(Error::from)
 }

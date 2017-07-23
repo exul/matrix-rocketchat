@@ -18,6 +18,7 @@ table! {
         rocketchat_room_id -> Nullable<Text>,
         is_admin_room -> Bool,
         is_bridged -> Bool,
+        is_direct_message_room -> Bool,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }

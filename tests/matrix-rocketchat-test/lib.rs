@@ -50,6 +50,8 @@ use router::Router;
 use ruma_identifiers::{RoomId, UserId};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
+use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinRoomByIdEndpoint;
+use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::Endpoint as GetStateEventsForEmptyKey;
@@ -67,7 +69,7 @@ pub const HS_TOKEN: &'static str = "ht";
 /// Rocket.Chat token used in the tests
 pub const RS_TOKEN: &'static str = "rt";
 /// Number of threads that iron uses when running tests
-pub const IRON_THREADS: usize = 2;
+pub const IRON_THREADS: usize = 3;
 /// The version the mock Rocket.Chat server announces
 pub const DEFAULT_ROCKETCHAT_VERSION: &'static str = "0.49.0";
 
@@ -234,7 +236,12 @@ impl Test {
         }
 
         if self.with_logged_in_user {
-            self.login_user();
+            helpers::send_room_message_from_matrix(
+                &self.config.as_url,
+                RoomId::try_from("!admin:localhost").unwrap(),
+                UserId::try_from("@spec_user:localhost").unwrap(),
+                "login spec_user secret".to_string(),
+            );
         }
 
         if let Some(bridged_room) = self.bridged_room {
@@ -250,41 +257,20 @@ impl Test {
         let hs_socket_addr = get_free_socket_addr();
         self.config.hs_url = format!("http://{}:{}", hs_socket_addr.ip(), hs_socket_addr.port());
 
-        let mut router = match mem::replace(&mut self.matrix_homeserver_mock_router, None) {
+        let router = match mem::replace(&mut self.matrix_homeserver_mock_router, None) {
             Some(router) => router,
-            None => Router::new(),
+            None => self.default_matrix_routes(),
         };
 
-        router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "versions");
-        router.post("*", handlers::EmptyJson {}, "default_post");
-        router.put("*", handlers::EmptyJson {}, "default_put");
-
-        if self.with_admin_room || self.with_connected_admin_room {
-            let room_creator = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
-            router.get(GetStateEventsForEmptyKey::router_path(), room_creator, "get_state_events_for_empty_key");
-
-            let room_members = handlers::RoomMembers {
-                room_id: RoomId::try_from("!admin:localhost").unwrap(),
-                members: vec![UserId::try_from("@spec_user:localhost").unwrap(),
-                              UserId::try_from("@rocketchat:localhost").unwrap()],
-            };
-
-            router.get(GetMemberEventsEndpoint::router_path(), room_members, "room_members");
-            router.post(RegisterEndpoint::router_path(), handlers::MatrixRegister {}, "register");
-        }
-
-        if self.bridged_room.is_some() {
-            router.post(CreateRoomEndpoint::router_path(), handlers::MatrixCreateRoom {}, "create_room");
-        }
 
         thread::spawn(move || {
-                          let mut chain = Chain::new(router);
-                          chain.link_before(Write::<UsernameList>::one(Vec::new()));
-                          let mut server = Iron::new(chain);
-                          server.threads = IRON_THREADS;
-                          let listening = server.http(&hs_socket_addr).unwrap();
-                          hs_tx.send(listening).unwrap();
-                      });
+            let mut chain = Chain::new(router);
+            chain.link_before(Write::<UsernameList>::one(Vec::new()));
+            let mut server = Iron::new(chain);
+            server.threads = IRON_THREADS;
+            let listening = server.http(&hs_socket_addr).unwrap();
+            hs_tx.send(listening).unwrap();
+        });
 
         let hs_listening = hs_rx.recv_timeout(default_timeout()).unwrap();
         self.hs_listening = Some(hs_listening);
@@ -302,12 +288,14 @@ impl Test {
         router.get("/api/info", handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION }, "info");
 
         if self.with_logged_in_user {
-            router.post(LOGIN_PATH,
-                        handlers::RocketchatLogin {
-                            successful: true,
-                            rocketchat_user_id: Some("spec_user_id".to_string()),
-                        },
-                        "login");
+            router.post(
+                LOGIN_PATH,
+                handlers::RocketchatLogin {
+                    successful: true,
+                    rocketchat_user_id: Some("spec_user_id".to_string()),
+                },
+                "login",
+            );
             router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
             router.get(USERS_INFO_PATH, handlers::RocketchatUsersInfo {}, "users_info");
         }
@@ -323,20 +311,22 @@ impl Test {
         }
 
         if channels.len() > 0 {
-            router.get(CHANNELS_LIST_PATH,
-                       handlers::RocketchatChannelsList {
-                           status: status::Ok,
-                           channels: channels,
-                       },
-                       "channels_list");
+            router.get(
+                CHANNELS_LIST_PATH,
+                handlers::RocketchatChannelsList {
+                    status: status::Ok,
+                    channels: channels,
+                },
+                "channels_list",
+            );
         }
 
         thread::spawn(move || {
-                          let mut server = Iron::new(router);
-                          server.threads = IRON_THREADS;
-                          let listening = server.http(&socket_addr).unwrap();
-                          tx.send(listening).unwrap();
-                      });
+            let mut server = Iron::new(router);
+            server.threads = IRON_THREADS;
+            let listening = server.http(&socket_addr).unwrap();
+            tx.send(listening).unwrap();
+        });
         let listening = rx.recv_timeout(default_timeout() * 2).unwrap();
         self.rocketchat_listening = Some(listening);
         self.rocketchat_mock_url = Some(format!("http://{}", socket_addr));
@@ -347,9 +337,11 @@ impl Test {
         let (as_tx, as_rx) = channel::<Listening>();
 
         thread::spawn(move || {
-            let log = slog::Logger::root(slog_term::streamer().full().build().fuse(),
-                                         o!("version" => env!("CARGO_PKG_VERSION"),
-                                            "place" => file_line_logger_format));
+            let log = slog::Logger::root(
+                slog_term::streamer().full().build().fuse(),
+                o!("version" => env!("CARGO_PKG_VERSION"),
+                                            "place" => file_line_logger_format),
+            );
             debug!(DEFAULT_LOGGER, "config: {:?}", server_config);
             let listening = match Server::new(&server_config, log).run(IRON_THREADS) {
                 Ok(listening) => listening,
@@ -369,46 +361,81 @@ impl Test {
     }
 
     fn create_admin_room(&self) {
-        helpers::create_admin_room(&self.config.as_url,
-                                   RoomId::try_from("!admin:localhost").unwrap(),
-                                   UserId::try_from("@spec_user:localhost").unwrap(),
-                                   UserId::try_from("@rocketchat:localhost").unwrap());
+        helpers::invite(
+            &self.config.as_url,
+            RoomId::try_from("!admin:localhost").unwrap(),
+            UserId::try_from("@spec_user:localhost").unwrap(),
+            UserId::try_from("@rocketchat:localhost").unwrap(),
+        );
     }
 
     fn create_connected_admin_room(&self) {
         self.create_admin_room();
         match self.rocketchat_mock_url {
             Some(ref rocketchat_mock_url) => {
-                helpers::send_room_message_from_matrix(&self.config.as_url,
-                                                       RoomId::try_from("!admin:localhost").unwrap(),
-                                                       UserId::try_from("@spec_user:localhost").unwrap(),
-                                                       format!("connect {} {} rc_id", rocketchat_mock_url, RS_TOKEN));
+                helpers::send_room_message_from_matrix(
+                    &self.config.as_url,
+                    RoomId::try_from("!admin:localhost").unwrap(),
+                    UserId::try_from("@spec_user:localhost").unwrap(),
+                    format!("connect {} {} rc_id", rocketchat_mock_url, RS_TOKEN),
+                );
             }
             None => panic!("No Rocket.Chat mock present to connect to"),
         }
     }
 
-    fn login_user(&self) {
-        helpers::send_room_message_from_matrix(&self.config.as_url,
-                                               RoomId::try_from("!admin:localhost").unwrap(),
-                                               UserId::try_from("@spec_user:localhost").unwrap(),
-                                               "login spec_user secret".to_string());
+    fn bridge_room(&self, room_name: &'static str) {
+        helpers::send_room_message_from_matrix(
+            &self.config.as_url,
+            RoomId::try_from("!admin:localhost").unwrap(),
+            UserId::try_from("@spec_user:localhost").unwrap(),
+            format!("bridge {}", room_name),
+        );
+
+        helpers::join(
+            &self.config.as_url,
+            RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap(),
+            UserId::try_from("@rocketchat:localhost").unwrap(),
+        );
+
+        helpers::join(
+            &self.config.as_url,
+            RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap(),
+            UserId::try_from("@spec_user:localhost").unwrap(),
+        );
     }
 
-    fn bridge_room(&self, room_name: &'static str) {
-        helpers::send_room_message_from_matrix(&self.config.as_url,
-                                               RoomId::try_from("!admin:localhost").unwrap(),
-                                               UserId::try_from("@spec_user:localhost").unwrap(),
-                                               format!("bridge {}", room_name));
+    /// The default matrix routes that the matrix mock server needs to work. They can be used a
+    /// a staring point to add more routes.
+    pub fn default_matrix_routes(&self) -> Router {
+        let mut router = Router::new();
+        let join_room_handler = handlers::MatrixJoinRoom { as_url: self.config.as_url.clone() };
+        router.post(JoinRoomByIdEndpoint::router_path(), join_room_handler, "join_room");
+        let leave_room_handler = handlers::MatrixLeaveRoom { as_url: self.config.as_url.clone() };
+        router.post(LeaveRoomEndpoint::router_path(), leave_room_handler, "leave_room");
+        router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "versions");
+        let room_creator = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
+        router.get(GetStateEventsForEmptyKey::router_path(), room_creator, "get_state_events_for_empty_key");
 
-        // users accept invite
-        helpers::join(&self.config.as_url,
-                      RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap(),
-                      UserId::try_from("@rocketchat:localhost").unwrap());
+        let room_members = handlers::RoomMembers {
+            room_id: RoomId::try_from("!admin:localhost").unwrap(),
+            members: vec![
+                UserId::try_from("@spec_user:localhost").unwrap(),
+                UserId::try_from("@rocketchat:localhost").unwrap(),
+            ],
+        };
 
-        helpers::join(&self.config.as_url,
-                      RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap(),
-                      UserId::try_from("@spec_user:localhost").unwrap());
+        router.get(GetMemberEventsEndpoint::router_path(), room_members, "room_members");
+        router.post(RegisterEndpoint::router_path(), handlers::MatrixRegister {}, "register");
+        router.post(
+            CreateRoomEndpoint::router_path(),
+            handlers::MatrixCreateRoom { as_url: self.config.as_url.clone() },
+            "create_room",
+        );
+        router.post("*", handlers::EmptyJson {}, "default_post");
+        router.put("*", handlers::EmptyJson {}, "default_put");
+
+        router
     }
 }
 
@@ -457,6 +484,7 @@ pub fn default_timeout() -> Duration {
     Duration::from_millis(2000)
 }
 
+/// The default versions that are returned by the matrix versions endpoint.
 pub fn default_matrix_api_versions() -> Vec<&'static str> {
     vec!["r0.0.1", "r0.1.0", "r0.2.0"]
 }

@@ -18,11 +18,12 @@ pub struct MessageHandler<'a> {
 
 impl<'a> MessageHandler<'a> {
     /// Create a new `MessageHandler`.
-    pub fn new(config: &'a Config,
-               connection: &'a SqliteConnection,
-               logger: &'a Logger,
-               matrix_api: Box<MatrixApi>)
-               -> MessageHandler<'a> {
+    pub fn new(
+        config: &'a Config,
+        connection: &'a SqliteConnection,
+        logger: &'a Logger,
+        matrix_api: Box<MatrixApi>,
+    ) -> MessageHandler<'a> {
         MessageHandler {
             config: config,
             connection: connection,
@@ -40,7 +41,7 @@ impl<'a> MessageHandler<'a> {
 
         match Room::find_by_matrix_room_id(self.connection, &event.room_id)? {
             Some(ref room) if room.is_admin_room => {
-                CommandHandler::new(self.config, self.connection, self.logger, &self.matrix_api).process(event, room)?;
+                CommandHandler::new(self.config, self.connection, self.logger, self.matrix_api.as_ref()).process(event, room)?;
             }
             Some(ref room) => {
                 Forwarder::new(self.connection, self.logger).process(event, room)?;

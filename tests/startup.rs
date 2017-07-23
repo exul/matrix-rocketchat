@@ -34,9 +34,11 @@ fn starup_fails_when_server_cannot_bind_to_address() {
 
     thread::spawn(move || {
         let mut router = Router::new();
-        router.get("/_matrix/client/versions",
-                   handlers::MatrixVersion { versions: default_matrix_api_versions() },
-                   "get_versions");
+        router.get(
+            "/_matrix/client/versions",
+            handlers::MatrixVersion { versions: default_matrix_api_versions() },
+            "get_versions",
+        );
         router.post("*", handlers::EmptyJson {}, "default_post");
         let mut server = Iron::new(router);
         server.threads = IRON_THREADS;
@@ -49,18 +51,18 @@ fn starup_fails_when_server_cannot_bind_to_address() {
     let running_server_log = log.clone();
     let (running_server_tx, running_server_rx) = channel::<Result<Listening>>();
     thread::spawn(move || {
-                      let running_server_result = Server::new(&running_server_config, running_server_log).run(IRON_THREADS);
-                      homeserver_mock_listen.close().unwrap();
-                      running_server_tx.send(running_server_result).unwrap();
-                  });
+        let running_server_result = Server::new(&running_server_config, running_server_log).run(IRON_THREADS);
+        homeserver_mock_listen.close().unwrap();
+        running_server_tx.send(running_server_result).unwrap();
+    });
     let running_server_result = running_server_rx.recv_timeout(matrix_rocketchat_test::default_timeout()).unwrap();
     assert!(running_server_result.is_ok());
 
     let (failed_server_tx, failed_server_rx) = channel::<Result<Listening>>();
     thread::spawn(move || {
-                      let failed_server_result = Server::new(&config, log).run(IRON_THREADS);
-                      failed_server_tx.send(failed_server_result).unwrap();
-                  });
+        let failed_server_result = Server::new(&config, log).run(IRON_THREADS);
+        failed_server_tx.send(failed_server_result).unwrap();
+    });
     let failed_server_result = failed_server_rx.recv_timeout(matrix_rocketchat_test::default_timeout()).unwrap();
     assert!(failed_server_result.is_err());
     running_server_result.unwrap().close().unwrap();
@@ -85,9 +87,11 @@ fn startup_fails_when_querying_the_api_version_is_not_successful_and_returs_a_ma
 #[test]
 fn startup_fails_when_querying_the_api_version_is_not_successful_and_returns_an_invalid_response() {
     let mut router = Router::new();
-    router.get("/_matrix/client/versions",
-               handlers::InvalidJsonResponse { status: status::InternalServerError },
-               "get_versions");
+    router.get(
+        "/_matrix/client/versions",
+        handlers::InvalidJsonResponse { status: status::InternalServerError },
+        "get_versions",
+    );
 
     let server_result = start_servers(router);
 
@@ -141,9 +145,11 @@ fn startup_failes_when_the_bot_user_registration_failes() {
 fn startup_failes_when_the_bot_user_registration_returns_invalid_json() {
     let mut router = Router::new();
     router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "get_versions");
-    router.post(RegisterEndpoint::router_path(),
-                handlers::InvalidJsonResponse { status: status::InternalServerError },
-                "register");
+    router.post(
+        RegisterEndpoint::router_path(),
+        handlers::InvalidJsonResponse { status: status::InternalServerError },
+        "register",
+    );
 
     let server_result = start_servers(router);
 
@@ -157,11 +163,11 @@ fn start_servers(matrix_router: Router) -> Result<Listening> {
 
     let (homeserver_mock_tx, homeserver_mock_rx) = channel::<Listening>();
     thread::spawn(move || {
-                      let mut server = Iron::new(matrix_router);
-                      server.threads = IRON_THREADS;
-                      let listening = server.http(homeserver_mock_socket_addr).unwrap();
-                      homeserver_mock_tx.send(listening).unwrap();
-                  });
+        let mut server = Iron::new(matrix_router);
+        server.threads = IRON_THREADS;
+        let listening = server.http(homeserver_mock_socket_addr).unwrap();
+        homeserver_mock_tx.send(listening).unwrap();
+    });
 
     let (server_tx, server_rx) = channel::<Result<Listening>>();
     thread::spawn(move || {

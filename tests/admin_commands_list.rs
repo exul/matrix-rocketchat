@@ -21,8 +21,9 @@ use ruma_identifiers::{RoomId, UserId};
 
 #[test]
 fn sucessfully_list_rocketchat_rooms() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
     let mut channels = HashMap::new();
@@ -31,8 +32,7 @@ fn sucessfully_list_rocketchat_rooms() {
     channels.insert("bridged_channel", vec!["spec_user"]);
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
 
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -40,6 +40,12 @@ fn sucessfully_list_rocketchat_rooms() {
         .with_custom_channel_list(channels)
         .with_bridged_room(("bridged_channel", "spec_user"))
         .run();
+
+    helpers::join(
+        &test.config.as_url,
+        RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -51,10 +57,12 @@ fn sucessfully_list_rocketchat_rooms() {
     // discard bridge message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "list".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "list".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("normal_channel"));
@@ -64,19 +72,21 @@ fn sucessfully_list_rocketchat_rooms() {
 
 #[test]
 fn the_user_gets_a_message_when_getting_room_list_failes() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
-    rocketchat_router.get(CHANNELS_LIST_PATH,
-                          handlers::RocketchatErrorResponder {
-                              message: "List Error".to_string(),
-                              status: status::InternalServerError,
-                          },
-                          "channels_list");
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    rocketchat_router.get(
+        CHANNELS_LIST_PATH,
+        handlers::RocketchatErrorResponder {
+            message: "List Error".to_string(),
+            status: status::InternalServerError,
+        },
+        "channels_list",
+    );
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -90,10 +100,12 @@ fn the_user_gets_a_message_when_getting_room_list_failes() {
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "list".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "list".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("An internal error occurred"));
@@ -101,14 +113,14 @@ fn the_user_gets_a_message_when_getting_room_list_failes() {
 
 #[test]
 fn the_user_gets_a_message_when_the_room_list_cannot_be_deserialized() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
     rocketchat_router.get(CHANNELS_LIST_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "channels_list");
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -122,10 +134,12 @@ fn the_user_gets_a_message_when_the_room_list_cannot_be_deserialized() {
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "list".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "list".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("An internal error occurred"));
@@ -133,15 +147,18 @@ fn the_user_gets_a_message_when_the_room_list_cannot_be_deserialized() {
 
 #[test]
 fn attempt_to_list_rooms_when_the_admin_room_is_not_connected() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let test = Test::new().with_matrix_routes(matrix_router).with_admin_room().run();
+    let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "list".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "list".to_string(),
+    );
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();

@@ -25,12 +25,12 @@ use serde_json::to_string;
 
 #[test]
 fn successfully_unbridge_a_rocketchat_room() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
 
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
@@ -42,7 +42,7 @@ fn successfully_unbridge_a_rocketchat_room() {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "bridged_channel_id".to_string(),
-        channel_name: "bridged_channel".to_string(),
+        channel_name: Some("bridged_channel".to_string()),
         user_id: "new_user_id".to_string(),
         user_name: "new_user".to_string(),
         text: "spec_message".to_string(),
@@ -51,18 +51,18 @@ fn successfully_unbridge_a_rocketchat_room() {
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
-                  UserId::try_from("@rocketchat_new_user_id_rc_id:localhost").unwrap());
+    helpers::leave_room(
+        &test.config.as_url,
+        RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
 
-    helpers::leave_room(&test.config.as_url,
-                        RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
-                        UserId::try_from("@spec_user:localhost").unwrap());
-
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "unbridge bridged_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "unbridge bridged_channel".to_string(),
+    );
 
     // discard welcome message for spec user
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -94,30 +94,34 @@ fn successfully_unbridge_a_rocketchat_room() {
 
 #[test]
 fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
         room_id: RoomId::try_from("!other_admin:localhost").unwrap(),
         event_type: EventType::RoomCreate.to_string(),
     };
-    matrix_router.get(GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
-                      admin_room_creator_handler,
-                      "get_room_creator_admin_room");
+    matrix_router.get(
+        GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+        admin_room_creator_handler,
+        "get_room_creator_admin_room",
+    );
 
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(LOGIN_PATH,
-                           handlers::RocketchatLogin {
-                               successful: true,
-                               rocketchat_user_id: None,
-                           },
-                           "login");
+    rocketchat_router.post(
+        LOGIN_PATH,
+        handlers::RocketchatLogin {
+            successful: true,
+            rocketchat_user_id: None,
+        },
+        "login",
+    );
     rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
 
 
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -126,33 +130,43 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
         .run();
 
     // create other admin room
-    helpers::create_admin_room(&test.config.as_url,
-                               RoomId::try_from("!other_admin:localhost").unwrap(),
-                               UserId::try_from("@other_user:localhost").unwrap(),
-                               UserId::try_from("@rocketchat:localhost").unwrap());
+    helpers::invite(
+        &test.config.as_url,
+        RoomId::try_from("!other_admin:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
+    );
 
     // connect other admin room
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!other_admin:localhost").unwrap(),
-                                           UserId::try_from("@other_user:localhost").unwrap(),
-                                           format!("connect {}", test.rocketchat_mock_url.clone().unwrap()));
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!other_admin:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+        format!("connect {}", test.rocketchat_mock_url.clone().unwrap()),
+    );
 
     // login other user
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!other_admin:localhost").unwrap(),
-                                           UserId::try_from("@other_user:localhost").unwrap(),
-                                           "login other_user secret".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!other_admin:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+        "login other_user secret".to_string(),
+    );
 
     // bridge bridged_channel for other user
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!other_admin:localhost").unwrap(),
-                                           UserId::try_from("@other_user:localhost").unwrap(),
-                                           "bridge bridged_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!other_admin:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+        "bridge bridged_channel".to_string(),
+    );
 
     // other_user accepts invite from bot user
-    helpers::join(&test.config.as_url,
-                  RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
-                  UserId::try_from("@other_user:localhost").unwrap());
+    helpers::join(
+        &test.config.as_url,
+        RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+    );
 
     // discard welcome message for spec user
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -172,25 +186,29 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
     // discard bridged message for other user
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "unbridge bridged_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "unbridge bridged_channel".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("Cannot unbdrige room bridged_channel, because Matrix users \
-                                                (@other_user:localhost, @spec_user:localhost) are still using the room."));
+    assert!(message_received_by_matrix.contains(
+        "Cannot unbdrige room bridged_channel, because Matrix users \
+                                                (@other_user:localhost, @spec_user:localhost) are still using the room.",
+    ));
 }
 
 #[test]
 fn attempting_to_unbridge_a_non_existing_channel_returns_an_error() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut channels = HashMap::new();
     channels.insert("normal_channel", Vec::new());
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
@@ -204,10 +222,12 @@ fn attempting_to_unbridge_a_non_existing_channel_returns_an_error() {
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "unbridge nonexisting_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "unbridge nonexisting_channel".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("The channel nonexisting_channel is not bridged, cannot unbridge it."));
@@ -215,13 +235,13 @@ fn attempting_to_unbridge_a_non_existing_channel_returns_an_error() {
 
 #[test]
 fn attempting_to_unbridge_an_channel_that_is_not_bridged_returns_an_error() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut channels = HashMap::new();
     channels.insert("normal_channel", Vec::new());
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
@@ -235,10 +255,12 @@ fn attempting_to_unbridge_an_channel_that_is_not_bridged_returns_an_error() {
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "unbridge normal_channel".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "unbridge normal_channel".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("The channel normal_channel is not bridged, cannot unbridge it."));

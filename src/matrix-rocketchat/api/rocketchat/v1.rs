@@ -18,6 +18,8 @@ pub const ME_PATH: &'static str = "/api/v1/me";
 pub const USERS_INFO_PATH: &'static str = "/api/v1/users.info";
 /// Channels list endpoint path
 pub const CHANNELS_LIST_PATH: &'static str = "/api/v1/channels.list";
+/// Direct messages list endpoint path
+pub const DIRECT_MESSAGES_LIST_PATH: &'static str = "/api/v1/dm.list";
 /// Post chat message endpoint path
 pub const POST_CHAT_MESSAGE_PATH: &'static str = "/api/v1/chat.postMessage";
 
@@ -79,8 +81,9 @@ impl<'a> Endpoint for LoginEndpoint<'a> {
     }
 
     fn payload(&self) -> Result<String> {
-        let payload = serde_json::to_string(&self.payload)
-            .chain_err(|| ErrorKind::InvalidJSON("Could not serialize login payload".to_string()))?;
+        let payload = serde_json::to_string(&self.payload).chain_err(|| {
+            ErrorKind::InvalidJSON("Could not serialize login payload".to_string())
+        })?;
         Ok(payload)
     }
 
@@ -115,8 +118,9 @@ impl<'a> Endpoint for PostChatMessageEndpoint<'a> {
     }
 
     fn payload(&self) -> Result<String> {
-        let payload = serde_json::to_string(&self.payload)
-            .chain_err(|| ErrorKind::InvalidJSON("Could not serialize post chat message payload".to_string()))?;
+        let payload = serde_json::to_string(&self.payload).chain_err(|| {
+            ErrorKind::InvalidJSON("Could not serialize post chat message payload".to_string())
+        })?;
         Ok(payload)
     }
 
@@ -145,6 +149,13 @@ pub struct Credentials {
     /// The users unique id on the rocketchat server.
     #[serde(rename = "userId")]
     pub user_id: String,
+}
+
+/// Response payload from the Rocket.Chat im.list endpoint.
+#[derive(Deserialize)]
+pub struct DirectMessagesListResponse {
+    /// A list of direct messages that the user is part of.
+    pub ims: Vec<Channel>,
 }
 
 #[derive(Deserialize)]
@@ -212,12 +223,13 @@ impl super::RocketchatApi for RocketchatApi {
             return Err(build_error(&channels_list_endpoint.url(), &body, &status_code));
         }
 
-        let channels_list_response: ChannelsListResponse = serde_json::from_str(&body)
-            .chain_err(|| {
-                           ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat channels.list API \
+        let channels_list_response: ChannelsListResponse = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Rocket.Chat channels.list API \
                                                 endpoint: `{}`",
-                                                          body))
-                       })?;
+                body
+            ))
+        })?;
 
         Ok(channels_list_response.channels)
     }
@@ -238,12 +250,38 @@ impl super::RocketchatApi for RocketchatApi {
             return Err(build_error(&me_endpoint.url(), &body, &status_code));
         }
 
-        let me_response: MeResponse = serde_json::from_str(&body)
-            .chain_err(|| {
-                ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat me API endpoint: `{}`", body))
-            })?;
+        let me_response: MeResponse = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat me API endpoint: `{}`", body))
+        })?;
 
         Ok(me_response.username)
+    }
+
+    fn direct_messages_list(&self) -> Result<Vec<Channel>> {
+        debug!(self.logger, format!("Getting direct messages list from Rocket.Chat server {}", &self.base_url));
+
+        let direct_messages_list_endpoint = GetWithAuthEndpoint {
+            base_url: self.base_url.clone(),
+            user_id: self.user_id.clone(),
+            auth_token: self.auth_token.clone(),
+            path: DIRECT_MESSAGES_LIST_PATH,
+            query_params: HashMap::new(),
+        };
+
+        let (body, status_code) = RestApi::call_rocketchat(&direct_messages_list_endpoint)?;
+        if !status_code.is_success() {
+            return Err(build_error(&direct_messages_list_endpoint.url(), &body, &status_code));
+        }
+
+        let direct_messages_list_response: DirectMessagesListResponse = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Rocket.Chat dm.list API \
+                                                endpoint: `{}`",
+                body
+            ))
+        })?;
+
+        Ok(direct_messages_list_response.ims)
     }
 
     fn login(&self, username: &str, password: &str) -> Result<(String, String)> {
@@ -262,11 +300,9 @@ impl super::RocketchatApi for RocketchatApi {
             return Err(build_error(&login_endpoint.url(), &body, &status_code));
         }
 
-        let login_response: LoginResponse = serde_json::from_str(&body)
-            .chain_err(|| {
-                ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat login API endpoint: `{}`",
-                                               body))
-            })?;
+        let login_response: LoginResponse = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat login API endpoint: `{}`", body))
+        })?;
         Ok((login_response.data.user_id, login_response.data.auth_token))
     }
 
@@ -309,11 +345,11 @@ impl super::RocketchatApi for RocketchatApi {
             return Err(build_error(&users_info_endpoint.url(), &body, &status_code));
         }
 
-        let users_info_response: UsersInfoResponse = serde_json::from_str(&body)
-            .chain_err(|| {
-                ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat users.info API endpoint: `{}`",
-                                               body))
-            })?;
+        let users_info_response: UsersInfoResponse = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(
+                format!("Could not deserialize response from Rocket.Chat users.info API endpoint: `{}`", body),
+            )
+        })?;
 
         Ok(users_info_response.user)
     }
@@ -326,10 +362,12 @@ impl super::RocketchatApi for RocketchatApi {
 }
 
 fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
-    let json_error_msg = format!("Could not deserialize error from Rocket.Chat API endpoint {} with status code {}: `{}`",
-                                 endpoint,
-                                 status_code,
-                                 body);
+    let json_error_msg = format!(
+        "Could not deserialize error from Rocket.Chat API endpoint {} with status code {}: `{}`",
+        endpoint,
+        status_code,
+        body
+    );
     let json_error = ErrorKind::InvalidJSON(json_error_msg);
     let rocketchat_error_resp: RocketchatErrorResponse =
         match serde_json::from_str(body).chain_err(|| json_error).map_err(Error::from) {
@@ -341,9 +379,9 @@ fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
 
     if *status_code == StatusCode::Unauthorized {
         return Error {
-                   error_chain: ErrorKind::AuthenticationFailed(rocketchat_error_resp.message.unwrap_or_default()).into(),
-                   user_message: Some(t!(["errors", "authentication_failed"])),
-               };
+            error_chain: ErrorKind::AuthenticationFailed(rocketchat_error_resp.message.unwrap_or_default()).into(),
+            user_message: Some(t!(["errors", "authentication_failed"])),
+        };
     }
 
     let message = rocketchat_error_resp.message.clone();

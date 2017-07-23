@@ -39,7 +39,7 @@ impl<'a> Server<'a> {
         let connection = connection_pool.get().chain_err(|| ErrorKind::ConnectionPoolExtractionError)?;
 
         let matrix_api = MatrixApi::new(self.config, self.logger.clone())?;
-        self.setup_bot_user(&connection, &matrix_api)?;
+        self.setup_bot_user(&connection, matrix_api.as_ref())?;
 
         let router = self.setup_routes(matrix_api);
         let mut chain = Chain::new(router);
@@ -58,12 +58,14 @@ impl<'a> Server<'a> {
         router.get("/", Welcome {}, "welcome");
         router.put("/transactions/:txn_id", Transactions::chain(self.config.clone(), matrix_api.clone()), "transactions");
         router.post("/rocketchat", Rocketchat::chain(self.config.clone(), matrix_api.clone()), "rocketchat");
-        router.post("/rocketchat/login",
-                    RocketchatLogin {
-                        config: self.config.clone(),
-                        matrix_api: matrix_api,
-                    },
-                    "rocketchat_login");
+        router.post(
+            "/rocketchat/login",
+            RocketchatLogin {
+                config: self.config.clone(),
+                matrix_api: matrix_api,
+            },
+            "rocketchat_login",
+        );
         router
     }
 
@@ -74,7 +76,7 @@ impl<'a> Server<'a> {
         run_embedded_migrations(&connection).chain_err(|| ErrorKind::MigrationError).map_err(Error::from)
     }
 
-    fn setup_bot_user(&self, connection: &SqliteConnection, matrix_api: &Box<MatrixApi>) -> Result<()> {
+    fn setup_bot_user(&self, connection: &SqliteConnection, matrix_api: &MatrixApi) -> Result<()> {
         let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
         debug!(self.logger, format!("Setting up bot user {}", matrix_bot_user_id));
         match User::find_by_matrix_user_id(connection, &matrix_bot_user_id)? {
@@ -84,15 +86,14 @@ impl<'a> Server<'a> {
             None => {
                 debug!(self.logger, format!("Bot user {} doesn't exists, starting registration", matrix_bot_user_id));
 
-                connection
-                    .transaction(|| {
-                                     let new_user = NewUser {
-                                         matrix_user_id: matrix_bot_user_id.clone(),
-                                         language: DEFAULT_LANGUAGE,
-                                     };
-                                     User::insert(connection, &new_user)?;
-                                     matrix_api.register(self.config.sender_localpart.clone())
-                                 })?;
+                connection.transaction(|| {
+                    let new_user = NewUser {
+                        matrix_user_id: matrix_bot_user_id.clone(),
+                        language: DEFAULT_LANGUAGE,
+                    };
+                    User::insert(connection, &new_user)?;
+                    matrix_api.register(self.config.sender_localpart.clone())
+                })?;
                 info!(self.logger, format!("Bot user {} successfully registered", matrix_bot_user_id));
             }
         }

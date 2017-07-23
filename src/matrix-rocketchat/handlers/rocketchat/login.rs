@@ -17,7 +17,7 @@ pub struct Login<'a> {
     /// Logger context
     pub logger: &'a Logger,
     /// Matrix REST API
-    pub matrix_api: &'a Box<MatrixApi>,
+    pub matrix_api: &'a MatrixApi,
 }
 
 /// Credentials to perform a login on the Rocket.Chat server. The `matrix_user_id` is used to find
@@ -47,10 +47,13 @@ impl<'a> Login<'a> {
 
         let mut rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())?;
 
-        let (rocketchat_user_id, rocketchat_auth_token) = rocketchat_api
-            .login(&credentials.rocketchat_username, &credentials.password)?;
-        user_on_rocketchat_server
-            .set_credentials(self.connection, Some(rocketchat_user_id.clone()), Some(rocketchat_auth_token.clone()))?;
+        let (rocketchat_user_id, rocketchat_auth_token) =
+            rocketchat_api.login(&credentials.rocketchat_username, &credentials.password)?;
+        user_on_rocketchat_server.set_credentials(
+            self.connection,
+            Some(rocketchat_user_id.clone()),
+            Some(rocketchat_auth_token.clone()),
+        )?;
 
         rocketchat_api = rocketchat_api.with_credentials(rocketchat_user_id, rocketchat_auth_token);
         let username = rocketchat_api.current_username()?;
@@ -60,9 +63,11 @@ impl<'a> Login<'a> {
         let message = CommandHandler::build_help_message(self.connection, self.config.as_url.clone(), &room, &user)?;
         self.matrix_api.send_text_message_event(room.matrix_room_id.clone(), bot_matrix_user_id, message)?;
 
-        Ok(info!(self.logger,
-                 "Successfully executed login command for user {} on Rocket.Chat server {}",
-                 credentials.rocketchat_username,
-                 rocketchat_server.rocketchat_url))
+        Ok(info!(
+            self.logger,
+            "Successfully executed login command for user {} on Rocket.Chat server {}",
+            credentials.rocketchat_username,
+            rocketchat_server.rocketchat_url
+        ))
     }
 }

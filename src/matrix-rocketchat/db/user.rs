@@ -12,7 +12,7 @@ use super::schema::users;
 /// A Matrix `User`.
 #[derive(Associations, Debug, Identifiable, Queryable)]
 #[primary_key(matrix_user_id)]
-#[table_name="users"]
+#[table_name = "users"]
 pub struct User {
     /// The users unique id on the Matrix server.
     pub matrix_user_id: UserId,
@@ -27,8 +27,8 @@ pub struct User {
 }
 
 /// A new Matrix `User`, not yet saved.
-#[derive(Insertable)]
-#[table_name="users"]
+#[derive(Insertable, Debug)]
+#[table_name = "users"]
 pub struct NewUser<'a> {
     /// The users unique id on the Matrix server.
     pub matrix_user_id: UserId,

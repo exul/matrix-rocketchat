@@ -27,31 +27,39 @@ fn error_descriptions_from_the_error_chain_are_passed_to_the_outer_error() {
     let test = Test::new().run();
 
     let connection = test.connection_pool.get().unwrap();
-    let not_found_error = UserInRoom::find(&connection,
-                                           &UserId::try_from("@nonexisting:localhost").unwrap(),
-                                           &RoomId::try_from("!some_room:localhost").unwrap())
-            .unwrap_err();
+    let not_found_error = UserInRoom::find(
+        &connection,
+        &UserId::try_from("@nonexisting:localhost").unwrap(),
+        &RoomId::try_from("!some_room:localhost").unwrap(),
+    ).unwrap_err();
 
     assert_eq!(not_found_error.description(), "Error when selecting a record");
 }
 
 #[test]
 fn errors_when_sending_a_message_are_handled_gracefully() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
-    matrix_router.put("/_matrix/client/r0/rooms/!room:localhost/send/:event_type/:txn_id",
-                      message_forwarder,
-                      "send_message_event_success");
-    matrix_router.put(SendMessageEventEndpoint::router_path(),
-                      handlers::InvalidJsonResponse { status: status::InternalServerError },
-                      "send_message_event_fail");
-    let test = Test::new().with_matrix_routes(matrix_router).with_admin_room().run();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(
+        "/_matrix/client/r0/rooms/!room:localhost/send/:event_type/:txn_id",
+        message_forwarder,
+        "send_message_event_success",
+    );
+    matrix_router.put(
+        SendMessageEventEndpoint::router_path(),
+        handlers::InvalidJsonResponse { status: status::InternalServerError },
+        "send_message_event_fail",
+    );
+    let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     matrix_api
-        .send_text_message_event(RoomId::try_from("!room:localhost").unwrap(),
-                                 UserId::try_from("@user:localhost").unwrap(),
-                                 "Message after an error".to_string())
+        .send_text_message_event(
+            RoomId::try_from("!room:localhost").unwrap(),
+            UserId::try_from("@user:localhost").unwrap(),
+            "Message after an error".to_string(),
+        )
         .unwrap();
 
     // the welcome message fails, but the next message is received
@@ -61,22 +69,24 @@ fn errors_when_sending_a_message_are_handled_gracefully() {
 
 #[test]
 fn the_user_gets_a_message_when_the_rocketchat_error_cannot_be_deserialized() {
+    let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = Router::new();
+    let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
     rocketchat_router.post(LOGIN_PATH, handlers::InvalidJsonResponse { status: status::InternalServerError }, "login");
-    let test = Test::new()
-        .with_matrix_routes(matrix_router)
+    let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .run();
 
-    helpers::send_room_message_from_matrix(&test.config.as_url,
-                                           RoomId::try_from("!admin:localhost").unwrap(),
-                                           UserId::try_from("@spec_user:localhost").unwrap(),
-                                           "login spec_user secret".to_string());
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "login spec_user secret".to_string(),
+    );
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();

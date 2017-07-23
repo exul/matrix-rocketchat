@@ -18,7 +18,7 @@ pub mod r0;
 /// Matrix REST API
 pub trait MatrixApi: Send + Sync + MatrixApiClone {
     /// Create a room.
-    fn create_room(&self, room_name: String, room_alias_name: Option<String>) -> Result<RoomId>;
+    fn create_room(&self, room_name: Option<String>, room_alias_name: Option<String>, creator_id: &UserId) -> Result<RoomId>;
     /// Forget a room.
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()>;
     /// Get the `user_id` of the user that created the room.
@@ -26,7 +26,7 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     /// Get the list of members for this room.
     fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>>;
     /// Invite a user to a room.
-    fn invite(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
+    fn invite(&self, matrix_room_id: RoomId, receiver_matrix_user_id: UserId, sender_matrix_user_id: UserId) -> Result<()>;
     /// Join a room with a user.
     fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
     /// Leave a room.
@@ -37,7 +37,7 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn send_text_message_event(&self, matrix_room_id: RoomId, matrix_user_id: UserId, body: String) -> Result<()>;
     /// Set the default power levels for a room. Only the bot will be able to control the room.
     /// The power levels for invite, kick, ban, and redact are all set to 50.
-    fn set_default_powerlevels(&self, matrix_room_id: RoomId, bot_user_id: UserId) -> Result<()>;
+    fn set_default_powerlevels(&self, matrix_room_id: RoomId, room_creator_matrix_user_id: UserId) -> Result<()>;
     /// Set the display name for a user
     fn set_display_name(&self, matrix_user_id: UserId, name: String) -> Result<()>;
     /// Set the name for a room
@@ -52,7 +52,8 @@ pub trait MatrixApiClone {
 }
 
 impl<T> MatrixApiClone for T
-    where T: 'static + MatrixApi + Clone
+where
+    T: 'static + MatrixApi + Clone,
 {
     fn clone_box(&self) -> Box<MatrixApi> {
         Box::new(self.clone())
@@ -75,21 +76,23 @@ impl MatrixApi {
         debug!(logger, format!("Querying homeserver {} for API versions", url));
         let (body, status_code) = RestApi::call_matrix(GetSupportedVersionsEndpoint::method(), &url, "", &params)?;
         if !status_code.is_success() {
-            let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body)
-                .chain_err(|| {
-                    ErrorKind::InvalidJSON(format!("Could not deserialize error response from Matrix supported versions \
+            let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
+                ErrorKind::InvalidJSON(format!(
+                    "Could not deserialize error response from Matrix supported versions \
                                                     API endpoint: `{}` ",
-                                                   body))
-                })?;
+                    body
+                ))
+            })?;
             return Err(Error::from(ErrorKind::MatrixError(matrix_error_resp.error)));
         }
 
-        let supported_versions: GetSupportedVersionsResponse = serde_json::from_str(&body)
-            .chain_err(|| {
-                           ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix supported versions API \
+        let supported_versions: GetSupportedVersionsResponse = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Matrix supported versions API \
                                                 endpoint: `{}`",
-                                                          body))
-                       })?;
+                body
+            ))
+        })?;
         debug!(logger, format!("Homeserver supports versions {:?}", supported_versions.versions));
         MatrixApi::get_max_supported_version_api(supported_versions.versions, config, logger)
     }

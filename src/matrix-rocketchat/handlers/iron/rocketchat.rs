@@ -44,7 +44,7 @@ impl Handler for Rocketchat {
         let forwarder = Forwarder {
             config: &self.config,
             connection: &connection,
-            matrix_api: &self.matrix_api,
+            matrix_api: self.matrix_api.as_ref(),
             logger: &logger,
         };
 

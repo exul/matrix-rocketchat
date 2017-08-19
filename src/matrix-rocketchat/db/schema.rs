@@ -25,13 +25,6 @@ table! {
 }
 
 table! {
-    users_in_rooms (matrix_user_id, matrix_room_id) {
-        matrix_user_id -> Text,
-        matrix_room_id -> Text,
-    }
-}
-
-table! {
     rocketchat_servers (id) {
         id -> Text,
         rocketchat_url -> Text,

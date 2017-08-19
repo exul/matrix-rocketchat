@@ -4,7 +4,7 @@ use ruma_client_api::Endpoint;
 use ruma_client_api::unversioned::get_supported_versions::{Endpoint as GetSupportedVersionsEndpoint,
                                                            Response as GetSupportedVersionsResponse};
 use ruma_events::room::member::MemberEvent;
-use ruma_identifiers::{RoomAliasId, RoomId, UserId};
+use ruma_identifiers::{RoomId, UserId};
 use serde_json;
 use slog::Logger;
 
@@ -21,8 +21,6 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn create_room(&self, room_name: Option<String>, room_alias_name: Option<String>, creator_id: &UserId) -> Result<RoomId>;
     /// Forget a room.
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()>;
-    /// Resolve the room alias for a room and return the Room ID if it exists.
-    fn get_alias(&self, matrix_room_alias: RoomAliasId) -> Result<Option<RoomId>>;
     /// Get the `user_id` of the user that created the room.
     fn get_room_creator(&self, matrix_room_id: RoomId) -> Result<UserId>;
     /// Get the list of members for this room.

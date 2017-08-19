@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::convert::TryFrom;
 
 use diesel::sqlite::SqliteConnection;
-use matrix_rocketchat::api::RestApi;
+use matrix_rocketchat::Config;
+use matrix_rocketchat::api::{MatrixApi,RestApi};
 use matrix_rocketchat::models::Events;
 use matrix_rocketchat::db::UserOnRocketchatServer;
 use reqwest::{Method, StatusCode};
@@ -11,7 +13,7 @@ use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState
 use ruma_events::room::message::{MessageEvent, MessageEventContent, MessageType, TextMessageEventContent};
 use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json::to_string;
-use super::HS_TOKEN;
+use super::{DEFAULT_LOGGER, HS_TOKEN};
 
 pub fn invite(as_url: &str, room_id: RoomId, sender_id: UserId, user_id: UserId) {
     let invite_event = MemberEvent {
@@ -38,7 +40,20 @@ pub fn invite(as_url: &str, room_id: RoomId, sender_id: UserId, user_id: UserId)
     simulate_message_from_matrix(as_url, &invite_payload);
 }
 
-pub fn join(as_url: &str, room_id: RoomId, user_id: UserId) {
+pub fn join(config: &Config, room_id: RoomId, user_id: UserId) {
+    let matrix_api = MatrixApi::new(config, DEFAULT_LOGGER.clone()).unwrap();
+    matrix_api.join(room_id, user_id).unwrap();
+}
+
+pub fn create_room(config: &Config, room_name: &str, sender_id: UserId, user_id: UserId) {
+    let matrix_api = MatrixApi::new(&config, DEFAULT_LOGGER.clone()).unwrap();
+    matrix_api.create_room(Some(room_name.to_string()), None, &sender_id).unwrap();
+
+    let room_id = RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap();
+    invite(&config.as_url, room_id, sender_id, user_id);
+}
+
+pub fn send_join_event_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId){
     let join_event = MemberEvent {
         content: MemberEventContent {
             avatar_url: None,
@@ -51,19 +66,22 @@ pub fn join(as_url: &str, room_id: RoomId, user_id: UserId) {
         invite_room_state: None,
         prev_content: None,
         room_id: room_id,
-        state_key: format!("{}", user_id),
+        state_key: format!("{}", &user_id),
         unsigned: None,
         user_id: user_id,
     };
 
     let events = Events { events: vec![Box::new(Event::RoomMember(join_event))] };
-
     let join_payload = to_string(&events).unwrap();
-
-    simulate_message_from_matrix(as_url, &join_payload);
+    simulate_message_from_matrix(&as_url, &join_payload);
 }
 
-pub fn leave_room(as_url: &str, room_id: RoomId, user_id: UserId) {
+pub fn leave_room(config: &Config, room_id: RoomId, user_id: UserId){
+    let matrix_api = MatrixApi::new(config, DEFAULT_LOGGER.clone()).unwrap();
+    matrix_api.leave_room(room_id, user_id).unwrap();
+}
+
+pub fn send_leave_event_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId) {
     let leave_event = MemberEvent {
         content: MemberEventContent {
             avatar_url: None,
@@ -83,7 +101,6 @@ pub fn leave_room(as_url: &str, room_id: RoomId, user_id: UserId) {
 
     let events = Events { events: vec![Box::new(Event::RoomMember(leave_event))] };
     let leave_payload = to_string(&events).unwrap();
-
     simulate_message_from_matrix(as_url, &leave_payload);
 }
 

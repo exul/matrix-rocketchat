@@ -4,7 +4,7 @@ use slog::Logger;
 
 use api::{MatrixApi, RocketchatApi};
 use config::Config;
-use db::{RocketchatServer, User, UserOnRocketchatServer};
+use db::{RocketchatServer, Room, User, UserOnRocketchatServer};
 use errors::*;
 use handlers::events::CommandHandler;
 
@@ -38,9 +38,12 @@ impl<'a> Login<'a> {
     /// Perform a login request on the Rocket.Chat server.
     /// Stores the credentials if the login is successful.
     /// Returns an error if the login fails.
-    pub fn call(&self, credentials: &Credentials, rocketchat_server: &RocketchatServer) -> Result<()> {
-        let room = rocketchat_server.admin_room_for_user_or_err(self.connection, &credentials.matrix_user_id)?;
-
+    pub fn call(
+        &self,
+        credentials: &Credentials,
+        rocketchat_server: &RocketchatServer,
+        admin_room: Option<Room>,
+    ) -> Result<()> {
         let mut user_on_rocketchat_server =
             UserOnRocketchatServer::find(self.connection, &credentials.matrix_user_id, rocketchat_server.id.clone())?;
         let user = User::find(self.connection, &credentials.matrix_user_id)?;
@@ -59,9 +62,11 @@ impl<'a> Login<'a> {
         let username = rocketchat_api.current_username()?;
         user_on_rocketchat_server.set_rocketchat_username(self.connection, Some(username.clone()))?;
 
-        let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
-        let message = CommandHandler::build_help_message(self.connection, self.config.as_url.clone(), &room, &user)?;
-        self.matrix_api.send_text_message_event(room.matrix_room_id.clone(), bot_matrix_user_id, message)?;
+        if let Some(room) = admin_room {
+            let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
+            let message = CommandHandler::build_help_message(self.connection, self.config.as_url.clone(), &room, &user)?;
+            self.matrix_api.send_text_message_event(room.matrix_room_id.clone(), bot_matrix_user_id, message)?;
+        }
 
         Ok(info!(
             self.logger,

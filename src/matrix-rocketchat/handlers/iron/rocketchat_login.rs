@@ -10,7 +10,6 @@ use api::MatrixApi;
 use config::Config;
 use db::{ConnectionPool, RocketchatServer};
 use errors::*;
-use handlers::ErrorNotifier;
 use handlers::rocketchat::{Credentials, Login};
 use log::IronLogger;
 
@@ -40,26 +39,14 @@ impl Handler for RocketchatLogin {
             None => {
                 return Err(user_error!(
                     ErrorKind::AdminRoomForRocketchatServerNotFound(credentials.rocketchat_url.clone()),
-                    t!(["errors", "admin_room_for_rocketchat_server_not_found"]).with_vars(vec![
-                        (
-                            "rocketchat_url",
-                            credentials.rocketchat_url.clone()
-                        ),
+                    t!(["errors", "rocketchat_server_not_found"]).with_vars(vec![
+                        ("rocketchat_url", credentials.rocketchat_url.clone()),
                     ])
                 ))?;
             }
         };
 
-        if let Err(err) = login.call(&credentials, &rocketchat_server) {
-            if let Some(admin_room) = rocketchat_server.admin_room_for_user(&connection, &credentials.matrix_user_id)? {
-                let error_notifier = ErrorNotifier {
-                    config: &self.config,
-                    connection: &connection,
-                    logger: &logger,
-                    matrix_api: self.matrix_api.as_ref(),
-                };
-                error_notifier.send_message_to_user(&err, admin_room.matrix_room_id.clone(), &credentials.matrix_user_id)?;
-            }
+        if let Err(err) = login.call(&credentials, &rocketchat_server, None) {
             return Err(err)?;
         }
 

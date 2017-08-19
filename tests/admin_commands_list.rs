@@ -42,7 +42,7 @@ fn sucessfully_list_rocketchat_rooms() {
         .run();
 
     helpers::join(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
@@ -59,7 +59,7 @@ fn sucessfully_list_rocketchat_rooms() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         "list".to_string(),
     );
@@ -102,7 +102,7 @@ fn the_user_gets_a_message_when_getting_room_list_failes() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         "list".to_string(),
     );
@@ -136,7 +136,7 @@ fn the_user_gets_a_message_when_the_room_list_cannot_be_deserialized() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         "list".to_string(),
     );
@@ -155,7 +155,7 @@ fn attempt_to_list_rooms_when_the_admin_room_is_not_connected() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         "list".to_string(),
     );

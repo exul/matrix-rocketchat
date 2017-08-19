@@ -28,8 +28,6 @@ table! {
     users_in_rooms (matrix_user_id, matrix_room_id) {
         matrix_user_id -> Text,
         matrix_room_id -> Text,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
     }
 }
 

@@ -30,7 +30,7 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     /// Join a room with a user.
     fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
     /// Leave a room.
-    fn leave_room(&self, matrix_room_id: RoomId) -> Result<()>;
+    fn leave_room(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
     /// Register a user.
     fn register(&self, user_id_local_part: String) -> Result<()>;
     /// Send a text message to a room.

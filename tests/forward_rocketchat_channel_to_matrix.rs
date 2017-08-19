@@ -13,10 +13,10 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use iron::status;
-use matrix_rocketchat::api::RestApi;
+use matrix_rocketchat::api::{MatrixApi, RestApi};
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::db::{Room, User, UserOnRocketchatServer};
-use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
 use reqwest::{Method, StatusCode};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::membership::invite_user::Endpoint as InviteUserEndpoint;
@@ -89,7 +89,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     assert!(message_received_by_matrix.contains("spec_message"));
 
     let connection = test.connection_pool.get().unwrap();
-    let admin_room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
+    let admin_room = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
     let rocketchat_server_id = admin_room.rocketchat_server_id.unwrap();
     let bridged_room =
         Room::find_by_rocketchat_room_id(&connection, rocketchat_server_id.clone(), "spec_channel_id".to_string())
@@ -97,16 +97,18 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
             .unwrap();
 
     // the bot, the user who bridged the channel and two virtual user are in the channel
-    let users = bridged_room.users(&connection).unwrap();
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    let user_ids = bridged_room.user_ids(&(*matrix_api)).unwrap();
 
-    assert_eq!(users.len(), 4);
+    assert_eq!(user_ids.len(), 4);
 
     let bot_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
-    let users_iter = users.iter();
+    let virtual_spec_user = UserId::try_from("@rocketchat_spec_user_id_rc_id:localhost").unwrap();
+    let users_iter = user_ids.into_iter();
     let user_ids = users_iter
-        .filter_map(|u| if u.matrix_user_id != bot_user_id && u.matrix_user_id != spec_user_id {
-            Some(u.matrix_user_id.clone())
+        .filter_map(|id| if id != bot_user_id && id != spec_user_id && id != virtual_spec_user {
+            Some(id)
         } else {
             None
         })
@@ -199,7 +201,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     assert!(message_received_by_matrix.contains("spec_message"));
 
     let connection = test.connection_pool.get().unwrap();
-    let admin_room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
+    let admin_room = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
     let rocketchat_server_id = admin_room.rocketchat_server_id.unwrap();
     let bridged_room =
         Room::find_by_rocketchat_room_id(&connection, rocketchat_server_id.clone(), "spec_channel_id".to_string())
@@ -207,15 +209,16 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
             .unwrap();
 
     // the bot, the user who bridged the channel and the virtual user are in the channel
-    let users = bridged_room.users(&connection).unwrap();
-    assert_eq!(users.len(), 3);
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    let user_ids = bridged_room.user_ids(&(*matrix_api)).unwrap();
+    assert_eq!(user_ids.len(), 3);
 
     let bot_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
-    let users_iter = users.iter();
-    let user_ids = users_iter
-        .filter_map(|u| if u.matrix_user_id != bot_user_id && u.matrix_user_id != spec_user_id {
-            Some(u.matrix_user_id.clone())
+    let user_ids_iter = user_ids.into_iter();
+    let user_ids = user_ids_iter
+        .filter_map(|id| if id != bot_user_id && id != spec_user_id {
+            Some(id.clone())
         } else {
             None
         })
@@ -296,7 +299,7 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
     assert!(new_display_name_message.contains("spec_user_new"));
 
     let connection = test.connection_pool.get().unwrap();
-    let admin_room = Room::find(&connection, &RoomId::try_from("!admin:localhost").unwrap()).unwrap();
+    let admin_room = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
     let rocketchat_server_id = admin_room.rocketchat_server_id.unwrap();
     let user_on_rocketchat_server = UserOnRocketchatServer::find_by_rocketchat_user_id(
         &connection,
@@ -520,14 +523,14 @@ fn do_not_forward_messages_when_the_channel_was_bridged_but_is_unbridged_now() {
         .run();
 
     helpers::leave_room(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!spec_channel_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         "unbridge spec_channel".to_string(),
     );

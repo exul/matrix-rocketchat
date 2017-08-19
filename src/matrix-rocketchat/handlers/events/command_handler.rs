@@ -231,7 +231,8 @@ impl<'a> CommandHandler<'a> {
             logger: self.logger,
             matrix_api: self.matrix_api,
         };
-        login.call(&credentials, rocketchat_server)
+        let admin_room = Room::find(self.connection, &event.room_id)?;
+        login.call(&credentials, rocketchat_server, Some(admin_room))
     }
 
     fn list_channels(&self, event: &MessageEvent, rocketchat_server: &RocketchatServer) -> Result<()> {
@@ -279,7 +280,14 @@ impl<'a> CommandHandler<'a> {
             }
         };
 
-        if Room::is_bridged_for_user(self.connection, rocketchat_server.id.clone(), channel.id.clone(), &event.user_id)? {
+        if Room::is_bridged_for_user(
+            self.connection,
+            self.matrix_api,
+            rocketchat_server.id.clone(),
+            channel.id.clone(),
+            &event.user_id,
+        )?
+        {
             bail_error!(
                 ErrorKind::RocketchatChannelAlreadyBridged(channel_name.to_string()),
                 t!(["errors", "rocketchat_channel_already_bridged"]).with_vars(vec![("channel_name", channel_name.to_string())])
@@ -339,9 +347,13 @@ impl<'a> CommandHandler<'a> {
             }
         };
 
-        let users = room.non_virtual_users(self.connection)?;
-        if !users.is_empty() {
-            let user_ids = users.iter().map(|u| u.matrix_user_id.to_string()).collect::<Vec<String>>().join(", ");
+        let virtual_user_prefix = format!("@{}", self.config.sender_localpart);
+        let user_ids: Vec<UserId> = room.user_ids(self.matrix_api)?
+            .into_iter()
+            .filter(|id| !id.to_string().starts_with(&virtual_user_prefix))
+            .collect();
+        if !user_ids.is_empty() {
+            let user_ids = user_ids.iter().map(|id| id.to_string()).collect::<Vec<String>>().join(", ");
             bail_error!(
                 ErrorKind::RoomNotEmpty(channel_name.to_string(), user_ids.clone()),
                 t!(["errors", "room_not_empty"]).with_vars(vec![("channel_name", channel_name), ("users", user_ids)])
@@ -381,6 +393,7 @@ impl<'a> CommandHandler<'a> {
         for channel in channels {
             let formatter = if Room::is_bridged_for_user(
                 self.connection,
+                self.matrix_api,
                 rocketchat_server_id.clone(),
                 channel.id.clone(),
                 matrix_user_id,

@@ -1,5 +1,6 @@
 #![feature(try_from)]
 
+extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
 extern crate router;
 extern crate ruma_client_api;
@@ -8,7 +9,8 @@ extern crate ruma_identifiers;
 
 use std::convert::TryFrom;
 
-use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat::api::MatrixApi;
+use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
@@ -26,7 +28,7 @@ fn help_command_when_not_connected_and_no_one_else_has_connected_a_server_yet() 
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         "help".to_string(),
     );
@@ -51,7 +53,7 @@ fn help_command_when_not_connected_and_someone_else_has_connected_a_server_alrea
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
-        room_id: RoomId::try_from("!other_admin:localhost").unwrap(),
+        room_id: RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         event_type: EventType::RoomCreate.to_string(),
     };
     matrix_router.get(
@@ -63,9 +65,13 @@ fn help_command_when_not_connected_and_someone_else_has_connected_a_server_alrea
     let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
 
     // other user creates admin room
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    let other_user_id = UserId::try_from("@other_user:localhost").unwrap();
+    matrix_api.create_room(Some("other_admin_room".to_string()), None, &other_user_id).unwrap();
+
     helpers::invite(
         &test.config.as_url,
-        RoomId::try_from("!other_admin:localhost").unwrap(),
+        RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         UserId::try_from("@other_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
     );
@@ -73,7 +79,7 @@ fn help_command_when_not_connected_and_someone_else_has_connected_a_server_alrea
     // other user connects the Rocket.Chat server
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!other_admin:localhost").unwrap(),
+        RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         UserId::try_from("@other_user:localhost").unwrap(),
         format!("connect {} {} other_id", test.rocketchat_mock_url.clone().unwrap(), RS_TOKEN),
     );
@@ -81,7 +87,7 @@ fn help_command_when_not_connected_and_someone_else_has_connected_a_server_alrea
     // spec user gets the already connected server list
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         "help".to_string(),
     );
@@ -113,7 +119,7 @@ fn help_command_when_connected() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         "help".to_string(),
     );
@@ -141,7 +147,7 @@ fn help_command_when_logged_in() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         "help".to_string(),
     );

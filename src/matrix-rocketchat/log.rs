@@ -27,11 +27,23 @@ impl Key for IronLogger {
     type Value = Logger;
 }
 
-/// Log an error including all the chained errors
+/// Log with level error including all the chained errors
 pub fn log_error(logger: &Logger, err: &Error) {
+    let msg = build_message(err);
+    error!(logger, msg);
+}
+
+/// Log with level info including all the chained errors
+pub fn log_info(logger: &Logger, err: &Error) {
+    let msg = build_message(err);
+    info!(logger, msg);
+}
+
+fn build_message(err: &Error) -> String {
     let mut msg = format!("{}", err);
     for err in err.error_chain.iter().skip(1) {
         msg = msg + " caused by: " + &format!("{}", err);
     }
-    error!(logger, msg);
+
+    msg
 }

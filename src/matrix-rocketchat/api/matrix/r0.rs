@@ -194,10 +194,13 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn leave_room(&self, matrix_room_id: RoomId) -> Result<()> {
+    fn leave_room(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {
         let path_params = leave_room::PathParams { room_id: matrix_room_id };
         let endpoint = self.base_url.clone() + &LeaveRoomEndpoint::request_path(path_params);
-        let params = self.params_hash();
+        let user_id = matrix_user_id.to_string();
+        let mut params = self.params_hash();
+        params.insert("user_id", &user_id);
+
 
         let (body, status_code) = RestApi::call_matrix(LeaveRoomEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {

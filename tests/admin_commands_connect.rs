@@ -13,9 +13,10 @@ use std::sync::mpsc::channel;
 use std::thread;
 
 use iron::{Iron, Listening, status};
+use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::db::{RocketchatServer, UserOnRocketchatServer};
-use matrix_rocketchat_test::{DEFAULT_ROCKETCHAT_VERSION, IRON_THREADS, MessageForwarder, RS_TOKEN, Test, default_timeout,
-                             get_free_socket_addr, handlers, helpers};
+use matrix_rocketchat_test::{DEFAULT_LOGGER, DEFAULT_ROCKETCHAT_VERSION, IRON_THREADS, MessageForwarder, RS_TOKEN, Test,
+                             default_timeout, get_free_socket_addr, handlers, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -73,7 +74,7 @@ fn attempt_to_connect_to_an_incompatible_rocketchat_server_version() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         format!("connect {} {} rc_id", rocketchat_mock_url.clone(), RS_TOKEN),
     );
@@ -118,7 +119,7 @@ fn attempt_to_connect_to_a_non_rocketchat_server() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         format!("connect {} {} rc_id", rocketchat_mock_url.clone(), RS_TOKEN),
     );
@@ -162,7 +163,7 @@ fn attempt_to_connect_to_a_server_with_the_correct_endpoint_but_an_incompatible_
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         format!("connect {} spec_token rc_id", rocketchat_mock_url.clone()),
     );
@@ -199,7 +200,7 @@ fn attempt_to_connect_to_non_existing_server() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         format!("connect {} spec_token rc_id", rocketchat_mock_url.clone()),
     );
@@ -226,7 +227,7 @@ fn attempt_to_connect_without_a_rocketchat_server_id() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         format!("connect {} spec_token", &test.rocketchat_mock_url.clone().unwrap()),
     );
@@ -257,7 +258,7 @@ fn attempt_to_connect_with_an_incompatible_rocketchat_server_id() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         format!("connect {} spec_token invalid$id", &test.rocketchat_mock_url.clone().unwrap()),
     );
@@ -300,16 +301,21 @@ fn attempt_to_connect_with_a_rocketchat_server_id_that_is_already_in_use() {
     let mut listening = rx.recv_timeout(default_timeout() * 2).unwrap();
     let other_rocketchat_mock_url = format!("http://{}", socket_addr);
 
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    matrix_api
+        .create_room(Some("other_admin_room".to_string()), None, &UserId::try_from("@spec_user:localhost").unwrap())
+        .unwrap();
+
     helpers::invite(
         &test.config.as_url,
-        RoomId::try_from("!other_admin:localhost").unwrap(),
+        RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
     );
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!other_admin:localhost").unwrap(),
+        RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         format!("connect {} other_token rc_id", &other_rocketchat_mock_url),
     );
@@ -318,7 +324,7 @@ fn attempt_to_connect_with_a_rocketchat_server_id_that_is_already_in_use() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         format!("connect {} spec_token rc_id", &test.rocketchat_mock_url.clone().unwrap()),
     );
@@ -348,7 +354,7 @@ fn connect_an_existing_server() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
-        room_id: RoomId::try_from("!other_admin:localhost").unwrap(),
+        room_id: RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         event_type: EventType::RoomCreate.to_string(),
     };
     matrix_router.get(
@@ -359,16 +365,20 @@ fn connect_an_existing_server() {
 
     let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().run();
 
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    let other_user_id = UserId::try_from("@other_user:localhost").unwrap();
+    matrix_api.create_room(Some("other_admin_room".to_string()), None, &other_user_id).unwrap();
+
     helpers::invite(
         &test.config.as_url,
-        RoomId::try_from("!other_admin:localhost").unwrap(),
+        RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         UserId::try_from("@other_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
     );
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!other_admin:localhost").unwrap(),
+        RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         UserId::try_from("@other_user:localhost").unwrap(),
         format!("connect {}", test.rocketchat_mock_url.clone().unwrap()),
     );
@@ -394,7 +404,7 @@ fn attempt_to_connect_to_an_existing_server_with_a_token() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
-        room_id: RoomId::try_from("!other_admin:localhost").unwrap(),
+        room_id: RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         event_type: EventType::RoomCreate.to_string(),
     };
     matrix_router.get(
@@ -405,9 +415,13 @@ fn attempt_to_connect_to_an_existing_server_with_a_token() {
 
     let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().run();
 
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    let other_user_id = UserId::try_from("@other_user:localhost").unwrap();
+    matrix_api.create_room(Some("other_admin_room".to_string()), None, &other_user_id).unwrap();
+
     helpers::invite(
         &test.config.as_url,
-        RoomId::try_from("!other_admin:localhost").unwrap(),
+        RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         UserId::try_from("@other_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
     );
@@ -415,7 +429,7 @@ fn attempt_to_connect_to_an_existing_server_with_a_token() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!other_admin:localhost").unwrap(),
+        RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         UserId::try_from("@other_user:localhost").unwrap(),
         format!("connect {} my_token other_id", test.rocketchat_mock_url.clone().unwrap()),
     );
@@ -463,7 +477,7 @@ fn attempt_to_connect_an_already_connected_room() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         format!("connect {} other_token", other_rocketchat_url.clone()),
     );
@@ -487,7 +501,7 @@ fn attempt_to_connect_a_server_with_a_token_that_is_already_in_use() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
-        room_id: RoomId::try_from("!other_admin:localhost").unwrap(),
+        room_id: RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         event_type: EventType::RoomCreate.to_string(),
     };
     matrix_router.get(
@@ -501,9 +515,13 @@ fn attempt_to_connect_a_server_with_a_token_that_is_already_in_use() {
     let socket_addr = get_free_socket_addr();
     let other_rocketchat_url = format!("http://{}", socket_addr);
 
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    let other_user_id = UserId::try_from("@other_user:localhost").unwrap();
+    matrix_api.create_room(Some("other_admin_room".to_string()), None, &other_user_id).unwrap();
+
     helpers::invite(
         &test.config.as_url,
-        RoomId::try_from("!other_admin:localhost").unwrap(),
+        RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         UserId::try_from("@other_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
     );
@@ -511,7 +529,7 @@ fn attempt_to_connect_a_server_with_a_token_that_is_already_in_use() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!other_admin:localhost").unwrap(),
+        RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         UserId::try_from("@other_user:localhost").unwrap(),
         format!("connect {} {} other_id", other_rocketchat_url.clone(), RS_TOKEN),
     );
@@ -538,7 +556,7 @@ fn attempt_to_connect_to_a_new_server_without_a_token() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         format!("connect {}", test.rocketchat_mock_url.clone().unwrap()),
     );

@@ -30,6 +30,9 @@ pub mod helpers;
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::error::Error;
+use std::fmt::{self, Debug};
+use std::io::Read;
 use std::mem;
 use std::net::SocketAddr;
 use std::net::TcpListener;
@@ -39,8 +42,10 @@ use std::time::Duration;
 
 use diesel::sqlite::SqliteConnection;
 use iron::{Chain, Iron, Listening, status};
+use iron::prelude::*;
 use iron::typemap::Key;
 use matrix_rocketchat::{Config, Server};
+use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, LOGIN_PATH, ME_PATH, USERS_INFO_PATH};
 use matrix_rocketchat::db::ConnectionPool;
 use persistent::Write;
@@ -97,8 +102,30 @@ pub use message_forwarder::{Message, MessageForwarder};
 #[derive(Copy, Clone)]
 pub struct UsernameList;
 
+#[derive(Copy, Clone)]
+pub struct UsersInRoomMap;
+
 impl Key for UsernameList {
     type Value = Vec<String>;
+}
+
+impl Key for UsersInRoomMap {
+    type Value = HashMap<RoomId, Vec<UserId>>;
+}
+
+#[derive(Debug)]
+struct TestError(String);
+
+impl fmt::Display for TestError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        Debug::fmt(self, f)
+    }
+}
+
+impl Error for TestError {
+    fn description(&self) -> &str {
+        &*self.0
+    }
 }
 
 /// A helper struct when running the tests that manages test resources and offers some helper methods.
@@ -236,9 +263,10 @@ impl Test {
         }
 
         if self.with_logged_in_user {
+
             helpers::send_room_message_from_matrix(
                 &self.config.as_url,
-                RoomId::try_from("!admin:localhost").unwrap(),
+                RoomId::try_from("!admin_room_id:localhost").unwrap(),
                 UserId::try_from("@spec_user:localhost").unwrap(),
                 "login spec_user secret".to_string(),
             );
@@ -262,10 +290,10 @@ impl Test {
             None => self.default_matrix_routes(),
         };
 
-
         thread::spawn(move || {
             let mut chain = Chain::new(router);
             chain.link_before(Write::<UsernameList>::one(Vec::new()));
+            chain.link_before(Write::<UsersInRoomMap>::one(HashMap::new()));
             let mut server = Iron::new(chain);
             server.threads = IRON_THREADS;
             let listening = server.http(&hs_socket_addr).unwrap();
@@ -361,11 +389,16 @@ impl Test {
     }
 
     fn create_admin_room(&self) {
+        let matrix_api = MatrixApi::new(&self.config, DEFAULT_LOGGER.clone()).unwrap();
+        let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
+        let rocketchat_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
+        matrix_api.create_room(Some("admin_room".to_string()), None, &spec_user_id).unwrap();
+
         helpers::invite(
             &self.config.as_url,
-            RoomId::try_from("!admin:localhost").unwrap(),
-            UserId::try_from("@spec_user:localhost").unwrap(),
-            UserId::try_from("@rocketchat:localhost").unwrap(),
+            RoomId::try_from("!admin_room_id:localhost").unwrap(),
+            spec_user_id,
+            rocketchat_user_id,
         );
     }
 
@@ -375,7 +408,7 @@ impl Test {
             Some(ref rocketchat_mock_url) => {
                 helpers::send_room_message_from_matrix(
                     &self.config.as_url,
-                    RoomId::try_from("!admin:localhost").unwrap(),
+                    RoomId::try_from("!admin_room_id:localhost").unwrap(),
                     UserId::try_from("@spec_user:localhost").unwrap(),
                     format!("connect {} {} rc_id", rocketchat_mock_url, RS_TOKEN),
                 );
@@ -387,19 +420,19 @@ impl Test {
     fn bridge_room(&self, room_name: &'static str) {
         helpers::send_room_message_from_matrix(
             &self.config.as_url,
-            RoomId::try_from("!admin:localhost").unwrap(),
+            RoomId::try_from("!admin_room_id:localhost").unwrap(),
             UserId::try_from("@spec_user:localhost").unwrap(),
             format!("bridge {}", room_name),
         );
 
         helpers::join(
-            &self.config.as_url,
+            &self.config,
             RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap(),
             UserId::try_from("@rocketchat:localhost").unwrap(),
         );
 
         helpers::join(
-            &self.config.as_url,
+            &self.config,
             RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap(),
             UserId::try_from("@spec_user:localhost").unwrap(),
         );
@@ -416,16 +449,7 @@ impl Test {
         router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "versions");
         let room_creator = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
         router.get(GetStateEventsForEmptyKey::router_path(), room_creator, "get_state_events_for_empty_key");
-
-        let room_members = handlers::RoomMembers {
-            room_id: RoomId::try_from("!admin:localhost").unwrap(),
-            members: vec![
-                UserId::try_from("@spec_user:localhost").unwrap(),
-                UserId::try_from("@rocketchat:localhost").unwrap(),
-            ],
-        };
-
-        router.get(GetMemberEventsEndpoint::router_path(), room_members, "room_members");
+        router.get(GetMemberEventsEndpoint::router_path(), handlers::RoomMembers {}, "room_members");
         router.post(RegisterEndpoint::router_path(), handlers::MatrixRegister {}, "register");
         router.post(
             CreateRoomEndpoint::router_path(),
@@ -496,6 +520,26 @@ pub fn get_free_socket_addr() -> SocketAddr {
     let address = "127.0.0.1:0";
     let listener = TcpListener::bind(address).unwrap();
     listener.local_addr().unwrap()
+}
+
+/// Get the payload from an incomming request. First try to get the payload from the request
+/// body. If that one is empty, try to get it from the Message struct in case a middleware
+/// already extracted the content and stored the message in the struct.
+pub fn extract_payload(request: &mut Request) -> String {
+    let mut payload = String::new();
+    request.body.read_to_string(&mut payload).unwrap();
+
+    // if the request payload is empty, try to get it from the middleware
+    if payload.is_empty() {
+        if let Some(message) = request.extensions.get::<Message>() {
+            payload = message.payload.clone()
+        }
+    } else {
+        let message = Message { payload: payload.clone() };
+        request.extensions.insert::<Message>(message);
+    }
+
+    payload
 }
 
 fn file_line_logger_format(info: &Record) -> String {

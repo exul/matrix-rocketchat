@@ -24,7 +24,7 @@ fn unknown_commands_from_the_admin_room_are_ignored() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         "bogus command".to_string(),
     );
@@ -44,7 +44,7 @@ fn unknown_content_types_from_the_admin_room_are_ignored() {
 
     helpers::send_emote_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         "emote message".to_string(),
     );
@@ -64,7 +64,7 @@ fn messages_from_the_bot_user_are_ignored() {
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!admin:localhost").unwrap(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
         "bot message".to_string(),
     );

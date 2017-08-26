@@ -567,3 +567,35 @@ fn attempt_to_connect_to_a_new_server_without_a_token() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("A token is needed to connect new Rocket.Chat servers"));
 }
+
+#[test]
+fn connecting_a_room_failes_when_the_room_topic_failes() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let error_responder = handlers::MatrixErrorResponder {
+        status: status::InternalServerError,
+        message: "Could not set room topic".to_string(),
+    };
+    matrix_router.put("/_matrix/client/r0/rooms/:room_id/state/m.room.topic", error_responder, "put_room_topic");
+    let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        format!("connect {} spec_token rc_id", test.rocketchat_mock_url.clone().unwrap()),
+    );
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
+
+    let connection = test.connection_pool.get().unwrap();
+    let rocketchat_server_option = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap())
+        .unwrap();
+    assert!(rocketchat_server_option.is_none());
+}

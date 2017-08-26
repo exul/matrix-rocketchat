@@ -3,16 +3,17 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use diesel;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
-use ruma_identifiers::UserId;
+use ruma_identifiers::{RoomId, UserId};
 
+use api::MatrixApi;
+use db::Room;
 use errors::*;
 use i18n::*;
 use super::schema::users;
 
 /// A Matrix `User`.
-#[derive(Associations, Debug, Identifiable, Queryable)]
+#[derive(Debug, Identifiable, Queryable)]
 #[primary_key(matrix_user_id)]
-#[table_name = "users"]
 pub struct User {
     /// The users unique id on the Matrix server.
     pub matrix_user_id: UserId,
@@ -78,5 +79,11 @@ impl User {
             .execute(connection)
             .chain_err(|| ErrorKind::DBUpdateError)?;
         Ok(())
+    }
+
+    /// Checks if a user is in a room.
+    pub fn is_in_room(matrix_api: &MatrixApi, user_id: &UserId, matrix_room_id: RoomId) -> Result<bool> {
+        let user_ids_in_room = Room::user_ids(matrix_api, matrix_room_id)?;
+        Ok(user_ids_in_room.iter().any(|id| id == user_id))
     }
 }

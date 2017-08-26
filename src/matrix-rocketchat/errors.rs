@@ -119,6 +119,11 @@ error_chain!{
             display("The provided user ID {} is not valid", user_id)
         }
 
+        InvalidRoomAliasId(room_alias_id: String) {
+             description("The provided room alias ID is not valid")
+            display("The provided room alias ID {} is not valid", room_alias_id)
+        }
+
         InvalidHostname(hostname: String) {
             description("The provided hostname ist not valid")
             display("The provided hostname {} is not valid", hostname)
@@ -281,6 +286,11 @@ error_chain!{
         LoggerExtractionError {
             description("Error when getting the logger from the request")
             display("Could not get logger from iron")
+        }
+
+        GettingMatrixUserForDirectMessageRoomError {
+            description("Error when getting matrix user for a direct message room")
+            display("Could not get matrix user for direct message room")
         }
 
         ConnectionPoolExtractionError {

@@ -3,7 +3,7 @@ use std::convert::TryFrom;
 
 use diesel::sqlite::SqliteConnection;
 use matrix_rocketchat::Config;
-use matrix_rocketchat::api::{MatrixApi,RestApi};
+use matrix_rocketchat::api::{MatrixApi, RestApi};
 use matrix_rocketchat::models::Events;
 use matrix_rocketchat::db::UserOnRocketchatServer;
 use reqwest::{Method, StatusCode};
@@ -53,7 +53,7 @@ pub fn create_room(config: &Config, room_name: &str, sender_id: UserId, user_id:
     invite(&config.as_url, room_id, sender_id, user_id);
 }
 
-pub fn send_join_event_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId){
+pub fn send_join_event_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId) {
     let join_event = MemberEvent {
         content: MemberEventContent {
             avatar_url: None,
@@ -76,7 +76,7 @@ pub fn send_join_event_from_matrix(as_url: &str, room_id: RoomId, user_id: UserI
     simulate_message_from_matrix(&as_url, &join_payload);
 }
 
-pub fn leave_room(config: &Config, room_id: RoomId, user_id: UserId){
+pub fn leave_room(config: &Config, room_id: RoomId, user_id: UserId) {
     let matrix_api = MatrixApi::new(config, DEFAULT_LOGGER.clone()).unwrap();
     matrix_api.leave_room(room_id, user_id).unwrap();
 }
@@ -155,8 +155,13 @@ pub fn simulate_message_from_rocketchat(as_url: &str, payload: &str) -> (String,
     RestApi::call(Method::Post, &url, payload, &params, None).unwrap()
 }
 
-pub fn logout_user_from_rocketchat_server_on_bridge(connection: &SqliteConnection, rocketchat_server_id: String, matrix_user_id: &UserId) {
-    let mut user_on_rocketchat_server = UserOnRocketchatServer::find(connection, &matrix_user_id, rocketchat_server_id).unwrap();
+pub fn logout_user_from_rocketchat_server_on_bridge(
+    connection: &SqliteConnection,
+    rocketchat_server_id: String,
+    matrix_user_id: &UserId,
+) {
+    let mut user_on_rocketchat_server = UserOnRocketchatServer::find(connection, &matrix_user_id, rocketchat_server_id)
+        .unwrap();
     let rocketchat_user_id = user_on_rocketchat_server.rocketchat_user_id.clone();
     user_on_rocketchat_server.set_credentials(connection, rocketchat_user_id, None).unwrap();
 }

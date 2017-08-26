@@ -18,20 +18,20 @@ use matrix_rocketchat::db::Room;
 use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, Test, default_timeout, handlers, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
+use ruma_client_api::r0::alias::get_alias::Endpoint as GetAliasEndpoint;
 use ruma_client_api::r0::membership::invite_user::Endpoint as InviteEndpoint;
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
-use ruma_client_api::r0::send::send_state_event_for_empty_key::Endpoint as SendStateEventForEmptyKeyEndpoint;
-use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
+use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint as SendStateEventForEmptyKeyEndpoint};
 use ruma_events::EventType;
 use ruma_identifiers::{RoomId, UserId};
 
 #[test]
-fn successfully_bridge_a_rocketchat_room__() {
+fn successfully_bridge_a_rocketchat_room() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (invite_forwarder, invite_receiver) = MessageForwarder::new();
-    let (state_forwarder, state_receiver) = MessageForwarder::new();
+    let (state_forwarder, state_receiver) = handlers::SendRoomState::with_forwarder();
     let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
@@ -68,7 +68,7 @@ fn successfully_bridge_a_rocketchat_room__() {
 
     let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(create_room_message.contains("\"name\":\"joined_channel\""));
-    assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat_rc_id_joined_channel_id\""));
+    assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat#rc_id#joined_channel_id\""));
 
     let invite_spec_user = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(invite_spec_user.contains("@spec_user:localhost"));
@@ -86,6 +86,10 @@ fn successfully_bridge_a_rocketchat_room__() {
 
     let set_room_name_received_by_matrix = state_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(set_room_name_received_by_matrix.contains("Admin Room (Rocket.Chat)"));
+
+    let topic_received_by_matrix = state_receiver.recv_timeout(default_timeout()).unwrap();
+    let topic_message = format!("\"topic\":\"{}\"", test.rocketchat_mock_url.clone().unwrap());
+    assert!(topic_received_by_matrix.contains(&topic_message));
 
     // only moderators and admins can invite other users
     let power_levels_received_by_matrix = state_receiver.recv_timeout(default_timeout()).unwrap();
@@ -107,12 +111,8 @@ fn successfully_bridge_a_rocketchat_room__() {
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
-    let connection = test.connection_pool.get().unwrap();
-    let room = Room::find(&connection, &RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();
-    assert_eq!(room.display_name, "joined_channel");
-
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = room.user_ids(&(*matrix_api)).unwrap();
+    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_spec_user_id_rc_id:localhost").unwrap()));
@@ -131,28 +131,11 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     let other_user_id = UserId::try_from("@other_user:localhost").unwrap();
     let bot_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
     let admin_room_id = RoomId::try_from("!admin_room_id:localhost").unwrap();
-    let other_admin_room_id = RoomId::try_from("!other_admin_room_id:localhost").unwrap();
 
     // common routes/mocked endpoints
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
-
-    // routes/mocked endpoints to bridge the first admin room
-    let admin_room_creator_handler = handlers::RoomStateCreate { creator: spec_user_id.clone() };
-    matrix_router.get(GetStateEventsForEmptyKey::router_path(), admin_room_creator_handler, "get_room_creator_admin_room");
-
-    let other_admin_room_creator_handler = handlers::RoomStateCreate { creator: other_user_id.clone() };
-    let other_admin_room_creator_params = get_state_events_for_empty_key::PathParams {
-        room_id: other_admin_room_id.clone(),
-        event_type: EventType::RoomCreate.to_string(),
-    };
-    matrix_router.get(
-        GetStateEventsForEmptyKey::request_path(other_admin_room_creator_params),
-        other_admin_room_creator_handler,
-        "get_room_creator_other_admin_room",
-    );
-
 
     let mut rocketchat_router = Router::new();
     rocketchat_router.post(
@@ -261,12 +244,8 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     let other_user_invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(other_user_invite_received_by_matrix.contains("@rocketchat_other_user_id_rc_id:localhost"));
 
-    let connection = test.connection_pool.get().unwrap();
-    let room = Room::find(&connection, &RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();
-    assert_eq!(room.display_name, "joined_channel");
-
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = room.user_ids(&(*matrix_api)).unwrap();
+    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();
     assert!(user_ids.iter().any(|id| id == &bot_user_id));
     assert!(user_ids.iter().any(|id| id == &spec_user_id));
     assert!(user_ids.iter().any(|id| id == &other_user_id));
@@ -331,13 +310,8 @@ fn susccessfully_bridge_a_rocketchat_room_that_was_unbridged_before() {
     let invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(invite_received_by_matrix.contains("@spec_user:localhost"));
 
-    let connection = test.connection_pool.get().unwrap();
-    let room = Room::find(&connection, &RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();
-    assert_eq!(room.display_name, "joined_channel");
-    assert!(room.is_bridged);
-
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = room.user_ids(&(*matrix_api)).unwrap();
+    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
 }
@@ -410,12 +384,8 @@ fn successfully_bridge_two_different_rocketchat_rooms() {
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
-    let connection = test.connection_pool.get().unwrap();
-    let first_room = Room::find(&connection, &RoomId::try_from("!first_channel_id:localhost").unwrap()).unwrap();
-    assert_eq!(first_room.display_name, "first_channel");
-
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let first_user_ids = first_room.user_ids(&(*matrix_api)).unwrap();
+    let first_user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!first_channel_id:localhost").unwrap()).unwrap();
     let rocketchat_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
     let virtual_spec_user_id = UserId::try_from("@rocketchat_spec_user_id_rc_id:localhost").unwrap();
@@ -426,10 +396,7 @@ fn successfully_bridge_two_different_rocketchat_rooms() {
     assert!(first_user_ids.iter().any(|id| id == &virtual_spec_user_id));
     assert!(first_user_ids.iter().any(|id| id == &virtual_other_user_id));
 
-    let sec_room = Room::find(&connection, &RoomId::try_from("!second_channel_id:localhost").unwrap()).unwrap();
-    assert_eq!(sec_room.display_name, "second_channel");
-
-    let sec_users = sec_room.user_ids(&(*matrix_api)).unwrap();
+    let sec_users = Room::user_ids(&(*matrix_api), RoomId::try_from("!second_channel_id:localhost").unwrap()).unwrap();
     assert!(sec_users.iter().any(|id| id == &rocketchat_user_id));
     assert!(sec_users.iter().any(|id| id == &spec_user_id));
     assert!(sec_users.iter().any(|id| id == &virtual_spec_user_id));
@@ -557,6 +524,104 @@ fn attempting_to_bridge_an_already_bridged_channel_returns_an_error() {
 }
 
 #[test]
+fn the_room_is_not_bridged_when_setting_the_canonical_room_alias_failes() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let error_responder = handlers::MatrixErrorResponder {
+        status: status::InternalServerError,
+        message: "Could not set canonical room alias".to_string(),
+    };
+    matrix_router.put(
+        "/_matrix/client/r0/rooms/!joined_channel_id:localhost/state/m.room.canonical_alias",
+        error_responder,
+        "put_room_canonical_room_alias",
+    );
+
+    let mut channels = HashMap::new();
+    channels.insert("joined_channel", vec!["spec_user"]);
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_custom_channel_list(channels)
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
+}
+
+#[test]
+fn bridge_a_room_after_setting_the_canonical_room_failed() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let (put_room_canonical_room_alias_forwarder, put_room_canonical_room_alias_receiver) =
+        handlers::SendRoomState::with_forwarder();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.put(
+        "/_matrix/client/r0/rooms/:room_id/state/m.room.canonical_alias",
+        put_room_canonical_room_alias_forwarder,
+        "put_room_canonical_room_alias",
+    );
+    let mut channels = HashMap::new();
+    channels.insert("joined_channel", vec!["spec_user"]);
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_custom_channel_list(channels)
+        .run();
+
+    // create a room with an alias that is used by the bridge, this can happen when attempting to
+    // bridge a channel, but the canonical room alias could not be set. When tried again, the room
+    // with the alias has to be used to bridge the channel.
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    matrix_api
+        .create_room(
+            Some("joined_channel".to_string()),
+            Some("rocketchat#rc_id#joined_channel_id".to_string()),
+            &UserId::try_from("@rocketchat:localhost").unwrap(),
+        )
+        .unwrap();
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let put_canonical_room_alias_message = put_room_canonical_room_alias_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(put_canonical_room_alias_message.contains("rocketchat#rc_id#joined_channel_id"));
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("joined_channel is now bridged."))
+}
+
+#[test]
 fn the_user_gets_a_message_when_creating_the_room_failes() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
@@ -606,8 +671,12 @@ fn the_user_gets_a_message_when_setting_the_powerlevels_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let powerlevel_params = send_state_event_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap(),
+        event_type: EventType::RoomPowerLevels,
+    };
     matrix_router.put(
-        SendStateEventForEmptyKeyEndpoint::router_path(),
+        SendStateEventForEmptyKeyEndpoint::request_path(powerlevel_params),
         handlers::MatrixConditionalErrorResponder {
             status: status::InternalServerError,
             message: "Could not set power levels".to_string(),
@@ -744,6 +813,47 @@ fn the_user_gets_a_message_when_getting_the_users_info_failes() {
 }
 
 #[test]
+fn the_user_gets_a_message_when_getting_the_room_alias_failes() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.get(
+        GetAliasEndpoint::router_path(),
+        handlers::MatrixErrorResponder {
+            status: status::InternalServerError,
+            message: "Could not get room alias".to_string(),
+        },
+        "get_room_alias",
+    );
+    let mut channels = HashMap::new();
+    channels.insert("joined_channel", vec!["spec_user"]);
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_custom_channel_list(channels)
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
+}
+
+#[test]
 fn the_user_gets_a_message_when_the_create_room_response_cannot_be_deserialized() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
@@ -833,6 +943,40 @@ fn the_user_gets_a_message_when_the_users_info_response_cannot_be_deserialized()
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
+}
+
+#[test]
+fn the_user_gets_a_message_when_getting_the_room_alias_response_cannot_be_deserialized() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.get(GetAliasEndpoint::router_path(), handlers::InvalidJsonResponse { status: status::Ok }, "get_room_alias");
+    let mut channels = HashMap::new();
+    channels.insert("joined_channel", vec!["spec_user"]);
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_custom_channel_list(channels)
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_channel".to_string(),
+    );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("An internal error occurred"));

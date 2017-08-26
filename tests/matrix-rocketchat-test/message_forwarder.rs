@@ -4,7 +4,7 @@ use std::io::Read;
 use std::sync::Mutex;
 use std::sync::mpsc::{Receiver, Sender, channel};
 
-use iron::{BeforeMiddleware, AfterMiddleware, Handler, status};
+use iron::{AfterMiddleware, BeforeMiddleware, Handler, status};
 use iron::prelude::*;
 use iron::typemap::Key;
 use iron::url::Url;
@@ -67,7 +67,7 @@ impl BeforeMiddleware for MessageForwarder {
 }
 
 impl AfterMiddleware for MessageForwarder {
-    fn after(&self, request: &mut Request, response: Response) -> IronResult<Response>{
+    fn after(&self, request: &mut Request, response: Response) -> IronResult<Response> {
         let payload = extract_payload(request);
         self.tx.lock().unwrap().send(payload).unwrap();
 
@@ -79,7 +79,7 @@ impl Key for Message {
     type Value = Message;
 }
 
-fn validate_message_forwarding_for_user(request: &mut Request, url: Url) -> IronResult<()>{
+fn validate_message_forwarding_for_user(request: &mut Request, url: Url) -> IronResult<()> {
     let params = request.extensions.get::<Router>().unwrap().clone();
     let url_room_id = params.find("room_id").unwrap();
     let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
@@ -97,7 +97,7 @@ fn validate_message_forwarding_for_user(request: &mut Request, url: Url) -> Iron
     let user_ids = &user_in_room_map.get(&room_id).unwrap_or(&empty_users);
 
     if !user_ids.iter().any(|id| id == &user_id) {
-        let matrix_err = MatrixErrorResponse{
+        let matrix_err = MatrixErrorResponse {
             errcode: "M_FORBIDDEN".to_string(),
             error: format!("{} not in room {}", user_id, room_id),
         };
@@ -107,5 +107,5 @@ fn validate_message_forwarding_for_user(request: &mut Request, url: Url) -> Iron
         return Err(err);
     }
 
-    return Ok(())
+    Ok(())
 }

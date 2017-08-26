@@ -1,5 +1,6 @@
 #![feature(try_from)]
 
+extern crate iron;
 extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
 extern crate router;

@@ -19,7 +19,7 @@ use clap::{App, Arg};
 use iron::Listening;
 use matrix_rocketchat::{Config, Server};
 use matrix_rocketchat::errors::*;
-use slog::{DrainExt, Record};
+use slog::{DrainExt, Level, LevelFilter, Record};
 
 fn main() {
     if let Err(ref e) = run() {
@@ -43,18 +43,24 @@ fn run() -> Result<Listening> {
     let config_path = matches.value_of("config").unwrap_or("config.yaml").to_string();
     let config = Config::read_from_file(&config_path).chain_err(|| ErrorKind::ReadFileError(config_path))?;
     let log_file_path = matches.value_of("log_file").unwrap_or("matrix-rocketchat.log");
-    let log = build_logger(log_file_path);
+    let log_level = matches.value_of("log_level").unwrap_or("info");
+    let log = build_logger(log_file_path, log_level);
     let threads = num_cpus::get() * 8;
     Server::new(&config, log).run(threads)
 }
 
-fn build_logger(log_file_path: &str) -> slog::Logger {
+fn build_logger(log_file_path: &str, log_level: &str) -> slog::Logger {
+    let log_level = match log_level {
+        "info" => Level::Info,
+        "warning" => Level::Warning,
+        _ => Level::Debug,
+    };
     let path = Path::new(&log_file_path).to_path_buf();
     let file = OpenOptions::new().create(true).write(true).truncate(true).open(path).expect("Log file creation failed");
     let file_drain = slog_stream::stream(file, slog_json::new().add_default_keys().build());
     let term_drain = slog_term::streamer().stderr().full().build();
     slog::Logger::root(
-        slog::duplicate(term_drain, file_drain).fuse(),
+        LevelFilter::new(slog::duplicate(term_drain, file_drain), log_level).fuse(),
         o!("version" => env!("CARGO_PKG_VERSION"),
                           "place" => file_line_logger_format),
     )

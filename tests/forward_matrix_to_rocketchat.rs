@@ -12,9 +12,10 @@ extern crate serde_json;
 use std::convert::TryFrom;
 
 use iron::status;
+use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::v1::POST_CHAT_MESSAGE_PATH;
 use matrix_rocketchat::api::rocketchat::Message;
-use matrix_rocketchat_test::{MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -121,13 +122,41 @@ fn ignore_messages_from_unbridged_rooms() {
         .with_logged_in_user()
         .run();
 
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
+    matrix_api.create_room(Some("not_bridged_room".to_string()), None, &spec_user_id).unwrap();
+
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
-        RoomId::try_from("!not_bridged_channel_id:localhost").unwrap(),
+        RoomId::try_from("!not_bridged_room_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
         "spec message".to_string(),
     );
 
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
+}
+
+#[test]
+fn ignore_messages_from_rooms_with_empty_room_canonical_alias() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+
+    let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().run();
+
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    matrix_api.create_room(Some("room".to_string()), None, &UserId::try_from("@spec_user:localhost").unwrap()).unwrap();
+    matrix_api.put_canonical_room_alias(RoomId::try_from("!room_id:localhost").unwrap(), None).unwrap();
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "spec message".to_string(),
+    );
+
+    // timeout because the message was not forwarded
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 
@@ -207,6 +236,88 @@ fn the_user_gets_a_message_when_forwarding_a_message_failes() {
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard bridge message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
+}
+
+#[test]
+fn the_user_gets_a_message_when_when_getting_the_canonical_room_alias_failes() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let error_responder = handlers::MatrixErrorResponder {
+        status: status::InternalServerError,
+        message: "Could not get canonical room alias".to_string(),
+    };
+    matrix_router.get(
+        "/_matrix/client/r0/rooms/!spec_channel_id:localhost/state/m.room.canonical_alias",
+        error_responder,
+        "get_room_canonical_room_alias",
+    );
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "spec message".to_string(),
+    );
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard room bridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
+}
+
+#[test]
+fn the_user_gets_a_message_when_when_getting_the_canonical_room_alias_response_cannot_be_deserialized() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.get(
+        "/_matrix/client/r0/rooms/!spec_channel_id:localhost/state/m.room.canonical_alias",
+        handlers::InvalidJsonResponse { status: status::Ok },
+        "get_room_canonical_room_alias",
+    );
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "spec message".to_string(),
+    );
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard room bridged message
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();

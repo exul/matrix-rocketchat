@@ -7,6 +7,7 @@ use api::MatrixApi;
 use config::Config;
 use errors::*;
 use handlers::ErrorNotifier;
+use log;
 use super::{MessageHandler, RoomHandler};
 
 /// Dispatches events to the corresponding handler.
@@ -64,6 +65,7 @@ impl<'a> EventDispatcher<'a> {
     /// message it is returned to the caller so that the caller can take care of the error.
     pub fn handle_error(&self, err: Error, room_id: RoomId, user_id: &UserId) -> Result<()> {
         debug!(self.logger, "Sending error message to room {}", &room_id);
+
         let error_notifier = ErrorNotifier {
             config: self.config,
             connection: self.connection,
@@ -71,9 +73,10 @@ impl<'a> EventDispatcher<'a> {
             matrix_api: self.matrix_api.as_ref(),
         };
 
-        if let Err(err) = error_notifier.send_message_to_user(&err, room_id.clone(), user_id) {
+        if let Err(send_err) = error_notifier.send_message_to_user(&err, room_id.clone(), user_id) {
             debug!(self.logger, "Unable to send an error message to the user");
-            return Err(err);
+            log::log_debug(self.logger, &err);
+            return Err(send_err);
         }
 
         Ok(())

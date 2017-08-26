@@ -88,17 +88,9 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("spec_message"));
 
-    let connection = test.connection_pool.get().unwrap();
-    let admin_room = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
-    let rocketchat_server_id = admin_room.rocketchat_server_id.unwrap();
-    let bridged_room =
-        Room::find_by_rocketchat_room_id(&connection, rocketchat_server_id.clone(), "spec_channel_id".to_string())
-            .unwrap()
-            .unwrap();
-
     // the bot, the user who bridged the channel and two virtual user are in the channel
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = bridged_room.user_ids(&(*matrix_api)).unwrap();
+    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!spec_channel_id:localhost").unwrap()).unwrap();
 
     assert_eq!(user_ids.len(), 4);
 
@@ -116,7 +108,8 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let new_user_id = user_ids.iter().next().unwrap();
 
     // the virtual user was create with the Rocket.Chat user ID
-    let user_on_rocketchat = UserOnRocketchatServer::find(&connection, new_user_id, rocketchat_server_id).unwrap();
+    let connection = test.connection_pool.get().unwrap();
+    let user_on_rocketchat = UserOnRocketchatServer::find(&connection, new_user_id, "rc_id".to_string()).unwrap();
     assert_eq!(user_on_rocketchat.rocketchat_user_id.unwrap(), "new_user_id".to_string());
 
     let second_message = Message {
@@ -200,17 +193,9 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("spec_message"));
 
-    let connection = test.connection_pool.get().unwrap();
-    let admin_room = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
-    let rocketchat_server_id = admin_room.rocketchat_server_id.unwrap();
-    let bridged_room =
-        Room::find_by_rocketchat_room_id(&connection, rocketchat_server_id.clone(), "spec_channel_id".to_string())
-            .unwrap()
-            .unwrap();
-
     // the bot, the user who bridged the channel and the virtual user are in the channel
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = bridged_room.user_ids(&(*matrix_api)).unwrap();
+    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!spec_channel_id:localhost").unwrap()).unwrap();
     assert_eq!(user_ids.len(), 3);
 
     let bot_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
@@ -227,7 +212,8 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     // the virtual user was create with the Rocket.Chat user ID because the exiting matrix user
     // cannot be used since the application service can only impersonate virtual users.
-    let user_on_rocketchat = UserOnRocketchatServer::find(&connection, new_user_id, rocketchat_server_id).unwrap();
+    let connection = test.connection_pool.get().unwrap();
+    let user_on_rocketchat = UserOnRocketchatServer::find(&connection, new_user_id, "rc_id".to_string()).unwrap();
     assert_eq!(user_on_rocketchat.rocketchat_user_id.unwrap(), "spec_user_id".to_string());
 
     let second_message = Message {
@@ -299,11 +285,16 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
     assert!(new_display_name_message.contains("spec_user_new"));
 
     let connection = test.connection_pool.get().unwrap();
-    let admin_room = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
-    let rocketchat_server_id = admin_room.rocketchat_server_id.unwrap();
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    let rocketchat_server = Room::rocketchat_server_for_admin_room(
+        &connection,
+        matrix_api.as_ref(),
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+    ).unwrap()
+        .unwrap();
     let user_on_rocketchat_server = UserOnRocketchatServer::find_by_rocketchat_user_id(
         &connection,
-        rocketchat_server_id,
+        rocketchat_server.id,
         "virtual_spec_user_id".to_string(),
         true,
     ).unwrap()

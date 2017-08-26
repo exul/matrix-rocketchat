@@ -4,6 +4,8 @@ use std::convert::TryFrom;
 use pulldown_cmark::{Options, Parser, html};
 use reqwest::StatusCode;
 use ruma_client_api::Endpoint;
+use ruma_client_api::r0::alias::get_alias::{self, Endpoint as GetAliasEndpoint};
+use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
 use ruma_client_api::r0::account::register::{self, Endpoint as RegisterEndpoint};
 use ruma_client_api::r0::membership::forget_room::{self, Endpoint as ForgetRoomEndpoint};
 use ruma_client_api::r0::membership::invite_user::{self, Endpoint as InviteUserEndpoint};
@@ -18,10 +20,11 @@ use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint a
 use ruma_events::EventType;
 use ruma_events::room::member::MemberEvent;
 use ruma_events::room::message::MessageType;
-use ruma_identifiers::{EventId, RoomId, UserId};
+use ruma_identifiers::{EventId, RoomAliasId, RoomId, UserId};
 use serde_json::Map;
 use slog::Logger;
 use serde_json::{self, Value};
+use url;
 
 use api::RestApi;
 use config::Config;
@@ -92,7 +95,23 @@ impl super::MatrixApi for MatrixApi {
             ))
         })?;
 
+        debug!(self.logger, "Successfully created room with ID {}", create_room_response.room_id);
         Ok(create_room_response.room_id)
+    }
+
+    fn delete_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<()> {
+        // the ruma client api path params cannot be used here, because they are not url encoded
+        let encoded_room_alias = url::form_urlencoded::byte_serialize(matrix_room_alias_id.to_string().as_bytes())
+            .collect::<String>();
+        let endpoint = self.base_url.clone() + &format!("/_matrix/client/r0/directory/room/{}", &encoded_room_alias);
+        let params = self.params_hash();
+
+        let (body, status_code) = RestApi::call_matrix(DeleteAliasEndpoint::method(), &endpoint, "{}", &params)?;
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        Ok(())
     }
 
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()> {
@@ -105,6 +124,63 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
         Ok(())
+    }
+
+    fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<Option<RoomId>> {
+        // the ruma client api path params cannot be used here, because they are not url encoded
+        let encoded_room_alias = url::form_urlencoded::byte_serialize(matrix_room_alias_id.to_string().as_bytes())
+            .collect::<String>();
+        let endpoint = self.base_url.clone() + &format!("/_matrix/client/r0/directory/room/{}", &encoded_room_alias);
+        let params = self.params_hash();
+
+        let (body, status_code) = RestApi::call_matrix(GetAliasEndpoint::method(), &endpoint, "{}", &params)?;
+        if status_code == StatusCode::NotFound {
+            return Ok(None);
+        }
+
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        let get_alias_response: get_alias::Response = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix get_alias API endpoint: `{}`", body))
+        })?;
+
+        Ok(Some(get_alias_response.room_id.clone()))
+    }
+
+    fn get_room_canonical_alias(&self, matrix_room_id: RoomId) -> Result<Option<RoomAliasId>> {
+        let path_params = get_state_events_for_empty_key::PathParams {
+            room_id: matrix_room_id,
+            event_type: EventType::RoomCanonicalAlias.to_string(),
+        };
+        let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
+        let params = self.params_hash();
+
+        let (body, status_code) = RestApi::call_matrix(GetStateEventsForEmptyKeyEndpoint::method(), &endpoint, "{}", &params)?;
+        if status_code == StatusCode::NotFound {
+            return Ok(None);
+        }
+
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        let room_canonical_alias_response: Value = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Matrix get_state_events_for_empty_key \
+                                               API endpoint: `{}`",
+                body
+            ))
+        })?;
+
+        let alias = room_canonical_alias_response["alias"].to_string().replace("\"", "");
+        if alias.is_empty() {
+            return Ok(None);
+        }
+
+        let room_canonical_alias = RoomAliasId::try_from(&alias).chain_err(|| ErrorKind::InvalidRoomAliasId(alias))?;
+        Ok(Some(room_canonical_alias))
     }
 
     fn get_room_creator(&self, matrix_room_id: RoomId) -> Result<UserId> {
@@ -152,6 +228,34 @@ impl super::MatrixApi for MatrixApi {
         Ok(room_member_events.chunk)
     }
 
+    fn get_room_topic(&self, matrix_room_id: RoomId) -> Result<Option<String>> {
+        let path_params = get_state_events_for_empty_key::PathParams {
+            room_id: matrix_room_id,
+            event_type: EventType::RoomTopic.to_string(),
+        };
+        let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
+        let params = self.params_hash();
+
+        let (body, status_code) = RestApi::call_matrix(GetStateEventsForEmptyKeyEndpoint::method(), &endpoint, "{}", &params)?;
+        if status_code == StatusCode::NotFound {
+            return Ok(None);
+        }
+
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        let room_topic_response: Value = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Matrix get_state_events_for_empty_key \
+                                               API endpoint: `{}`",
+                body
+            ))
+        })?;
+
+        Ok(Some(room_topic_response["topic"].to_string().replace("\"", "")))
+    }
+
     fn invite(&self, matrix_room_id: RoomId, receiver_matrix_user_id: UserId, sender_matrix_user_id: UserId) -> Result<()> {
         let path_params = invite_user::PathParams { room_id: matrix_room_id.clone() };
         let endpoint = self.base_url.clone() + &InviteUserEndpoint::request_path(path_params);
@@ -176,6 +280,19 @@ impl super::MatrixApi for MatrixApi {
             sender_matrix_user_id
         );
         Ok(())
+    }
+
+    fn is_room_accessible_by_bot(&self, matrix_room_id: RoomId) -> Result<bool> {
+        let path_params = get_state_events_for_empty_key::PathParams {
+            room_id: matrix_room_id,
+            event_type: EventType::RoomCreate.to_string(),
+        };
+        let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
+        let params = self.params_hash();
+
+        let (_, status_code) = RestApi::call_matrix(GetStateEventsForEmptyKeyEndpoint::method(), &endpoint, "{}", &params)?;
+
+        Ok(status_code != StatusCode::Forbidden)
     }
 
     fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {
@@ -203,6 +320,33 @@ impl super::MatrixApi for MatrixApi {
 
 
         let (body, status_code) = RestApi::call_matrix(LeaveRoomEndpoint::method(), &endpoint, "{}", &params)?;
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+        Ok(())
+    }
+
+    fn put_canonical_room_alias(&self, matrix_room_id: RoomId, matrix_room_alias_id: Option<RoomAliasId>) -> Result<()> {
+        let path_params = send_state_event_for_empty_key::PathParams {
+            room_id: matrix_room_id,
+            event_type: EventType::RoomCanonicalAlias,
+        };
+        let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
+        let room_alias = match matrix_room_alias_id {
+            Some(matrix_room_alias_id) => matrix_room_alias_id.to_string(),
+            None => String::new(),
+        };
+        let params = self.params_hash();
+
+        let mut body_params = serde_json::Map::new();
+        body_params.insert("alias".to_string(), json!(room_alias));
+
+        let payload = serde_json::to_string(&body_params).chain_err(|| {
+            ErrorKind::InvalidJSON("Could not serialize canonical room alias body params".to_string())
+        })?;
+
+        let (body, status_code) =
+            RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -324,6 +468,28 @@ impl super::MatrixApi for MatrixApi {
 
         let payload = serde_json::to_string(&body_params).chain_err(|| {
             ErrorKind::InvalidJSON("Could not serialize room name body params".to_string())
+        })?;
+
+        let (body, status_code) =
+            RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+        Ok(())
+    }
+
+    fn set_room_topic(&self, matrix_room_id: RoomId, topic: String) -> Result<()> {
+        let path_params = send_state_event_for_empty_key::PathParams {
+            room_id: matrix_room_id,
+            event_type: EventType::RoomTopic,
+        };
+        let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
+        let params = self.params_hash();
+        let mut body_params = serde_json::Map::new();
+        body_params.insert("topic".to_string(), Value::String(topic));
+
+        let payload = serde_json::to_string(&body_params).chain_err(|| {
+            ErrorKind::InvalidJSON("Could not serialize room topic body params".to_string())
         })?;
 
         let (body, status_code) =

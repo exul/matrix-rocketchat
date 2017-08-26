@@ -1,10 +1,10 @@
 use diesel::sqlite::SqliteConnection;
-use ruma_identifiers::UserId;
+use ruma_identifiers::{RoomId, UserId};
 use slog::Logger;
 
 use api::{MatrixApi, RocketchatApi};
 use config::Config;
-use db::{RocketchatServer, Room, User, UserOnRocketchatServer};
+use db::{RocketchatServer, User, UserOnRocketchatServer};
 use errors::*;
 use handlers::events::CommandHandler;
 
@@ -42,7 +42,7 @@ impl<'a> Login<'a> {
         &self,
         credentials: &Credentials,
         rocketchat_server: &RocketchatServer,
-        admin_room: Option<Room>,
+        admin_room_id: Option<RoomId>,
     ) -> Result<()> {
         let mut user_on_rocketchat_server =
             UserOnRocketchatServer::find(self.connection, &credentials.matrix_user_id, rocketchat_server.id.clone())?;
@@ -62,10 +62,16 @@ impl<'a> Login<'a> {
         let username = rocketchat_api.current_username()?;
         user_on_rocketchat_server.set_rocketchat_username(self.connection, Some(username.clone()))?;
 
-        if let Some(room) = admin_room {
+        if let Some(matrix_room_id) = admin_room_id {
             let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
-            let message = CommandHandler::build_help_message(self.connection, self.config.as_url.clone(), &room, &user)?;
-            self.matrix_api.send_text_message_event(room.matrix_room_id.clone(), bot_matrix_user_id, message)?;
+            let message = CommandHandler::build_help_message(
+                self.connection,
+                self.matrix_api,
+                self.config.as_url.clone(),
+                matrix_room_id.clone(),
+                &user,
+            )?;
+            self.matrix_api.send_text_message_event(matrix_room_id, bot_matrix_user_id, message)?;
         }
 
         Ok(info!(

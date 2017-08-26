@@ -52,15 +52,18 @@ use persistent::Write;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 use router::Router;
-use ruma_identifiers::{RoomId, UserId};
+use ruma_identifiers::{RoomAliasId, RoomId, UserId};
 use ruma_client_api::Endpoint;
+use ruma_client_api::r0::alias::get_alias::Endpoint as GetAliasEndpoint;
+use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
 use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinRoomByIdEndpoint;
 use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
+use ruma_client_api::r0::send::send_state_event_for_empty_key::Endpoint as SendStateEventForEmptyKeyEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
-use ruma_client_api::r0::sync::get_state_events_for_empty_key::Endpoint as GetStateEventsForEmptyKey;
-use slog::{DrainExt, Record};
+use ruma_client_api::r0::sync::get_state_events_for_empty_key::Endpoint as GetStateEventsForEmptyKeyEndpoint;
+use slog::{DrainExt, Level, LevelFilter, Record};
 use tempdir::TempDir;
 
 /// Name of the temporary directory that is used for each test
@@ -81,9 +84,16 @@ pub const DEFAULT_ROCKETCHAT_VERSION: &'static str = "0.49.0";
 lazy_static! {
     /// Default logger
     pub static ref DEFAULT_LOGGER: slog::Logger = {
-        slog::Logger::root(slog_term::streamer().full().build().fuse(), o!("version" => env!("CARGO_PKG_VERSION"), "place" => file_line_logger_format))
+        let log_level = match option_env!("TEST_LOG_LEVEL"){
+            Some("error") => Level::Error,
+            Some("warning") => Level::Warning,
+            Some("debug") => Level::Debug,
+            _ => Level::Info,
+        };
+        slog::Logger::root(LevelFilter::new(slog_term::streamer().full().build(), log_level).fuse(), o!("version" => env!("CARGO_PKG_VERSION"), "place" => file_line_logger_format))
     };
 }
+
 
 #[macro_export]
 macro_rules! assert_error_kind {
@@ -105,12 +115,26 @@ pub struct UsernameList;
 #[derive(Copy, Clone)]
 pub struct UsersInRoomMap;
 
+#[derive(Copy, Clone)]
+pub struct RoomsStatesMap;
+
+#[derive(Copy, Clone)]
+pub struct RoomAliasMap;
+
 impl Key for UsernameList {
     type Value = Vec<String>;
 }
 
 impl Key for UsersInRoomMap {
     type Value = HashMap<RoomId, Vec<UserId>>;
+}
+
+impl Key for RoomsStatesMap {
+    type Value = HashMap<RoomId, HashMap<String, String>>;
+}
+
+impl Key for RoomAliasMap {
+    type Value = HashMap<RoomId, Vec<RoomAliasId>>;
 }
 
 #[derive(Debug)]
@@ -294,6 +318,8 @@ impl Test {
             let mut chain = Chain::new(router);
             chain.link_before(Write::<UsernameList>::one(Vec::new()));
             chain.link_before(Write::<UsersInRoomMap>::one(HashMap::new()));
+            chain.link_before(Write::<RoomsStatesMap>::one(HashMap::new()));
+            chain.link_before(Write::<RoomAliasMap>::one(HashMap::new()));
             let mut server = Iron::new(chain);
             server.threads = IRON_THREADS;
             let listening = server.http(&hs_socket_addr).unwrap();
@@ -365,13 +391,8 @@ impl Test {
         let (as_tx, as_rx) = channel::<Listening>();
 
         thread::spawn(move || {
-            let log = slog::Logger::root(
-                slog_term::streamer().full().build().fuse(),
-                o!("version" => env!("CARGO_PKG_VERSION"),
-                                            "place" => file_line_logger_format),
-            );
             debug!(DEFAULT_LOGGER, "config: {:?}", server_config);
-            let listening = match Server::new(&server_config, log).run(IRON_THREADS) {
+            let listening = match Server::new(&server_config, DEFAULT_LOGGER.clone()).run(IRON_THREADS) {
                 Ok(listening) => listening,
                 Err(err) => {
                     error!(DEFAULT_LOGGER, "error: {}", err);
@@ -447,8 +468,11 @@ impl Test {
         let leave_room_handler = handlers::MatrixLeaveRoom { as_url: self.config.as_url.clone() };
         router.post(LeaveRoomEndpoint::router_path(), leave_room_handler, "leave_room");
         router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "versions");
-        let room_creator = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
-        router.get(GetStateEventsForEmptyKey::router_path(), room_creator, "get_state_events_for_empty_key");
+        router.get(
+            GetStateEventsForEmptyKeyEndpoint::router_path(),
+            handlers::GetRoomState {},
+            "get_state_events_for_empty_key",
+        );
         router.get(GetMemberEventsEndpoint::router_path(), handlers::RoomMembers {}, "room_members");
         router.post(RegisterEndpoint::router_path(), handlers::MatrixRegister {}, "register");
         router.post(
@@ -456,6 +480,9 @@ impl Test {
             handlers::MatrixCreateRoom { as_url: self.config.as_url.clone() },
             "create_room",
         );
+        router.put(SendStateEventForEmptyKeyEndpoint::router_path(), handlers::SendRoomState {}, "send_room_state");
+        router.get(GetAliasEndpoint::router_path(), handlers::GetRoomAlias {}, "get_room_alias");
+        router.delete(DeleteAliasEndpoint::router_path(), handlers::DeleteRoomAlias {}, "delete_room_alias");
         router.post("*", handlers::EmptyJson {}, "default_post");
         router.put("*", handlers::EmptyJson {}, "default_put");
 

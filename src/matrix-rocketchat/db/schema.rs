@@ -11,20 +11,6 @@ table! {
 }
 
 table! {
-    rooms (matrix_room_id) {
-        matrix_room_id -> Text,
-        display_name -> Text,
-        rocketchat_server_id -> Nullable<Text>,
-        rocketchat_room_id -> Nullable<Text>,
-        is_admin_room -> Bool,
-        is_bridged -> Bool,
-        is_direct_message_room -> Bool,
-        created_at -> Timestamp,
-        updated_at -> Timestamp,
-    }
-}
-
-table! {
     rocketchat_servers (id) {
         id -> Text,
         rocketchat_url -> Text,

@@ -323,7 +323,7 @@ impl Handler for MatrixCreateRoom {
         ));
         let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
 
-        add_user_to_users_in_room(request, user_id.clone(), room_id.clone());
+        add_membership_event_to_room(request, user_id.clone(), room_id.clone(), MembershipState::Join);
         add_state_to_room(request, room_id.clone(), "creator".to_string(), user_id.to_string());
 
         if let Some(room_alias_name) = create_room_payload.room_alias_name {
@@ -415,7 +415,7 @@ impl Handler for RoomMembers {
 }
 
 pub struct StaticRoomMembers {
-    pub user_ids: Vec<UserId>,
+    pub user_ids: Vec<(UserId, MembershipState)>,
 }
 
 impl Handler for StaticRoomMembers {
@@ -434,14 +434,14 @@ impl Handler for StaticRoomMembers {
     }
 }
 
-fn build_member_events_from_user_ids(users: &Vec<UserId>, room_id: RoomId) -> Vec<MemberEvent> {
+fn build_member_events_from_user_ids(users: &Vec<(UserId, MembershipState)>, room_id: RoomId) -> Vec<MemberEvent> {
     let mut member_events = Vec::new();
-    for user in users.iter() {
+    for &(ref user, membership_state) in users.iter() {
         let member_event = MemberEvent {
             content: MemberEventContent {
                 avatar_url: None,
                 displayname: None,
-                membership: MembershipState::Join,
+                membership: membership_state,
                 third_party_invite: None,
             },
             event_id: EventId::new("localhost").unwrap(),
@@ -604,7 +604,7 @@ impl Handler for MatrixJoinRoom {
         ));
         let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
 
-        add_user_to_users_in_room(request, user_id.clone(), room_id.clone());
+        add_membership_event_to_room(request, user_id.clone(), room_id.clone(), MembershipState::Join);
 
         helpers::send_join_event_from_matrix(&self.as_url, room_id, user_id);
 
@@ -641,7 +641,7 @@ impl Handler for MatrixLeaveRoom {
         ));
         let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
 
-        remove_user_from_users_in_room(request, user_id.clone(), room_id.clone());
+        add_membership_event_to_room(request, user_id.clone(), room_id.clone(), MembershipState::Leave);
 
         helpers::send_leave_event_from_matrix(&self.as_url, room_id, user_id);
 
@@ -806,7 +806,7 @@ fn get_state_from_room(request: &mut Request, room_id: RoomId, state_key: String
     Some((state_key.clone(), room_state.to_string()))
 }
 
-fn add_user_to_users_in_room(request: &mut Request, user_id: UserId, room_id: RoomId) {
+fn add_membership_event_to_room(request: &mut Request, user_id: UserId, room_id: RoomId, membership_event: MembershipState) {
     let mutex = request.get::<Write<UsersInRoomMap>>().unwrap();
     let mut user_in_room_map = mutex.lock().unwrap();
     if !user_in_room_map.contains_key(&room_id) {
@@ -815,11 +815,7 @@ fn add_user_to_users_in_room(request: &mut Request, user_id: UserId, room_id: Ro
 
     let mut users = user_in_room_map.get_mut(&room_id).unwrap();
 
-    if users.iter().any(|id| id == &user_id) {
-        return;
-    }
-
-    users.push(user_id);
+    users.push((user_id, membership_event));
 }
 
 fn add_alias_to_room(request: &mut Request, room_id: RoomId, room_alias: RoomAliasId) -> Result<(), &'static str> {
@@ -870,15 +866,6 @@ fn remove_alias_from_room(request: &mut Request, room_alias: &RoomAliasId) -> Op
     aliases.remove(index);
     Some(room_id.clone())
 }
-
-fn remove_user_from_users_in_room(request: &mut Request, user_id: UserId, room_id: RoomId) {
-    let mutex = request.get::<Write<UsersInRoomMap>>().unwrap();
-    let mut user_in_room_map = mutex.lock().unwrap();
-    let mut empty_users = Vec::new();
-    let mut users = user_in_room_map.get_mut(&room_id).unwrap_or(&mut empty_users);
-    users.retain(|ref u| *u != &user_id);
-}
-
 
 fn room_id_from_alias_map(
     room_alias_map: &MutexGuard<HashMap<RoomId, Vec<RoomAliasId>>>,

@@ -199,10 +199,12 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
     );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    println!("MSG: {}", message_received_by_matrix);
+    assert!(message_received_by_matrix.contains("Cannot unbdrige room bridged_channel, because Matrix users"));
+    assert!(message_received_by_matrix.contains("@spec_user:localhost"));
+    assert!(message_received_by_matrix.contains("@other_user:localhost"));
     assert!(message_received_by_matrix.contains(
-        "Cannot unbdrige room bridged_channel, because Matrix users \
-        (@spec_user:localhost, @other_user:localhost) are still using the room. \
-        All Matrix users have to leave a room before it can be unbridged.",
+        "are still using the room. All Matrix users have to leave a room before it can be unbridged.",
     ));
 }
 

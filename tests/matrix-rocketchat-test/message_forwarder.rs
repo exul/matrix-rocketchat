@@ -96,7 +96,7 @@ fn validate_message_forwarding_for_user(request: &mut Request, url: Url) -> Iron
     let empty_users = Vec::new();
     let user_ids = &user_in_room_map.get(&room_id).unwrap_or(&empty_users);
 
-    if !user_ids.iter().any(|id| id == &user_id) {
+    if !user_ids.iter().any(|&(ref id, _)| id == &user_id) {
         let matrix_err = MatrixErrorResponse {
             errcode: "M_FORBIDDEN".to_string(),
             error: format!("{} not in room {}", user_id, room_id),

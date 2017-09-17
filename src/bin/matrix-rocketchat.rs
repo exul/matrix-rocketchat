@@ -37,13 +37,14 @@ fn run() -> Result<Listening> {
         .author("Andreas Brönnimann <foss@exul.org>")
         .about("An application service to bridge Matrix and Rocket.Chat.")
         .arg(Arg::with_name("config").short("c").long("config").help("Path to config file").takes_value(true))
-        .arg(Arg::with_name("log-file").short("l").long("log-file").help("Path to log file").takes_value(true))
+        .arg(Arg::with_name("log-file").short("f").long("log-file").help("Path to log file").takes_value(true))
+        .arg(Arg::with_name("log-level").short("l").long("log-level").help("Log level").takes_value(true))
         .get_matches();
 
     let config_path = matches.value_of("config").unwrap_or("config.yaml").to_string();
     let config = Config::read_from_file(&config_path).chain_err(|| ErrorKind::ReadFileError(config_path))?;
-    let log_file_path = matches.value_of("log_file").unwrap_or("matrix-rocketchat.log");
-    let log_level = matches.value_of("log_level").unwrap_or("info");
+    let log_file_path = matches.value_of("log-file").unwrap_or("matrix-rocketchat.log");
+    let log_level = matches.value_of("log-level").unwrap_or("info");
     let log = build_logger(log_file_path, log_level);
     let threads = num_cpus::get() * 8;
     Server::new(&config, log).run(threads)

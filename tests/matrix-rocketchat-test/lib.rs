@@ -63,6 +63,7 @@ use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_state_event_for_empty_key::Endpoint as SendStateEventForEmptyKeyEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::Endpoint as GetStateEventsForEmptyKeyEndpoint;
+use ruma_events::room::member::MembershipState;
 use slog::{DrainExt, Level, LevelFilter, Record};
 use tempdir::TempDir;
 
@@ -126,7 +127,7 @@ impl Key for UsernameList {
 }
 
 impl Key for UsersInRoomMap {
-    type Value = HashMap<RoomId, Vec<UserId>>;
+    type Value = HashMap<RoomId, Vec<(UserId, MembershipState)>>;
 }
 
 impl Key for RoomsStatesMap {

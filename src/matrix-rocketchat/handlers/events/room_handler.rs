@@ -51,7 +51,7 @@ impl<'a> RoomHandler<'a> {
 
         match event.content.membership {
             MembershipState::Invite if addressed_to_matrix_bot => {
-                let msg = format!("Bot `{}` got invitation for room `{}`", matrix_bot_user_id, event.room_id);
+                let msg = format!("Bot `{}` got invite for room `{}`", matrix_bot_user_id, event.room_id);
                 debug!(self.logger, msg);
 
                 self.handle_bot_invite(event.room_id.clone(), matrix_bot_user_id)?;
@@ -183,8 +183,10 @@ impl<'a> RoomHandler<'a> {
                     matrix_api: self.matrix_api,
                 };
                 error_notifier.send_message_to_user(&err, matrix_room_id.clone(), invitation_submitter_id)?;
-                self.leave_and_forget_room(matrix_room_id, matrix_bot_user_id)?;
-                return Err(err);
+                if let Err(err) = self.leave_and_forget_room(matrix_room_id, matrix_bot_user_id) {
+                    log::log_error(self.logger, &err);
+                }
+                return Ok(());
             }
         }
 
@@ -296,7 +298,7 @@ impl<'a> RoomHandler<'a> {
     }
 
     fn is_private_room(&self, matrix_room_id: RoomId) -> Result<bool> {
-        Ok(self.matrix_api.get_room_members(matrix_room_id)?.len() <= 2)
+        Ok(Room::user_ids(self.matrix_api, matrix_room_id)?.len() <= 2)
     }
 
     fn handle_non_private_room(
@@ -309,7 +311,9 @@ impl<'a> RoomHandler<'a> {
         let invitation_submitter = User::find_or_create_by_matrix_user_id(self.connection, invitation_submitter_id.clone())?;
         let body = t!(["errors", "too_many_members_in_room"]).l(&invitation_submitter.language);
         self.matrix_api.send_text_message_event(matrix_room_id.clone(), matrix_bot_user_id.clone(), body)?;
-        self.leave_and_forget_room(matrix_room_id, matrix_bot_user_id)?;
+        if let Err(err) = self.leave_and_forget_room(matrix_room_id, matrix_bot_user_id) {
+            log::log_error(self.logger, &err);
+        }
         Ok(())
     }
 
@@ -329,7 +333,10 @@ impl<'a> RoomHandler<'a> {
             room_creator_id
         );
         let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
-        self.leave_and_forget_room(matrix_room_id, matrix_bot_user_id)
+        if let Err(err) = self.leave_and_forget_room(matrix_room_id, matrix_bot_user_id) {
+            log::log_error(self.logger, &err);
+        };
+        Ok(())
     }
 
     /// Create a room on the Matrix homeserver with the power levels for a bridged room.

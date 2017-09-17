@@ -344,7 +344,7 @@ fn the_bot_user_does_not_leave_the_admin_room_just_because_the_get_topic_respons
 }
 
 #[test]
-fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
+fn the_user_does_not_get_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
@@ -381,8 +381,7 @@ fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
         "Admin rooms must only contain the user that invites the bot. \
                                                         Too many members in the room, leaving.",
     ));
-    let error_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(error_message_received_by_matrix.contains("An internal error occurred"));
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 
 #[test]
@@ -419,11 +418,10 @@ fn the_user_does_not_get_a_message_when_forgetting_the_room_failes_for_the_bot_u
         UserId::try_from("@rocketchat:localhost").unwrap(),
     );
 
-    let welcome_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(welcome_message_received_by_matrix.contains(
-        "Admin rooms must only contain the user that invites the bot. \
-                                                        Too many members in the room, leaving.",
-    ));
+    // discard user readable error message that triggers the bot leave
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    // no error message is sent when the leave fails
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 
@@ -578,7 +576,9 @@ fn ignore_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
         handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() },
         "get_state_events_for_empty_key",
     );
-    let user_ids = vec![UserId::try_from("@spec_user:other-homeserver.com").unwrap()];
+    let user_ids = vec![
+        (UserId::try_from("@spec_user:other-homeserver.com").unwrap(), MembershipState::Join),
+    ];
     matrix_router.get(
         GetMemberEventsEndpoint::router_path(),
         handlers::StaticRoomMembers { user_ids: user_ids },
@@ -632,8 +632,8 @@ fn accept_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
         "get_state_events_for_empty_key",
     );
     let user_ids = vec![
-        UserId::try_from("@spec_user:other-homeserver.com").unwrap(),
-        UserId::try_from("@rocketchat:localhost").unwrap(),
+        (UserId::try_from("@spec_user:other-homeserver.com").unwrap(), MembershipState::Join),
+        (UserId::try_from("@rocketchat:localhost").unwrap(), MembershipState::Join),
     ];
     matrix_router.get(
         GetMemberEventsEndpoint::router_path(),
@@ -683,7 +683,7 @@ fn reject_invites_when_the_inviting_user_is_not_the_room_creator() {
 }
 
 #[test]
-fn the_user_does_not_get_a_message_when_getting_the_room_creator_fails() {
+fn the_user_gets_a_message_when_getting_the_room_creator_fails() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
@@ -711,12 +711,13 @@ fn the_user_does_not_get_a_message_when_getting_the_room_creator_fails() {
         UserId::try_from("@rocketchat:localhost").unwrap(),
     );
 
-    assert!(receiver.recv_timeout(default_timeout()).is_err());
+    let error_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(error_message_received_by_matrix.contains("An internal error occurred"));
     assert!(leave_receiver.recv_timeout(default_timeout()).is_ok());
 }
 
 #[test]
-fn the_user_does_not_get_a_message_when_getting_the_room_creator_cannot_be_deserialized() {
+fn the_user_does_get_a_message_when_getting_the_room_creator_cannot_be_deserialized() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
@@ -749,7 +750,8 @@ fn the_user_does_not_get_a_message_when_getting_the_room_creator_cannot_be_deser
         UserId::try_from("@rocketchat:localhost").unwrap(),
     );
 
-    assert!(receiver.recv_timeout(default_timeout()).is_err());
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
     assert!(leave_receiver.recv_timeout(default_timeout()).is_ok());
 }
 

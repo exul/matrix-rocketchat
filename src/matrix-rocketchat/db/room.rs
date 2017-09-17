@@ -61,14 +61,19 @@ impl Room {
     /// Users that are currently in the room.
     pub fn user_ids(matrix_api: &MatrixApi, matrix_room_id: RoomId) -> Result<Vec<UserId>> {
         let member_events = matrix_api.get_room_members(matrix_room_id.clone())?;
-        let user_ids = member_events
-            .into_iter()
-            .filter_map(|member_event| if member_event.content.membership == MembershipState::Join {
-                Some(member_event.user_id)
-            } else {
-                None
-            })
-            .collect();
+
+        let mut user_ids = Vec::new();
+        for member_event in member_events {
+            match member_event.content.membership {
+                MembershipState::Join => {
+                    if !user_ids.iter().any(|id| id == &member_event.user_id) {
+                        user_ids.push(member_event.user_id)
+                    }
+                }
+                MembershipState::Leave => user_ids.retain(|id| id != &member_event.user_id),
+                _ => continue,
+            }
+        }
 
         Ok(user_ids)
     }

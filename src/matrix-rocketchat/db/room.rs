@@ -66,11 +66,10 @@ impl Room {
         for member_event in member_events {
             match member_event.content.membership {
                 MembershipState::Join => {
-                    if !user_ids.iter().any(|id| id == &member_event.user_id) {
-                        user_ids.push(member_event.user_id)
-                    }
+                    let state_key = member_event.state_key.clone();
+                    let user_id = UserId::try_from(&state_key).chain_err(|| ErrorKind::InvalidUserId(state_key))?;
+                    user_ids.push(user_id)
                 }
-                MembershipState::Leave => user_ids.retain(|id| id != &member_event.user_id),
                 _ => continue,
             }
         }

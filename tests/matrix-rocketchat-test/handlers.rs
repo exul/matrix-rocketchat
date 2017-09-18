@@ -814,7 +814,7 @@ fn add_membership_event_to_room(request: &mut Request, user_id: UserId, room_id:
     }
 
     let mut users = user_in_room_map.get_mut(&room_id).unwrap();
-
+    users.retain(|&(ref id, _)| id != &user_id);
     users.push((user_id, membership_event));
 }
 

@@ -295,7 +295,7 @@ fn the_bot_user_does_not_leave_the_admin_room_just_because_getting_the_topic_fai
         UserId::try_from("@rocketchat:localhost").unwrap(),
     );
 
-    // he user doesn't receive a welcome message, because without a topic it's not possible to
+    // the user doesn't receive a welcome message, because without a topic it's not possible to
     // determine which message has to be sent
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 

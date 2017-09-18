@@ -36,12 +36,8 @@ impl Room {
         matrix_api: &MatrixApi,
         matrix_room_id: RoomId,
     ) -> Result<Option<RocketchatServer>> {
-        //TODO: Do we get the alias in the event itself already?
-        let room_canonical_alias = match matrix_api.get_room_canonical_alias(matrix_room_id)? {
-            Some(room_canonical_alias) => room_canonical_alias.alias().to_string(),
-            None => return Ok(None),
-        };
-        let rocketchat_server_id = room_canonical_alias.split('#').nth(1).unwrap_or_default();
+        let alias = matrix_api.get_room_canonical_alias(matrix_room_id)?.map(|alias| alias.to_string()).unwrap_or_default();
+        let rocketchat_server_id = alias.split('#').nth(2).unwrap_or_default();
         RocketchatServer::find_by_id(connection, rocketchat_server_id)
     }
 
@@ -118,14 +114,10 @@ impl Room {
 
     /// Check if the room is a direct message room.
     pub fn is_direct_message_room(matrix_api: &MatrixApi, matrix_room_id: RoomId, sender_id: &str) -> Result<bool> {
-        let room_alias = match matrix_api.get_room_canonical_alias(matrix_room_id)? {
-            Some(room_alias) => room_alias,
-            None => {
-                return Ok(false);
-            }
-        };
-
-        Ok(room_alias.alias().contains(sender_id))
+        //TODO Use the senders user id if it's a virtual user, because the bot cannot access direct
+        // message rooms.
+        let alias = matrix_api.get_room_canonical_alias(matrix_room_id)?.map(|alias| alias.to_string()).unwrap_or_default();
+        Ok(alias.contains(sender_id))
     }
 
     /// Checks if a room is an admin room.

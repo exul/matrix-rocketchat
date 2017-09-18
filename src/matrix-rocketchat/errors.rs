@@ -42,6 +42,12 @@ macro_rules! bail_error {
     };
 }
 
+macro_rules! body_params_error {
+    ($e:expr) => {
+        ErrorKind::InvalidJSON(format!("Could not serialize {} body params", $e))
+    };
+}
+
 /// `ErrorResponse` defines the format that is used to send an error response as JSON.
 #[derive(Serialize)]
 struct ErrorResponse {

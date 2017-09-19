@@ -770,6 +770,43 @@ impl Handler for InvalidJsonResponse {
     }
 }
 
+pub struct MembersOnly {}
+
+impl BeforeMiddleware for MembersOnly {
+    fn before(&self, request: &mut Request) -> IronResult<()> {
+        let params = request.extensions.get::<Router>().unwrap().clone();
+        let room_id = match params.find("room_id") {
+            Some(url_room_id) => {
+                let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
+                RoomId::try_from(&decoded_room_id).unwrap()
+            }
+            None => return Ok(()),
+        };
+
+        let url: Url = request.url.clone().into();
+        let mut query_pairs = url.query_pairs();
+        let (_, user_id_param) = query_pairs.find(|&(ref key, _)| key == "user_id").unwrap_or((
+            Cow::from("user_id"),
+            Cow::from("@rocketchat:localhost"),
+        ));
+        let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
+
+        if !is_user_in_room(request, &user_id, &room_id) {
+            let payload = r#"{
+                "status": "error",
+                "message": "Unauthorized"
+            }"#
+                .to_string();
+
+            let err = IronError::new(TestError("MembersOnly Error".to_string()), (status::Forbidden, payload));
+            return Err(err.into());
+        }
+
+        Ok(())
+    }
+}
+
+
 fn add_state_to_room(request: &mut Request, room_id: RoomId, state_key: String, state_value: String) {
     debug!(DEFAULT_LOGGER, "Matrix mock server adds room state {} with value {}", state_key, state_value);
 
@@ -878,4 +915,19 @@ fn room_id_from_alias_map(
     }
 
     None
+}
+
+fn is_user_in_room(request: &mut Request, user_id: &UserId, room_id: &RoomId) -> bool {
+    let mutex = request.get::<Write<UsersInRoomMap>>().unwrap();
+    let user_in_room_map = mutex.lock().unwrap();
+    let empty_users = Vec::new();
+    let user_ids = &user_in_room_map.get(room_id).unwrap_or(&empty_users);
+
+    for &(ref id, ref state) in user_ids.iter() {
+        if id == user_id && state == &MembershipState::Join {
+            return true;
+        }
+    }
+
+    false
 }

@@ -146,8 +146,21 @@ fn ignore_messages_from_rooms_with_empty_room_canonical_alias() {
     let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().run();
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    matrix_api.create_room(Some("room".to_string()), None, &UserId::try_from("@spec_user:localhost").unwrap()).unwrap();
+    matrix_api.create_room(Some("room".to_string()), None, &UserId::try_from("@rocketchat:localhost").unwrap()).unwrap();
     matrix_api.put_canonical_room_alias(RoomId::try_from("!room_id:localhost").unwrap(), None).unwrap();
+
+    helpers::invite(
+        &test.config.as_url,
+        RoomId::try_from("!room_id:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
+    helpers::join(
+        &test.config,
+        RoomId::try_from("!room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,

@@ -464,26 +464,41 @@ impl Test {
     /// a staring point to add more routes.
     pub fn default_matrix_routes(&self) -> Router {
         let mut router = Router::new();
+
         let join_room_handler = handlers::MatrixJoinRoom { as_url: self.config.as_url.clone() };
         router.post(JoinRoomByIdEndpoint::router_path(), join_room_handler, "join_room");
+
         let leave_room_handler = handlers::MatrixLeaveRoom { as_url: self.config.as_url.clone() };
         router.post(LeaveRoomEndpoint::router_path(), leave_room_handler, "leave_room");
+
         router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "versions");
-        router.get(
-            GetStateEventsForEmptyKeyEndpoint::router_path(),
-            handlers::GetRoomState {},
-            "get_state_events_for_empty_key",
-        );
-        router.get(GetMemberEventsEndpoint::router_path(), handlers::RoomMembers {}, "room_members");
+
+        let mut get_state_event = Chain::new(handlers::GetRoomState {});
+        get_state_event.link_before(handlers::MembersOnly {});
+        router.get(GetStateEventsForEmptyKeyEndpoint::router_path(), get_state_event, "get_state_events_for_empty_key");
+
+        let mut get_members = Chain::new(handlers::RoomMembers {});
+        get_members.link_before(handlers::MembersOnly {});
+        router.get(GetMemberEventsEndpoint::router_path(), get_members, "room_members");
+
         router.post(RegisterEndpoint::router_path(), handlers::MatrixRegister {}, "register");
+
         router.post(
             CreateRoomEndpoint::router_path(),
             handlers::MatrixCreateRoom { as_url: self.config.as_url.clone() },
             "create_room",
         );
-        router.put(SendStateEventForEmptyKeyEndpoint::router_path(), handlers::SendRoomState {}, "send_room_state");
-        router.get(GetAliasEndpoint::router_path(), handlers::GetRoomAlias {}, "get_room_alias");
+
+        let mut send_room_state = Chain::new(handlers::SendRoomState {});
+        send_room_state.link_before(handlers::MembersOnly {});
+        router.put(SendStateEventForEmptyKeyEndpoint::router_path(), send_room_state, "send_room_state");
+
+        let mut get_room_alias = Chain::new(handlers::GetRoomAlias {});
+        get_room_alias.link_before(handlers::MembersOnly {});
+        router.get(GetAliasEndpoint::router_path(), get_room_alias, "get_room_alias");
+
         router.delete(DeleteAliasEndpoint::router_path(), handlers::DeleteRoomAlias {}, "delete_room_alias");
+
         router.post("*", handlers::EmptyJson {}, "default_post");
         router.put("*", handlers::EmptyJson {}, "default_put");
 

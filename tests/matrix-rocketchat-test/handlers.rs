@@ -313,7 +313,14 @@ impl Handler for MatrixCreateRoom {
             .filter(|c| c.is_alphanumeric() || c == &'_')
             .collect();
         let test_room_id = format!("!{}_id:localhost", &room_id_local_part);
-        let room_id = RoomId::try_from(&test_room_id).unwrap();
+
+        let mut room_id = RoomId::try_from(&test_room_id).unwrap();
+
+        // check if the room id aleady exists, if it does, append `_next` to it
+        if get_state_from_room(request, room_id.clone(), "creator".to_string()).is_some() {
+            let next_room_id = format!("!{}_next_id:localhost", &room_id_local_part);
+            room_id = RoomId::try_from(&next_room_id).unwrap();
+        }
 
         let url: Url = request.url.clone().into();
         let mut query_pairs = url.query_pairs();
@@ -323,7 +330,16 @@ impl Handler for MatrixCreateRoom {
         ));
         let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
 
-        add_membership_event_to_room(request, user_id.clone(), room_id.clone(), MembershipState::Join);
+        if let Err(err) = add_membership_event_to_room(request, user_id.clone(), room_id.clone(), MembershipState::Join) {
+            debug!(DEFAULT_LOGGER, format!("{}", err));
+            let payload = r#"{
+                    "errcode":"M_UNKNOWN",
+                    "error":"ERR_MSG"
+                }"#
+                .replace("ERR_MSG", err);
+            return Ok(Response::with((status::Conflict, payload.to_string())));
+        }
+
         add_state_to_room(request, room_id.clone(), "creator".to_string(), user_id.to_string());
 
         if let Some(room_alias_name) = create_room_payload.room_alias_name {
@@ -604,7 +620,15 @@ impl Handler for MatrixJoinRoom {
         ));
         let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
 
-        add_membership_event_to_room(request, user_id.clone(), room_id.clone(), MembershipState::Join);
+        if let Err(err) = add_membership_event_to_room(request, user_id.clone(), room_id.clone(), MembershipState::Join) {
+            debug!(DEFAULT_LOGGER, format!("{}", err));
+            let payload = r#"{
+                    "errcode":"M_UNKNOWN",
+                    "error":"ERR_MSG"
+                }"#
+                .replace("ERR_MSG", err);
+            return Ok(Response::with((status::Conflict, payload.to_string())));
+        }
 
         helpers::send_join_event_from_matrix(&self.as_url, room_id, user_id);
 
@@ -641,7 +665,15 @@ impl Handler for MatrixLeaveRoom {
         ));
         let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
 
-        add_membership_event_to_room(request, user_id.clone(), room_id.clone(), MembershipState::Leave);
+        if let Err(err) = add_membership_event_to_room(request, user_id.clone(), room_id.clone(), MembershipState::Leave) {
+            debug!(DEFAULT_LOGGER, format!("{}", err));
+            let payload = r#"{
+                    "errcode":"M_UNKNOWN",
+                    "error":"ERR_MSG"
+                }"#
+                .replace("ERR_MSG", err);
+            return Ok(Response::with((status::Conflict, payload.to_string())));
+        }
 
         helpers::send_leave_event_from_matrix(&self.as_url, room_id, user_id);
 
@@ -791,12 +823,25 @@ impl BeforeMiddleware for MembersOnly {
         ));
         let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
 
+        if !user_id.to_string().starts_with("@rocketchat") {
+            info!(DEFAULT_LOGGER, "Received request for {} with user that the AS cannot masquerade as {}", url, user_id);
+            let response = MatrixErrorResponse {
+                errcode: "M_FORBIDDEN".to_string(),
+                error: "Application service cannot masquerade as this user.".to_string(),
+            };
+            let payload = serde_json::to_string(&response).unwrap();
+
+            let err = IronError::new(TestError("Cannot masquerade Error".to_string()), (status::Forbidden, payload));
+            return Err(err.into());
+        }
+
         if !is_user_in_room(request, &user_id, &room_id) {
-            let payload = r#"{
-                "status": "error",
-                "message": "Unauthorized"
-            }"#
-                .to_string();
+            info!(DEFAULT_LOGGER, "Received request for {} that is not accessible for the user {}", url, user_id);
+            let response = MatrixErrorResponse {
+                errcode: "M_FORBIDDEN".to_string(),
+                error: "Guest access not allowed".to_string(),
+            };
+            let payload = serde_json::to_string(&response).unwrap();
 
             let err = IronError::new(TestError("MembersOnly Error".to_string()), (status::Forbidden, payload));
             return Err(err.into());
@@ -843,7 +888,12 @@ fn get_state_from_room(request: &mut Request, room_id: RoomId, state_key: String
     Some((state_key.clone(), room_state.to_string()))
 }
 
-fn add_membership_event_to_room(request: &mut Request, user_id: UserId, room_id: RoomId, membership_event: MembershipState) {
+fn add_membership_event_to_room(
+    request: &mut Request,
+    user_id: UserId,
+    room_id: RoomId,
+    membership_event: MembershipState,
+) -> Result<(), &'static str> {
     let mutex = request.get::<Write<UsersInRoomMap>>().unwrap();
     let mut user_in_room_map = mutex.lock().unwrap();
     if !user_in_room_map.contains_key(&room_id) {
@@ -851,8 +901,17 @@ fn add_membership_event_to_room(request: &mut Request, user_id: UserId, room_id:
     }
 
     let mut users = user_in_room_map.get_mut(&room_id).unwrap();
+    if users.iter().any(|&(ref id, membership)| id == &user_id && membership == membership_event) {
+        match membership_event {
+            MembershipState::Join => return Err("User is already in room"),
+            MembershipState::Leave => return Err("User not in room"),
+            _ => return Err("Unknown state"),
+        }
+    }
+
     users.retain(|&(ref id, _)| id != &user_id);
     users.push((user_id, membership_event));
+    Ok(())
 }
 
 fn add_alias_to_room(request: &mut Request, room_id: RoomId, room_alias: RoomAliasId) -> Result<(), &'static str> {

@@ -102,17 +102,11 @@ fn successfully_bridge_a_rocketchat_room() {
     helpers::join(
         &test.config,
         RoomId::try_from("!joined_channel_id:localhost").unwrap(),
-        UserId::try_from("@rocketchat:localhost").unwrap(),
-    );
-
-    helpers::join(
-        &test.config,
-        RoomId::try_from("!joined_channel_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();
+    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap(), None).unwrap();
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_spec_user_id_rc_id:localhost").unwrap()));
@@ -229,8 +223,6 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     let other_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(other_message_received_by_matrix.contains("joined_channel is now bridged."));
 
-    helpers::join(&test.config, RoomId::try_from("!joined_channel_id:localhost").unwrap(), bot_user_id.clone());
-
     helpers::join(&test.config, RoomId::try_from("!joined_channel_id:localhost").unwrap(), spec_user_id.clone());
 
     helpers::join(&test.config, RoomId::try_from("!joined_channel_id:localhost").unwrap(), other_user_id.clone());
@@ -245,7 +237,7 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     assert!(other_user_invite_received_by_matrix.contains("@rocketchat_other_user_id_rc_id:localhost"));
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();
+    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap(), None).unwrap();
     assert!(user_ids.iter().any(|id| id == &bot_user_id));
     assert!(user_ids.iter().any(|id| id == &spec_user_id));
     assert!(user_ids.iter().any(|id| id == &other_user_id));
@@ -311,7 +303,7 @@ fn susccessfully_bridge_a_rocketchat_room_that_was_unbridged_before() {
     assert!(invite_received_by_matrix.contains("@spec_user:localhost"));
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap()).unwrap();
+    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap(), None).unwrap();
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
 }
@@ -363,19 +355,7 @@ fn successfully_bridge_two_different_rocketchat_rooms() {
     helpers::join(
         &test.config,
         RoomId::try_from("!first_channel_id:localhost").unwrap(),
-        UserId::try_from("@rocketchat:localhost").unwrap(),
-    );
-
-    helpers::join(
-        &test.config,
-        RoomId::try_from("!first_channel_id:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
-    );
-
-    helpers::join(
-        &test.config,
-        RoomId::try_from("!second_channel_id:localhost").unwrap(),
-        UserId::try_from("@rocketchat:localhost").unwrap(),
     );
 
     helpers::join(
@@ -385,7 +365,8 @@ fn successfully_bridge_two_different_rocketchat_rooms() {
     );
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let first_user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!first_channel_id:localhost").unwrap()).unwrap();
+    let first_user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!first_channel_id:localhost").unwrap(), None)
+        .unwrap();
     let rocketchat_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
     let virtual_spec_user_id = UserId::try_from("@rocketchat_spec_user_id_rc_id:localhost").unwrap();
@@ -396,7 +377,7 @@ fn successfully_bridge_two_different_rocketchat_rooms() {
     assert!(first_user_ids.iter().any(|id| id == &virtual_spec_user_id));
     assert!(first_user_ids.iter().any(|id| id == &virtual_other_user_id));
 
-    let sec_users = Room::user_ids(&(*matrix_api), RoomId::try_from("!second_channel_id:localhost").unwrap()).unwrap();
+    let sec_users = Room::user_ids(&(*matrix_api), RoomId::try_from("!second_channel_id:localhost").unwrap(), None).unwrap();
     assert!(sec_users.iter().any(|id| id == &rocketchat_user_id));
     assert!(sec_users.iter().any(|id| id == &spec_user_id));
     assert!(sec_users.iter().any(|id| id == &virtual_spec_user_id));

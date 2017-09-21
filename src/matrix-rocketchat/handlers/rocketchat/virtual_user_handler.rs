@@ -6,7 +6,7 @@ use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
-use db::{NewUser, NewUserOnRocketchatServer, User, UserOnRocketchatServer};
+use db::{NewUser, NewUserOnRocketchatServer, Room, User, UserOnRocketchatServer};
 use errors::*;
 use i18n::*;
 
@@ -30,9 +30,19 @@ impl<'a> VirtualUserHandler<'a> {
         sender_matrix_user_id: UserId,
         matrix_room_id: RoomId,
     ) -> Result<()> {
-        info!(self.logger, "Adding virtual user {} to room {}", receiver_matrix_user_id, matrix_room_id);
-        self.matrix_api.invite(matrix_room_id.clone(), receiver_matrix_user_id.clone(), sender_matrix_user_id)?;
-        self.matrix_api.join(matrix_room_id, receiver_matrix_user_id)?;
+        let user_joined_already = Room::user_ids(self.matrix_api, matrix_room_id.clone(), Some(sender_matrix_user_id.clone()))?
+            .iter()
+            .any(|id| id == &receiver_matrix_user_id);
+
+        if !user_joined_already {
+            info!(self.logger, "Adding virtual user {} to room {}", receiver_matrix_user_id, matrix_room_id);
+            self.matrix_api.invite(matrix_room_id.clone(), receiver_matrix_user_id.clone(), sender_matrix_user_id)?;
+
+            if receiver_matrix_user_id.to_string().starts_with(&format!("@{}", self.config.sender_localpart)) {
+                self.matrix_api.join(matrix_room_id, receiver_matrix_user_id)?;
+            }
+        }
+
         Ok(())
     }
 

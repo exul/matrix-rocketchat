@@ -302,6 +302,7 @@ impl<'a> CommandHandler<'a> {
             self.matrix_api,
             &rocketchat_server.id,
             &channel.id,
+            Some(user_on_rocketchat_server.matrix_user_id.clone()),
         )? {
             Some(matrix_room_id) => {
                 room_handler.bridge_existing_room(matrix_room_id.clone(), event.user_id.clone(), channel_name.to_string())?;
@@ -363,7 +364,7 @@ impl<'a> CommandHandler<'a> {
         };
 
         let virtual_user_prefix = format!("@{}", self.config.sender_localpart);
-        let user_ids: Vec<UserId> = Room::user_ids(self.matrix_api, matrix_room_id.clone())?
+        let user_ids: Vec<UserId> = Room::user_ids(self.matrix_api, matrix_room_id.clone(), None)?
             .into_iter()
             .filter(|id| !id.to_string().starts_with(&virtual_user_prefix))
             .collect();

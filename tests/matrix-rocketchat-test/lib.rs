@@ -450,12 +450,6 @@ impl Test {
         helpers::join(
             &self.config,
             RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap(),
-            UserId::try_from("@rocketchat:localhost").unwrap(),
-        );
-
-        helpers::join(
-            &self.config,
-            RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap(),
             UserId::try_from("@spec_user:localhost").unwrap(),
         );
     }

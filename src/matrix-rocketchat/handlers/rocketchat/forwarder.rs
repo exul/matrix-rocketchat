@@ -59,6 +59,7 @@ impl<'a> Forwarder<'a> {
             self.matrix_api,
             &rocketchat_server.id,
             &message.channel_id,
+            Some(user_on_rocketchat_server.matrix_user_id.clone()),
         )? {
             Some(matrix_room_id) => matrix_room_id,
             None => {
@@ -76,8 +77,22 @@ impl<'a> Forwarder<'a> {
             }
         };
 
-        if Room::is_direct_message_room(self.matrix_api, matrix_room_id.clone(), &message.user_id)? {
-            if Room::direct_message_room_matrix_user(self.config, self.matrix_api, matrix_room_id.clone())?.is_none() {
+        if Room::is_direct_message_room(
+            self.connection,
+            self.matrix_api,
+            matrix_room_id.clone(),
+            rocketchat_server.id.clone(),
+            message.user_id.clone(),
+        )?
+        {
+            if Room::direct_message_room_matrix_user(
+                self.config,
+                self.matrix_api,
+                matrix_room_id.clone(),
+                Some(user_on_rocketchat_server.matrix_user_id.clone()),
+            )?
+                .is_none()
+            {
                 match self.find_matching_user_for_direct_message(rocketchat_server, message)? {
                     Some(other_user) => {
                         let invited_user_id = other_user.matrix_user_id.clone();

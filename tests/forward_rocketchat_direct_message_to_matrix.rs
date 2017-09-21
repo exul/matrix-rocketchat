@@ -104,10 +104,16 @@ fn successfully_forwards_a_direct_message() {
     assert!(first_message_received_by_matrix.contains("Hey there"));
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap()).unwrap();
+    let other_user_id = UserId::try_from("@rocketchat_other_user_id_rc_id:localhost").unwrap();
+    let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
+    let user_ids = Room::user_ids(
+        &(*matrix_api),
+        RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
+        Some(other_user_id.clone()),
+    ).unwrap();
     assert_eq!(user_ids.len(), 2);
-    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_other_user_id_rc_id:localhost").unwrap()));
-    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &other_user_id));
+    assert!(user_ids.iter().any(|id| id == &spec_user_id));
 
     let second_direct_message = Message {
         message_id: "spec_id_2".to_string(),
@@ -185,9 +191,14 @@ fn the_bot_user_stays_in_the_direct_message_room_if_the_user_leaves() {
     assert!(forget_receiver.recv_timeout(default_timeout()).is_err());
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap()).unwrap();
+    let other_user_id = UserId::try_from("@rocketchat_other_user_id_rc_id:localhost").unwrap();
+    let user_ids = Room::user_ids(
+        &(*matrix_api),
+        RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
+        Some(other_user_id.clone()),
+    ).unwrap();
     assert_eq!(user_ids.len(), 1);
-    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_other_user_id_rc_id:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &other_user_id));
 }
 
 #[test]

@@ -24,13 +24,13 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     /// Forget a room.
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()>;
     /// Get the room id based on the room alias.
-    fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<Option<RoomId>>;
+    fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId, sender_id: Option<UserId>) -> Result<Option<RoomId>>;
     /// Get a rooms canonical alias.
-    fn get_room_canonical_alias(&self, matrix_room_id: RoomId) -> Result<Option<RoomAliasId>>;
+    fn get_room_canonical_alias(&self, matrix_room_id: RoomId, sender_id: Option<UserId>) -> Result<Option<RoomAliasId>>;
     /// Get the `user_id` of the user that created the room.
     fn get_room_creator(&self, matrix_room_id: RoomId) -> Result<UserId>;
     /// Get the list of members for this room.
-    fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>>;
+    fn get_room_members(&self, matrix_room_id: RoomId, sender_id: Option<UserId>) -> Result<Vec<MemberEvent>>;
     /// Get the topic for a room.
     fn get_room_topic(&self, matrix_room_id: RoomId) -> Result<Option<String>>;
     /// Invite a user to a room.

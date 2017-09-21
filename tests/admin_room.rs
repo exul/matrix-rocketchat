@@ -52,7 +52,7 @@ fn successfully_create_an_admin_room() {
     assert!(message_received_by_matrix.contains("No Rocket.Chat server is connected yet."));
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
+    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
     assert_eq!(members.len(), 2);
     assert!(members.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
     assert!(members.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
@@ -262,7 +262,7 @@ fn the_bot_user_does_not_leave_the_admin_room_just_because_setting_the_room_disp
 
     // the bot doesn't leave the room
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
+    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
     assert_eq!(members.len(), 2);
     assert!(members.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
     assert!(members.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
@@ -288,20 +288,13 @@ fn the_bot_user_does_not_leave_the_admin_room_just_because_getting_the_topic_fai
     );
     let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
 
-    helpers::create_room(
-        &test.config,
-        "admin_room",
-        UserId::try_from("@spec_user:localhost").unwrap(),
-        UserId::try_from("@rocketchat:localhost").unwrap(),
-    );
-
     // the user doesn't receive a welcome message, because without a topic it's not possible to
     // determine which message has to be sent
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 
     // the bot doesn't leave the room
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
+    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
     assert_eq!(members.len(), 2);
     assert!(members.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
     assert!(members.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
@@ -324,20 +317,13 @@ fn the_bot_user_does_not_leave_the_admin_room_just_because_the_get_topic_respons
     );
     let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
 
-    helpers::create_room(
-        &test.config,
-        "admin_room",
-        UserId::try_from("@spec_user:localhost").unwrap(),
-        UserId::try_from("@rocketchat:localhost").unwrap(),
-    );
-
     // he user doesn't receive a welcome message, because without a topic it's not possible to
     // determine which message has to be sent
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 
     // the bot doesn't leave the room
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
+    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
     assert_eq!(members.len(), 2);
     assert!(members.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
     assert!(members.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
@@ -439,7 +425,7 @@ fn bot_leaves_when_a_third_user_joins_the_admin_room() {
     let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
+    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
     assert_eq!(user_ids.len(), 2);
 
     helpers::join(
@@ -517,28 +503,6 @@ fn ignore_messages_from_the_bot_user() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     // no command is executed, so we get a timeout
-    assert!(receiver.recv_timeout(default_timeout()).is_err());
-}
-
-#[test]
-fn ignore_multiple_join_events_for_the_same_user() {
-    let test = Test::new();
-    let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = test.default_matrix_routes();
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-
-    let test = test.with_admin_room().with_matrix_routes(matrix_router).run();
-
-    helpers::join(
-        &test.config,
-        RoomId::try_from("!admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
-    );
-
-    // discard welcome message
-    receiver.recv_timeout(default_timeout()).unwrap();
-
-    // no message, because the join is ignored
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 

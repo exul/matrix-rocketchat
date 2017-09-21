@@ -83,7 +83,7 @@ impl User {
 
     /// Checks if a user is in a room.
     pub fn is_in_room(matrix_api: &MatrixApi, user_id: &UserId, matrix_room_id: RoomId) -> Result<bool> {
-        let user_ids_in_room = Room::user_ids(matrix_api, matrix_room_id)?;
+        let user_ids_in_room = Room::user_ids(matrix_api, matrix_room_id, None)?;
         Ok(user_ids_in_room.iter().any(|id| id == user_id))
     }
 }

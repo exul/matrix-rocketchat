@@ -69,21 +69,26 @@ fn successfully_unbridge_a_rocketchat_room() {
     );
 
     // discard welcome message for spec user
-    receiver.recv_timeout(default_timeout()).unwrap();
+    let a = receiver.recv_timeout(default_timeout()).unwrap();
+    println!("A: {}", a);
     // discard connect message for spec user
-    receiver.recv_timeout(default_timeout()).unwrap();
+    let b = receiver.recv_timeout(default_timeout()).unwrap();
+    println!("B: {}", b);
     // discard login message for spec user
-    receiver.recv_timeout(default_timeout()).unwrap();
+    let c = receiver.recv_timeout(default_timeout()).unwrap();
+    println!("C: {}", c);
     // discard bridged message
-    receiver.recv_timeout(default_timeout()).unwrap();
+    let d = receiver.recv_timeout(default_timeout()).unwrap();
+    println!("D: {}", d);
     // discard message from virtual user
-    receiver.recv_timeout(default_timeout()).unwrap();
+    let foo = receiver.recv_timeout(default_timeout()).unwrap();
+    println!("FOO: {}", foo);
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("bridged_channel is now unbridged."));
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!bridged_channel_id:localhost").unwrap()).unwrap();
+    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!bridged_channel_id:localhost").unwrap(), None).unwrap();
     let rocketchat_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
     let new_user_id = UserId::try_from("@rocketchat_new_user_id_rc_id:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();

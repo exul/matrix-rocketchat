@@ -41,19 +41,12 @@ fn sucessfully_list_rocketchat_rooms() {
         .with_bridged_room(("bridged_channel", "spec_user"))
         .run();
 
-    helpers::join(
-        &test.config,
-        RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
-    );
-
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard connect message
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
-
     // discard bridge message
     receiver.recv_timeout(default_timeout()).unwrap();
 

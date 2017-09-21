@@ -158,7 +158,7 @@ impl<'a> RoomHandler<'a> {
         };
 
         if is_admin_room {
-            let user_ids: Vec<UserId> = Room::user_ids(self.matrix_api, matrix_room_id.clone())?
+            let user_ids: Vec<UserId> = Room::user_ids(self.matrix_api, matrix_room_id.clone(), None)?
                 .into_iter()
                 .filter(|id| id != &matrix_bot_user_id)
                 .collect();
@@ -249,7 +249,7 @@ impl<'a> RoomHandler<'a> {
     fn admin_room_language(&self, matrix_room_id: RoomId) -> Result<String> {
         let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
         let user_ids: Vec<UserId> =
-            Room::user_ids(self.matrix_api, matrix_room_id)?.into_iter().filter(|id| id != &matrix_bot_user_id).collect();
+            Room::user_ids(self.matrix_api, matrix_room_id, None)?.into_iter().filter(|id| id != &matrix_bot_user_id).collect();
         let user_id = user_ids.first().expect("An admin room always contains another user");
         let user = User::find(self.connection, user_id)?;
         Ok(user.language.clone())
@@ -277,7 +277,7 @@ impl<'a> RoomHandler<'a> {
     }
 
     fn is_private_room(&self, matrix_room_id: RoomId) -> Result<bool> {
-        Ok(Room::user_ids(self.matrix_api, matrix_room_id)?.len() <= 2)
+        Ok(Room::user_ids(self.matrix_api, matrix_room_id, None)?.len() <= 2)
     }
 
     /// Create a room on the Matrix homeserver with the power levels for a bridged room.

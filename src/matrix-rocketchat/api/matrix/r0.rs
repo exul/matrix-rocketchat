@@ -21,9 +21,8 @@ use ruma_events::EventType;
 use ruma_events::room::member::MemberEvent;
 use ruma_events::room::message::MessageType;
 use ruma_identifiers::{EventId, RoomAliasId, RoomId, UserId};
-use serde_json::Map;
+use serde_json::{self, Map, Value};
 use slog::Logger;
-use serde_json::{self, Value};
 use url;
 
 use api::RestApi;
@@ -120,17 +119,12 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId, sender_id: Option<UserId>) -> Result<Option<RoomId>> {
+    fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<Option<RoomId>> {
         // the ruma client api path params cannot be used here, because they are not url encoded
         let encoded_room_alias = url::form_urlencoded::byte_serialize(matrix_room_alias_id.to_string().as_bytes())
             .collect::<String>();
         let endpoint = self.base_url.clone() + &format!("/_matrix/client/r0/directory/room/{}", &encoded_room_alias);
-        let user_id;
-        let mut params = self.params_hash();
-        if let Some(matrix_user_id) = sender_id {
-            user_id = matrix_user_id.to_string();
-            params.insert("user_id", &user_id);
-        }
+        let params = self.params_hash();
 
         let (body, status_code) = RestApi::call_matrix(GetAliasEndpoint::method(), &endpoint, "{}", &params)?;
         if status_code == StatusCode::NotFound {
@@ -148,22 +142,16 @@ impl super::MatrixApi for MatrixApi {
         Ok(Some(get_alias_response.room_id.clone()))
     }
 
-    fn get_room_canonical_alias(&self, matrix_room_id: RoomId, sender_id: Option<UserId>) -> Result<Option<RoomAliasId>> {
+    fn get_room_canonical_alias(&self, matrix_room_id: RoomId) -> Result<Option<RoomAliasId>> {
         let path_params = get_state_events_for_empty_key::PathParams {
             room_id: matrix_room_id,
             event_type: EventType::RoomCanonicalAlias.to_string(),
         };
         let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
-        let user_id;
-        let mut params = self.params_hash();
-        if let Some(matrix_user_id) = sender_id {
-            user_id = matrix_user_id.to_string();
-            params.insert("user_id", &user_id);
-        }
+        let params = self.params_hash();
 
         let (body, status_code) = RestApi::call_matrix(GetStateEventsForEmptyKeyEndpoint::method(), &endpoint, "{}", &params)?;
-        //TODO: Fix this, do not return None, when the endpoint returns Forbidden
-        if status_code == StatusCode::NotFound || status_code == StatusCode::Forbidden {
+        if status_code == StatusCode::NotFound {
             return Ok(None);
         }
 

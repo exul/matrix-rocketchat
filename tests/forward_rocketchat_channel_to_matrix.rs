@@ -12,7 +12,7 @@ extern crate serde_json;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use iron::status;
+use iron::{Chain, status};
 use matrix_rocketchat::api::{MatrixApi, RestApi};
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::db::{Room, User, UserOnRocketchatServer};
@@ -30,7 +30,7 @@ use serde_json::to_string;
 fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_is_not_registered_on_matrix() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let (invite_forwarder, invite_receiver) = MessageForwarder::new();
+    let (invite_forwarder, invite_receiver) = handlers::MatrixInviteUser::with_forwarder(test.config.as_url.clone());
     let (join_forwarder, join_receiver) = handlers::MatrixJoinRoom::with_forwarder(test.config.as_url.clone());
     let (set_display_name_forwarder, set_display_name_receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
@@ -59,6 +59,8 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
+    // discard admin room invite
+    invite_receiver.recv_timeout(default_timeout()).unwrap();
     // receive the invite messages
     let spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_invite_message.contains("@spec_user:localhost"));
@@ -136,7 +138,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_is_registered_on_matrix() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let (invite_forwarder, invite_receiver) = MessageForwarder::new();
+    let (invite_forwarder, invite_receiver) = handlers::MatrixInviteUser::with_forwarder(test.config.as_url.clone());
     let (join_forwarder, join_receiver) = handlers::MatrixJoinRoom::with_forwarder(test.config.as_url.clone());
     let (set_display_name_forwarder, set_display_name_receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
@@ -166,6 +168,8 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
+    // discard admin room invite
+    invite_receiver.recv_timeout(default_timeout()).unwrap();
     // receive the invite messages
     let spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_invite_message.contains("@spec_user:localhost"));
@@ -369,15 +373,16 @@ fn no_message_is_forwarded_when_inviting_the_user_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.post(
-        InviteUserEndpoint::router_path(),
-        handlers::MatrixConditionalErrorResponder {
-            status: status::InternalServerError,
-            message: "Could not invite user".to_string(),
-            conditional_content: "new_user",
-        },
-        "invite_user",
-    );
+    let invite_handler = handlers::MatrixInviteUser { as_url: test.config.as_url.clone() };
+    let conditional_error = handlers::MatrixConditionalErrorResponder {
+        status: status::InternalServerError,
+        message: "Could not invite user".to_string(),
+        conditional_content: "new_user",
+    };
+    let mut invite_with_error = Chain::new(invite_handler);
+    invite_with_error.link_before(conditional_error);
+    matrix_router.post(InviteUserEndpoint::router_path(), invite_with_error, "invite_user_spec_channel");
+
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()

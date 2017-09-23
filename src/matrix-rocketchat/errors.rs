@@ -305,9 +305,15 @@ error_chain!{
             display("Room {} has more then two members and cannot be used as admin room", room_id)
         }
 
+        InviterUnknown(room_id: RoomId) {
+            description("Inviter for join event was not found")
+            display("Could not determine if the admin room {} is valid, because the inviter is unknown", room_id)
+        }
+
         OnlyRoomCreatorCanInviteBotUser(inviter_id: UserId, room_id: RoomId, creator_id: UserId) {
-            description("Error when getting the connection pool from the request")
-            display("The bot user was invited by the user {} but the room {} was created by {}, bot user is leaving", inviter_id, room_id, creator_id)
+            description("Only the room creator can invite the bot user")
+            display("The bot user was invited by the user {} but the room {} was created by {}, \
+                    bot user is leaving", inviter_id, room_id, creator_id)
         }
 
         ConnectionPoolExtractionError {

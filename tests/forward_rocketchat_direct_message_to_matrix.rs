@@ -35,7 +35,7 @@ fn successfully_forwards_a_direct_message() {
     let test = Test::new();
     let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let (register_forwarder, register_receiver) = handlers::MatrixRegister::with_forwarder();
-    let (invite_forwarder, invite_receiver) = MessageForwarder::new();
+    let (invite_forwarder, invite_receiver) = handlers::MatrixInviteUser::with_forwarder(test.config.as_url.clone());
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
@@ -81,7 +81,7 @@ fn successfully_forwards_a_direct_message() {
     create_room_receiver.recv_timeout(default_timeout()).unwrap();
 
     let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat#rc_id#spec_user_id_other_user_id\""));
+    assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat#rc_id#spec_user_id_other_user_id#dm\""));
     assert!(create_room_message.contains("\"name\":\"other_user (DM Rocket.Chat)\""));
 
     // discard bot registration
@@ -90,8 +90,8 @@ fn successfully_forwards_a_direct_message() {
     let register_message = register_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(register_message.contains("\"username\":\"rocketchat_other_user_id_rc_id\""));
 
-    let spec_user_invite = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(spec_user_invite.contains("\"user_id\":\"@spec_user:localhost\""));
+    // discard admin room invite
+    invite_receiver.recv_timeout(default_timeout()).unwrap();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -99,6 +99,9 @@ fn successfully_forwards_a_direct_message() {
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
+
+    let spec_user_invite = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(spec_user_invite.contains("\"user_id\":\"@spec_user:localhost\""));
 
     let first_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(first_message_received_by_matrix.contains("Hey there"));
@@ -183,7 +186,10 @@ fn the_bot_user_stays_in_the_direct_message_room_if_the_user_leaves() {
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
-    // spec user leaves
+    // discard bot leave
+    assert!(leave_receiver.recv_timeout(default_timeout()).is_ok());
+
+    // discard spec user leave
     assert!(leave_receiver.recv_timeout(default_timeout()).is_ok());
 
     // no more calls to the leave and forget endpoints, because the virtual user stays in the room
@@ -216,7 +222,7 @@ fn successfully_forwards_a_direct_message_to_a_room_that_was_bridged_before() {
 
     let mut matrix_router = test.default_matrix_routes();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let (invite_forwarder, invite_receiver) = MessageForwarder::new();
+    let (invite_forwarder, invite_receiver) = handlers::MatrixInviteUser::with_forwarder(test.config.as_url.clone());
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
 
@@ -249,6 +255,9 @@ fn successfully_forwards_a_direct_message_to_a_room_that_was_bridged_before() {
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("Hey there"));
+
+    // discard admin room invite
+    invite_receiver.recv_timeout(default_timeout()).unwrap();
 
     let initial_invite = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(initial_invite.contains("@spec_user:localhost"));
@@ -278,6 +287,9 @@ fn successfully_forwards_a_direct_message_to_a_room_that_was_bridged_before() {
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &direct_message_payload);
 
+    // discard bot invite into direct message room
+    invite_receiver.recv_timeout(default_timeout()).unwrap();
+
     let invite_to_rejoin = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(invite_to_rejoin.contains("@spec_user:localhost"));
 
@@ -306,7 +318,7 @@ fn do_not_forwards_a_direct_message_to_a_room_if_the_user_is_no_longer_logged_in
 
     let mut matrix_router = test.default_matrix_routes();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let (invite_forwarder, invite_receiver) = MessageForwarder::new();
+    let (invite_forwarder, invite_receiver) = handlers::MatrixInviteUser::with_forwarder(test.config.as_url.clone());
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
 
@@ -339,6 +351,9 @@ fn do_not_forwards_a_direct_message_to_a_room_if_the_user_is_no_longer_logged_in
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("Hey there"));
+
+    // discard admin room invite
+    invite_receiver.recv_timeout(default_timeout()).unwrap();
 
     let initial_invite = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(initial_invite.contains("@spec_user:localhost"));

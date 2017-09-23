@@ -54,12 +54,18 @@ impl<'a> Forwarder<'a> {
             return Ok(());
         }
 
+        let is_direct_message_room = message.channel_id.contains(&message.user_id);
+        let channel_id = if is_direct_message_room {
+            format!("{}#dm", message.channel_id)
+        } else {
+            message.channel_id.clone()
+        };
+
         let matrix_room_id = match Room::matrix_id_from_rocketchat_channel_id(
             self.config,
             self.matrix_api,
             &rocketchat_server.id,
-            &message.channel_id,
-            Some(user_on_rocketchat_server.matrix_user_id.clone()),
+            &channel_id,
         )? {
             Some(matrix_room_id) => matrix_room_id,
             None => {
@@ -77,14 +83,7 @@ impl<'a> Forwarder<'a> {
             }
         };
 
-        if Room::is_direct_message_room(
-            self.connection,
-            self.matrix_api,
-            matrix_room_id.clone(),
-            rocketchat_server.id.clone(),
-            message.user_id.clone(),
-        )?
-        {
+        if is_direct_message_room {
             if Room::direct_message_room_matrix_user(
                 self.config,
                 self.matrix_api,
@@ -182,13 +181,19 @@ impl<'a> Forwarder<'a> {
             let room_display_name_suffix =
                 t!(["defaults", "direct_message_room_display_name_suffix"]).l(&direct_message_receiver.language);
             let room_display_name = format!("{} {}", message.user_name, room_display_name_suffix);
+            let dm_channel_id = format!("{}#dm", direct_message_channel.id.clone());
             let matrix_room_id = room_handler.create_room(
-                direct_message_channel.id.clone(),
+                dm_channel_id,
                 rocketchat_server.id.clone(),
                 direct_message_sender.matrix_user_id.clone(),
                 user_on_rocketchat_server.matrix_user_id.clone(),
                 Some(room_display_name),
             )?;
+
+            // invite the bot user into the direct message room to be able to read the room members
+            // the bot will leave as soon as the AS gets the join event
+            let invitee_id = self.config.matrix_bot_user_id()?;
+            self.matrix_api.invite(matrix_room_id.clone(), invitee_id.clone(), direct_message_sender.matrix_user_id.clone())?;
             debug!(self.logger, "Direct message room {} successfully created", &matrix_room_id);
 
             Ok(Some(matrix_room_id))

@@ -307,10 +307,10 @@ fn attempt_to_connect_with_a_rocketchat_server_id_that_is_already_in_use() {
         .unwrap();
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     helpers::send_room_message_from_matrix(
@@ -370,10 +370,10 @@ fn connect_an_existing_server() {
     matrix_api.create_room(Some("other_admin_room".to_string()), None, &other_user_id).unwrap();
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
-        UserId::try_from("@other_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
     );
 
     helpers::send_room_message_from_matrix(
@@ -420,10 +420,10 @@ fn attempt_to_connect_to_an_existing_server_with_a_token() {
     matrix_api.create_room(Some("other_admin_room".to_string()), None, &other_user_id).unwrap();
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
-        UserId::try_from("@other_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
     );
 
 
@@ -520,10 +520,10 @@ fn attempt_to_connect_a_server_with_a_token_that_is_already_in_use() {
     matrix_api.create_room(Some("other_admin_room".to_string()), None, &other_user_id).unwrap();
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
-        UserId::try_from("@other_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
     );
 
 

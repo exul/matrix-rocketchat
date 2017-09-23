@@ -1,5 +1,6 @@
-use std::convert::TryFrom;
 use std::borrow::{Borrow, Cow};
+use std::convert::TryFrom;
+use std::collections::HashMap;
 use std::io::Read;
 use std::sync::Mutex;
 use std::sync::mpsc::{Receiver, Sender, channel};
@@ -12,10 +13,11 @@ use iron::url::percent_encoding::percent_decode;
 use matrix_rocketchat::errors::MatrixErrorResponse;
 use persistent::Write;
 use router::Router;
+use ruma_events::room::member::MembershipState;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json;
 
-use super::{TestError, UsersInRoomMap, extract_payload};
+use super::{TestError, UsersInRooms, extract_payload};
 
 /// Forwards a message from an iron handler to a channel so that it can be received outside of the
 /// iron handler.
@@ -91,12 +93,12 @@ fn validate_message_forwarding_for_user(request: &mut Request, url: Url) -> Iron
         Cow::from("@rocketchat:localhost"),
     ));
     let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
-    let mutex = request.get::<Write<UsersInRoomMap>>().unwrap();
-    let user_in_room_map = mutex.lock().unwrap();
-    let empty_users = Vec::new();
-    let user_ids = &user_in_room_map.get(&room_id).unwrap_or(&empty_users);
+    let mutex = request.get::<Write<UsersInRooms>>().unwrap();
+    let users_in_rooms = mutex.lock().unwrap();
+    let empty_users = HashMap::new();
+    let users_in_room = &users_in_rooms.get(&room_id).unwrap_or(&empty_users);
 
-    if !user_ids.iter().any(|&(ref id, _)| id == &user_id) {
+    if !users_in_room.iter().any(|(id, &(membership, _))| id == &user_id && membership == MembershipState::Join) {
         let matrix_err = MatrixErrorResponse {
             errcode: "M_FORBIDDEN".to_string(),
             error: format!("{} not in room {}", user_id, room_id),

@@ -302,7 +302,6 @@ impl<'a> CommandHandler<'a> {
             self.matrix_api,
             &rocketchat_server.id,
             &channel.id,
-            Some(user_on_rocketchat_server.matrix_user_id.clone()),
         )? {
             Some(matrix_room_id) => {
                 room_handler.bridge_existing_room(matrix_room_id.clone(), event.user_id.clone(), channel_name.to_string())?;

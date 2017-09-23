@@ -150,10 +150,10 @@ fn ignore_messages_from_rooms_with_empty_room_canonical_alias() {
     matrix_api.put_canonical_room_alias(RoomId::try_from("!room_id:localhost").unwrap(), None).unwrap();
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!room_id:localhost").unwrap(),
-        UserId::try_from("@rocketchat:localhost").unwrap(),
         UserId::try_from("@spec_user:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
     );
 
     helpers::join(
@@ -291,6 +291,10 @@ fn the_user_gets_a_message_when_when_getting_the_canonical_room_alias_failes() {
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
+    // discard first error message, because the bot doesn't
+    // know if it's a direct message room since getting the
+    // canonical room name fails
+    receiver.recv_timeout(default_timeout()).unwrap();
     // discard room bridged message
     receiver.recv_timeout(default_timeout()).unwrap();
 
@@ -326,9 +330,13 @@ fn the_user_gets_a_message_when_when_getting_the_canonical_room_alias_response_c
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
     // discard connect message
     receiver.recv_timeout(default_timeout()).unwrap();
-    // discard login message
+    // discard first error message, because the bot doesn't
+    // know if it's a direct message room since getting the
+    // canonical room name fails
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard room bridged message
     receiver.recv_timeout(default_timeout()).unwrap();

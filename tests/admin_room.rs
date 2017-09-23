@@ -81,10 +81,10 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
     );
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
@@ -187,10 +187,10 @@ fn the_bot_user_leaves_the_admin_room_when_getting_the_room_members_failes() {
     );
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     let leave_room_message = leave_room_receiver.recv_timeout(default_timeout()).unwrap();
@@ -224,10 +224,10 @@ fn the_bot_user_leaves_the_admin_room_when_the_room_members_cannot_be_deserializ
     );
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     let leave_room_message = leave_room_receiver.recv_timeout(default_timeout()).unwrap();
@@ -356,10 +356,10 @@ fn the_user_does_not_get_a_message_when_an_leaving_the_room_failes_for_the_bot_u
     );
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
@@ -398,10 +398,10 @@ fn the_user_does_not_get_a_message_when_forgetting_the_room_failes_for_the_bot_u
     );
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     // discard user readable error message that triggers the bot leave
@@ -427,6 +427,13 @@ fn bot_leaves_when_a_third_user_joins_the_admin_room() {
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
     assert_eq!(user_ids.len(), 2);
+
+    helpers::invite(
+        &test.config,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
 
     helpers::join(
         &test.config,
@@ -551,10 +558,10 @@ fn ignore_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
     let test = test.with_matrix_routes(matrix_router).run();
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_server_room_id:other-homeserver.com").unwrap(),
-        UserId::try_from("@spec_user:other-homeserver.com").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:other-homeserver.com").unwrap(),
     );
 
     // the room doesn't get a message, because the bot user ignores the invite
@@ -608,10 +615,10 @@ fn accept_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
     let test = test.with_matrix_routes(matrix_router).run();
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_server_room_id:other-homeserver.com").unwrap(),
-        UserId::try_from("@spec_user:other-homeserver.com").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:other-homeserver.com").unwrap(),
     );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
@@ -708,10 +715,10 @@ fn the_user_does_get_a_message_when_getting_the_room_creator_cannot_be_deseriali
     );
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
@@ -748,10 +755,10 @@ fn join_events_for_rooms_that_are_not_accessible_by_the_bot_user_are_ignored() {
     );
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!some_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
         UserId::try_from("@third_user:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     helpers::join(

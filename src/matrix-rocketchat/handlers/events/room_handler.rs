@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use diesel::sqlite::SqliteConnection;
@@ -16,6 +17,7 @@ use handlers::ErrorNotifier;
 use handlers::rocketchat::VirtualUserHandler;
 use i18n::*;
 use log;
+use serde_json::{self, Value};
 use super::CommandHandler;
 
 /// Handles room events
@@ -60,7 +62,18 @@ impl<'a> RoomHandler<'a> {
                 let msg = format!("Received join event for bot user {} and room {}", matrix_bot_user_id, event.room_id);
                 debug!(self.logger, msg);
 
-                self.handle_bot_join(event.room_id.clone(), matrix_bot_user_id)?;
+                let unsigned: HashMap<String, Value> = serde_json::from_value(event.unsigned.clone().unwrap_or_default())
+                    .unwrap_or_default();
+                let inviter_id = match unsigned.get("prev_sender") {
+                    Some(prev_sender) => {
+                        let raw_id: String = serde_json::from_value(prev_sender.clone()).unwrap_or_else(|_| "".to_string());
+                        let inviter_id = UserId::try_from(&raw_id).chain_err(|| ErrorKind::InvalidUserId(raw_id))?;
+                        Some(inviter_id)
+                    }
+                    None => None,
+                };
+
+                self.handle_bot_join(event.room_id.clone(), matrix_bot_user_id, inviter_id)?;
             }
             MembershipState::Join => {
                 let msg = format!("Received join event for user {} and room {}", &state_key, &event.room_id);
@@ -141,10 +154,12 @@ impl<'a> RoomHandler<'a> {
             return Ok(());
         }
 
-        self.matrix_api.join(matrix_room_id, invited_user_id)
+        self.matrix_api.join(matrix_room_id, invited_user_id)?;
+
+        Ok(())
     }
 
-    fn handle_bot_join(&self, matrix_room_id: RoomId, matrix_bot_user_id: UserId) -> Result<()> {
+    fn handle_bot_join(&self, matrix_room_id: RoomId, matrix_bot_user_id: UserId, inviter_id: Option<UserId>) -> Result<()> {
         let is_admin_room = match Room::is_admin_room(self.matrix_api, self.config, matrix_room_id.clone()) {
             Ok(is_admin_room) => is_admin_room,
             Err(err) => {
@@ -152,43 +167,36 @@ impl<'a> RoomHandler<'a> {
                     self.logger,
                     "Could not determine if the room that the bot user was invited to is an admin room or not, bot is leaving"
                 );
-                self.leave_and_forget_room(matrix_room_id, matrix_bot_user_id)?;
+                self.handle_admin_room_setup_error(&err, matrix_room_id, matrix_bot_user_id);
                 return Err(err);
             }
         };
 
         if is_admin_room {
-            let user_ids: Vec<UserId> = Room::user_ids(self.matrix_api, matrix_room_id.clone(), None)?
-                .into_iter()
-                .filter(|id| id != &matrix_bot_user_id)
-                .collect();
-            let inviter_id = user_ids.first().expect("The user that sent the invitation has to be in the room");
-
             self.setup_admin_room(matrix_room_id.clone(), matrix_bot_user_id.clone(), inviter_id)?;
+        }
+
+        // leave direct message room, the bot only joined it to be able to read the room members
+        if Room::is_direct_message_room(self.matrix_api, matrix_room_id.clone())? {
+            self.matrix_api.leave_room(matrix_room_id.clone(), matrix_bot_user_id)?;
         }
 
         Ok(())
     }
 
-    fn setup_admin_room(&self, matrix_room_id: RoomId, matrix_bot_user_id: UserId, inviter_id: &UserId) -> Result<()> {
+    fn setup_admin_room(&self, matrix_room_id: RoomId, matrix_bot_user_id: UserId, inviter_id: Option<UserId>) -> Result<()> {
         debug!(self.logger, "Setting up a new admin room with id {}", matrix_room_id);
 
-        if let Err(err) = self.is_admin_room_valid(matrix_room_id.clone(), inviter_id) {
+        let inviter_id = match inviter_id {
+            Some(inviter_id) => inviter_id,
+            None => {
+                bail_error!(ErrorKind::InviterUnknown(matrix_room_id.clone()), t!(["errors", "inviter_unknown"]));
+            }
+        };
+
+        if let Err(err) = self.is_admin_room_valid(matrix_room_id.clone(), &inviter_id) {
             info!(self.logger, "Admin room {} is not valid, bot will leave and forget the room", matrix_room_id);
-            let error_notifier = ErrorNotifier {
-                config: self.config,
-                connection: self.connection,
-                logger: self.logger,
-                matrix_api: self.matrix_api,
-            };
-            if let Err(err) = error_notifier.send_message_to_user(&err, matrix_room_id.clone(), inviter_id) {
-                log::log_error(self.logger, &err);
-            }
-
-            if let Err(err) = self.leave_and_forget_room(matrix_room_id.clone(), matrix_bot_user_id.clone()) {
-                log::log_error(self.logger, &err);
-            }
-
+            self.handle_admin_room_setup_error(&err, matrix_room_id, matrix_bot_user_id);
             return Ok(());
         }
 
@@ -247,11 +255,8 @@ impl<'a> RoomHandler<'a> {
     }
 
     fn admin_room_language(&self, matrix_room_id: RoomId) -> Result<String> {
-        let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
-        let user_ids: Vec<UserId> =
-            Room::user_ids(self.matrix_api, matrix_room_id, None)?.into_iter().filter(|id| id != &matrix_bot_user_id).collect();
-        let user_id = user_ids.first().expect("An admin room always contains another user");
-        let user = User::find(self.connection, user_id)?;
+        let user_id = self.matrix_api.get_room_creator(matrix_room_id.clone())?;
+        let user = User::find(self.connection, &user_id)?;
         Ok(user.language.clone())
     }
 
@@ -335,5 +340,21 @@ impl<'a> RoomHandler<'a> {
         debug!(self.logger, "Successfully added {} virtual users to room {}", channel.usernames.len(), matrix_room_id);
 
         Ok(())
+    }
+
+    fn handle_admin_room_setup_error(&self, err: &Error, matrix_room_id: RoomId, matrix_bot_user_id: UserId) {
+        let error_notifier = ErrorNotifier {
+            config: self.config,
+            connection: self.connection,
+            logger: self.logger,
+            matrix_api: self.matrix_api,
+        };
+        if let Err(err) = error_notifier.send_message_to_user(err, matrix_room_id.clone(), &matrix_bot_user_id) {
+            log::log_error(self.logger, &err);
+        }
+
+        if let Err(err) = self.leave_and_forget_room(matrix_room_id.clone(), matrix_bot_user_id.clone()) {
+            log::log_error(self.logger, &err);
+        }
     }
 }

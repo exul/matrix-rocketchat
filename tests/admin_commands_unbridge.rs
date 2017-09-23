@@ -69,20 +69,15 @@ fn successfully_unbridge_a_rocketchat_room() {
     );
 
     // discard welcome message for spec user
-    let a = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("A: {}", a);
+    receiver.recv_timeout(default_timeout()).unwrap();
     // discard connect message for spec user
-    let b = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("B: {}", b);
+    receiver.recv_timeout(default_timeout()).unwrap();
     // discard login message for spec user
-    let c = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("C: {}", c);
+    receiver.recv_timeout(default_timeout()).unwrap();
     // discard bridged message
-    let d = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("D: {}", d);
+    receiver.recv_timeout(default_timeout()).unwrap();
     // discard message from virtual user
-    let foo = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("FOO: {}", foo);
+    receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("bridged_channel is now unbridged."));
@@ -141,10 +136,10 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
         .create_room(Some("other_admin_room".to_string()), None, &UserId::try_from("@other_user:localhost").unwrap())
         .unwrap();
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
-        UserId::try_from("@other_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
     );
 
     // connect other admin room
@@ -204,7 +199,6 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
     );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("MSG: {}", message_received_by_matrix);
     assert!(message_received_by_matrix.contains("Cannot unbdrige room bridged_channel, because Matrix users"));
     assert!(message_received_by_matrix.contains("@spec_user:localhost"));
     assert!(message_received_by_matrix.contains("@other_user:localhost"));

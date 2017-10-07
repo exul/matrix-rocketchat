@@ -29,7 +29,7 @@ impl<'a> ErrorNotifier<'a> {
             msg = msg + " caused by: " + &format!("{}", err);
         }
 
-        debug!(self.logger, msg);
+        debug!(self.logger, "{}", msg);
 
         let matrix_bot_id = self.config.matrix_bot_user_id()?;
         let language = match User::find_by_matrix_user_id(self.connection, user_id)? {

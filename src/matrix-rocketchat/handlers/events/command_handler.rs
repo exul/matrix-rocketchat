@@ -50,7 +50,7 @@ impl<'a> CommandHandler<'a> {
         };
 
         if message.starts_with("connect") {
-            debug!(self.logger, format!("Received connect command: {}", message));
+            debug!(self.logger, "Received connect command: {}", message);
 
             self.connect(event, &message)?;
         } else if message == "help" {
@@ -78,8 +78,7 @@ impl<'a> CommandHandler<'a> {
             let rocketchat_server = self.get_rocketchat_server(matrix_room_id)?;
             self.unbridge(event, &rocketchat_server, &message)?;
         } else {
-            let msg = format!("Skipping event, don't know how to handle command `{}`", message);
-            debug!(self.logger, msg);
+            debug!(self.logger, "Skipping event, don't know how to handle command `{}`", message);
         }
 
         Ok(())

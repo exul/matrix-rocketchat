@@ -30,19 +30,19 @@ impl Key for IronLogger {
 /// Log with level error including all the chained errors
 pub fn log_error(logger: &Logger, err: &Error) {
     let msg = build_message(err);
-    error!(logger, msg);
+    error!(logger, "{}", msg);
 }
 
 /// Log with level info including all the chained errors
 pub fn log_info(logger: &Logger, err: &Error) {
     let msg = build_message(err);
-    info!(logger, msg);
+    info!(logger, "{}", msg);
 }
 
 /// Log with level debug including all the chained errors
 pub fn log_debug(logger: &Logger, err: &Error) {
     let msg = build_message(err);
-    debug!(logger, msg);
+    debug!(logger, "{}", msg);
 }
 
 fn build_message(err: &Error) -> String {

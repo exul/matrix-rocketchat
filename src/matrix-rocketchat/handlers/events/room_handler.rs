@@ -53,14 +53,12 @@ impl<'a> RoomHandler<'a> {
 
         match event.content.membership {
             MembershipState::Invite if addressed_to_matrix_bot => {
-                let msg = format!("Bot `{}` got invite for room `{}`", matrix_bot_user_id, event.room_id);
-                debug!(self.logger, msg);
+                debug!(self.logger, "Bot `{}` got invite for room `{}`", matrix_bot_user_id, event.room_id);
 
                 self.handle_bot_invite(event.room_id.clone(), matrix_bot_user_id)?;
             }
             MembershipState::Join if addressed_to_matrix_bot => {
-                let msg = format!("Received join event for bot user {} and room {}", matrix_bot_user_id, event.room_id);
-                debug!(self.logger, msg);
+                debug!(self.logger, "Received join event for bot user {} and room {}", matrix_bot_user_id, event.room_id);
 
                 let unsigned: HashMap<String, Value> = serde_json::from_value(event.unsigned.clone().unwrap_or_default())
                     .unwrap_or_default();
@@ -76,14 +74,12 @@ impl<'a> RoomHandler<'a> {
                 self.handle_bot_join(event.room_id.clone(), matrix_bot_user_id, inviter_id)?;
             }
             MembershipState::Join => {
-                let msg = format!("Received join event for user {} and room {}", &state_key, &event.room_id);
-                debug!(self.logger, msg);
+                debug!(self.logger, "Received join event for user {} and room {}", &state_key, &event.room_id);
 
                 self.handle_user_join(event.room_id.clone())?;
             }
             MembershipState::Leave if !addressed_to_matrix_bot => {
-                let msg = format!("User {} left room {}", event.user_id, event.room_id);
-                debug!(self.logger, msg);
+                debug!(self.logger, "User {} left room {}", event.user_id, event.room_id);
 
                 self.handle_user_leave(event.room_id.clone())?;
             }
@@ -93,7 +89,7 @@ impl<'a> RoomHandler<'a> {
                     event.content.membership,
                     event.state_key
                 );
-                debug!(self.logger, msg);
+                debug!(self.logger, "{}", msg);
             }
         }
 

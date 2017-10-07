@@ -208,7 +208,7 @@ impl RocketchatApi {
 
 impl super::RocketchatApi for RocketchatApi {
     fn channels_list(&self) -> Result<Vec<Channel>> {
-        debug!(self.logger, format!("Getting channel list from Rocket.Chat server {}", &self.base_url));
+        debug!(self.logger, "Getting channel list from Rocket.Chat server {}", &self.base_url);
 
         let channels_list_endpoint = GetWithAuthEndpoint {
             base_url: self.base_url.clone(),
@@ -235,7 +235,7 @@ impl super::RocketchatApi for RocketchatApi {
     }
 
     fn current_username(&self) -> Result<String> {
-        debug!(self.logger, format!("Querying username for user_id {} on Rocket.Chat server {}", self.user_id, &self.base_url));
+        debug!(self.logger, "Querying username for user_id {} on Rocket.Chat server {}", self.user_id, &self.base_url);
 
         let me_endpoint = GetWithAuthEndpoint {
             base_url: self.base_url.clone(),
@@ -258,7 +258,7 @@ impl super::RocketchatApi for RocketchatApi {
     }
 
     fn direct_messages_list(&self) -> Result<Vec<Channel>> {
-        debug!(self.logger, format!("Getting direct messages list from Rocket.Chat server {}", &self.base_url));
+        debug!(self.logger, "Getting direct messages list from Rocket.Chat server {}", &self.base_url);
 
         let direct_messages_list_endpoint = GetWithAuthEndpoint {
             base_url: self.base_url.clone(),
@@ -285,7 +285,7 @@ impl super::RocketchatApi for RocketchatApi {
     }
 
     fn login(&self, username: &str, password: &str) -> Result<(String, String)> {
-        debug!(self.logger, format!("Logging in user with username {} on Rocket.Chat server {}", username, &self.base_url));
+        debug!(self.logger, "Logging in user with username {} on Rocket.Chat server {}", username, &self.base_url);
 
         let login_endpoint = LoginEndpoint {
             base_url: self.base_url.clone(),
@@ -307,7 +307,7 @@ impl super::RocketchatApi for RocketchatApi {
     }
 
     fn post_chat_message(&self, text: &str, room_id: &str) -> Result<()> {
-        debug!(self.logger, format!("Forwarding message to to Rocket.Chat room {}", room_id));
+        debug!(self.logger, "Forwarding message to to Rocket.Chat room {}", room_id);
 
         let post_chat_message_endpoint = PostChatMessageEndpoint {
             base_url: self.base_url.clone(),
@@ -328,7 +328,7 @@ impl super::RocketchatApi for RocketchatApi {
     }
 
     fn users_info(&self, username: &str) -> Result<User> {
-        debug!(self.logger, format!("Querying user info for user {} on Rocket.Chat server {}", &username, &self.base_url));
+        debug!(self.logger, "Querying user info for user {} on Rocket.Chat server {}", &username, &self.base_url);
 
         let mut query_params = HashMap::new();
         query_params.insert("username", username);

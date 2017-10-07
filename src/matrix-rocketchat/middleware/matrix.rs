@@ -23,12 +23,12 @@ impl BeforeMiddleware for AccessToken {
             }
 
             let err = simple_error!(ErrorKind::InvalidAccessToken(token.to_string()));
-            info!(logger, err);
+            info!(logger, "{}", err);
             return Err(err.into());
         }
 
         let err = simple_error!(ErrorKind::MissingAccessToken);
-        info!(logger, err);
+        info!(logger, "{}", err);
         Err(err.into())
     }
 }

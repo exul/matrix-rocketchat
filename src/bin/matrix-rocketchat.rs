@@ -8,6 +8,7 @@ extern crate matrix_rocketchat;
 extern crate num_cpus;
 #[macro_use]
 extern crate slog;
+extern crate slog_async;
 extern crate slog_json;
 extern crate slog_stream;
 extern crate slog_term;
@@ -19,7 +20,7 @@ use clap::{App, Arg};
 use iron::Listening;
 use matrix_rocketchat::{Config, Server};
 use matrix_rocketchat::errors::*;
-use slog::{DrainExt, Level, LevelFilter, Record};
+use slog::{Drain, FnValue, Level, LevelFilter, Record};
 
 fn main() {
     if let Err(ref e) = run() {
@@ -58,13 +59,14 @@ fn build_logger(log_file_path: &str, log_level: &str) -> slog::Logger {
     };
     let path = Path::new(&log_file_path).to_path_buf();
     let file = OpenOptions::new().create(true).write(true).truncate(true).open(path).expect("Log file creation failed");
-    let file_drain = slog_stream::stream(file, slog_json::new().add_default_keys().build());
-    let term_drain = slog_term::streamer().stderr().full().build();
-    slog::Logger::root(
-        LevelFilter::new(slog::duplicate(term_drain, file_drain), log_level).fuse(),
-        o!("version" => env!("CARGO_PKG_VERSION"),
-                          "place" => file_line_logger_format),
-    )
+    let file_decorator = slog_term::PlainDecorator::new(file);
+    let file_drain = slog_term::FullFormat::new(file_decorator).build().fuse();
+    let file_drain = slog_async::Async::new(file_drain).build().fuse();
+    let term_decorator = slog_term::TermDecorator::new().build();
+    let term_drain = slog_term::FullFormat::new(term_decorator).build().fuse();
+    let term_drain = slog_async::Async::new(term_drain).build().fuse();
+    let dup_drain = LevelFilter::new(slog::Duplicate::new(term_drain, file_drain), log_level).fuse();
+    slog::Logger::root(dup_drain, o!("version" => env!("CARGO_PKG_VERSION"), "place" => FnValue(file_line_logger_format)))
 }
 
 fn file_line_logger_format(info: &Record) -> String {

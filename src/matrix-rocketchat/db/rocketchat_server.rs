@@ -94,7 +94,8 @@ impl RocketchatServer {
 
     /// Get all users that are connected to this Rocket.Chat server.
     pub fn logged_in_users_on_rocketchat_server(&self, connection: &SqliteConnection) -> Result<Vec<UserOnRocketchatServer>> {
-        let users_on_rocketchat_server: Vec<UserOnRocketchatServer> = UserOnRocketchatServer::belonging_to(self)
+        let users_on_rocketchat_server: Vec<UserOnRocketchatServer> = users_on_rocketchat_servers::table
+            .filter(users_on_rocketchat_servers::rocketchat_server_id.eq(self.id.clone()))
             .filter(users_on_rocketchat_servers::rocketchat_auth_token.is_not_null())
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;

@@ -1,10 +1,11 @@
-use std::convert::TryFrom;
 use std::borrow::{Borrow, Cow};
+use std::convert::TryFrom;
+use std::collections::HashMap;
 use std::io::Read;
 use std::sync::Mutex;
 use std::sync::mpsc::{Receiver, Sender, channel};
 
-use iron::{BeforeMiddleware, AfterMiddleware, Handler, status};
+use iron::{AfterMiddleware, BeforeMiddleware, Handler, status};
 use iron::prelude::*;
 use iron::typemap::Key;
 use iron::url::Url;
@@ -12,10 +13,11 @@ use iron::url::percent_encoding::percent_decode;
 use matrix_rocketchat::errors::MatrixErrorResponse;
 use persistent::Write;
 use router::Router;
+use ruma_events::room::member::MembershipState;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json;
 
-use super::{TestError, UsersInRoomMap, extract_payload};
+use super::{TestError, UsersInRooms, extract_payload};
 
 /// Forwards a message from an iron handler to a channel so that it can be received outside of the
 /// iron handler.
@@ -67,7 +69,7 @@ impl BeforeMiddleware for MessageForwarder {
 }
 
 impl AfterMiddleware for MessageForwarder {
-    fn after(&self, request: &mut Request, response: Response) -> IronResult<Response>{
+    fn after(&self, request: &mut Request, response: Response) -> IronResult<Response> {
         let payload = extract_payload(request);
         self.tx.lock().unwrap().send(payload).unwrap();
 
@@ -79,7 +81,7 @@ impl Key for Message {
     type Value = Message;
 }
 
-fn validate_message_forwarding_for_user(request: &mut Request, url: Url) -> IronResult<()>{
+fn validate_message_forwarding_for_user(request: &mut Request, url: Url) -> IronResult<()> {
     let params = request.extensions.get::<Router>().unwrap().clone();
     let url_room_id = params.find("room_id").unwrap();
     let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
@@ -91,13 +93,13 @@ fn validate_message_forwarding_for_user(request: &mut Request, url: Url) -> Iron
         Cow::from("@rocketchat:localhost"),
     ));
     let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
-    let mutex = request.get::<Write<UsersInRoomMap>>().unwrap();
-    let user_in_room_map = mutex.lock().unwrap();
-    let empty_users = Vec::new();
-    let user_ids = &user_in_room_map.get(&room_id).unwrap_or(&empty_users);
+    let mutex = request.get::<Write<UsersInRooms>>().unwrap();
+    let users_in_rooms = mutex.lock().unwrap();
+    let empty_users = HashMap::new();
+    let users_in_room = &users_in_rooms.get(&room_id).unwrap_or(&empty_users);
 
-    if !user_ids.iter().any(|id| id == &user_id) {
-        let matrix_err = MatrixErrorResponse{
+    if !users_in_room.iter().any(|(id, &(membership, _))| id == &user_id && membership == MembershipState::Join) {
+        let matrix_err = MatrixErrorResponse {
             errcode: "M_FORBIDDEN".to_string(),
             error: format!("{} not in room {}", user_id, room_id),
         };
@@ -107,5 +109,5 @@ fn validate_message_forwarding_for_user(request: &mut Request, url: Url) -> Iron
         return Err(err);
     }
 
-    return Ok(())
+    Ok(())
 }

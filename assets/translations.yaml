@@ -47,7 +47,6 @@ en:
 
       1. Login via curl: `curl ${as_url}/rocketchat/login -d '{"rocketchat_url": "${rocketchat_url}", "matrix_user_id": "${matrix_user_id}", "rocketchat_username": "ROCKETCHAT_USER", "password": "MYSECRET"}'`
     no_rocketchat_server_connected: "No Rocket.Chat server is connected yet."
-    only_room_creator_can_invite_bot_user: "Only the room creator can invite the Rocket.Chat bot user, please create a new room and invite the Rocket.Chat user to create an admin room."
     usage_instructions: |
       You are logged in.
 
@@ -78,8 +77,10 @@ en:
     connect_without_rocketchat_server_id: "You have to provide an id to connect to a Rocket.Chat server. It can contain any alphanumeric character and `_`. For example `connect https://rocketchat.example.com my_token rocketchat_example`"
     connect_with_invalid_rocketchat_server_id: "The provided Rocket.Chat server ID `${rocketchat_server_id}` is not valid, it can only contain lowercase alphanumeric characters and `_`. The maximum length is ${max_rocketchat_server_id_length} characters."
     internal: "An internal error occurred"
+    inviter_unknown: "The invite didn't contain a sender, the admin room could not be validated"
     no_rocketchat_server: "No Rocket.Chat server found when querying ${rocketchat_url} (version information is missing from the response)"
     other_user_joined: "Another user join the admin room, leaving, please create a new admin room."
+    only_room_creator_can_invite_bot_user: "Only the room creator can invite the Rocket.Chat bot user, please create a new room and invite the Rocket.Chat user to create an admin room."
     rocketchat_channel_already_bridged: "The channel ${channel_name} is already bridged."
     rocketchat_channel_not_found: "No channel with the name ${channel_name} found."
     rocketchat_token_missing: "A token is needed to connect new Rocket.Chat servers"

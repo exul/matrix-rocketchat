@@ -24,6 +24,13 @@ impl<'a> ErrorNotifier<'a> {
     /// Send the error message to the user if the error contains a user message. Otherwise just
     /// inform the user that an internal error happened.
     pub fn send_message_to_user(&self, err: &Error, room_id: RoomId, user_id: &UserId) -> Result<()> {
+        let mut msg = format!("{}", err);
+        for err in err.error_chain.iter().skip(1) {
+            msg = msg + " caused by: " + &format!("{}", err);
+        }
+
+        debug!(self.logger, msg);
+
         let matrix_bot_id = self.config.matrix_bot_user_id()?;
         let language = match User::find_by_matrix_user_id(self.connection, user_id)? {
             Some(user) => user.language,
@@ -38,12 +45,6 @@ impl<'a> ErrorNotifier<'a> {
             }
         };
 
-        let mut msg = format!("{}", err);
-        for err in err.error_chain.iter().skip(1) {
-            msg = msg + " caused by: " + &format!("{}", err);
-        }
-
-        debug!(self.logger, msg);
         self.matrix_api.send_text_message_event(room_id, matrix_bot_id, user_message.l(&language))
     }
 }

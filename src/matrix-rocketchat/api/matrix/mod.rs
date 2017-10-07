@@ -4,7 +4,7 @@ use ruma_client_api::Endpoint;
 use ruma_client_api::unversioned::get_supported_versions::{Endpoint as GetSupportedVersionsEndpoint,
                                                            Response as GetSupportedVersionsResponse};
 use ruma_events::room::member::MemberEvent;
-use ruma_identifiers::{RoomId, UserId};
+use ruma_identifiers::{RoomAliasId, RoomId, UserId};
 use serde_json;
 use slog::Logger;
 
@@ -19,18 +19,30 @@ pub mod r0;
 pub trait MatrixApi: Send + Sync + MatrixApiClone {
     /// Create a room.
     fn create_room(&self, room_name: Option<String>, room_alias_name: Option<String>, creator_id: &UserId) -> Result<RoomId>;
+    /// Delete a room alias.
+    fn delete_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<()>;
     /// Forget a room.
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()>;
+    /// Get the room id based on the room alias.
+    fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<Option<RoomId>>;
+    /// Get a rooms canonical alias.
+    fn get_room_canonical_alias(&self, matrix_room_id: RoomId) -> Result<Option<RoomAliasId>>;
     /// Get the `user_id` of the user that created the room.
     fn get_room_creator(&self, matrix_room_id: RoomId) -> Result<UserId>;
     /// Get the list of members for this room.
-    fn get_room_members(&self, matrix_room_id: RoomId) -> Result<Vec<MemberEvent>>;
+    fn get_room_members(&self, matrix_room_id: RoomId, sender_id: Option<UserId>) -> Result<Vec<MemberEvent>>;
+    /// Get the topic for a room.
+    fn get_room_topic(&self, matrix_room_id: RoomId) -> Result<Option<String>>;
     /// Invite a user to a room.
     fn invite(&self, matrix_room_id: RoomId, receiver_matrix_user_id: UserId, sender_matrix_user_id: UserId) -> Result<()>;
+    /// Determine if the bot user has access to a room.
+    fn is_room_accessible_by_bot(&self, matrix_room_id: RoomId) -> Result<bool>;
     /// Join a room with a user.
     fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
     /// Leave a room.
     fn leave_room(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
+    /// Set the canonical alias for a room.
+    fn put_canonical_room_alias(&self, matrix_room_id: RoomId, matrix_room_alias_id: Option<RoomAliasId>) -> Result<()>;
     /// Register a user.
     fn register(&self, user_id_local_part: String) -> Result<()>;
     /// Send a text message to a room.
@@ -42,6 +54,8 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn set_display_name(&self, matrix_user_id: UserId, name: String) -> Result<()>;
     /// Set the name for a room
     fn set_room_name(&self, matrix_room_id: RoomId, name: String) -> Result<()>;
+    /// Set the topic for a room.
+    fn set_room_topic(&self, matrix_room_id: RoomId, topic: String) -> Result<()>;
 }
 
 /// Helper trait because Clone cannot be part of the `MatrixApi` trait since that would cause the

@@ -358,10 +358,10 @@ fn the_user_can_login_again_on_the_same_server_with_a_new_admin_room() {
         .unwrap();
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     helpers::send_room_message_from_matrix(

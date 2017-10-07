@@ -1,8 +1,9 @@
 use diesel::sqlite::SqliteConnection;
-use ruma_events::room::message::{MessageEvent, MessageEventContent, TextMessageEventContent};
+use ruma_events::room::message::{MessageEvent, MessageEventContent};
+use ruma_identifiers::RoomId;
 use slog::Logger;
 
-use api::RocketchatApi;
+use api::{MatrixApi, RocketchatApi};
 use db::{Room, UserOnRocketchatServer};
 use errors::*;
 
@@ -10,20 +11,22 @@ use errors::*;
 pub struct Forwarder<'a> {
     connection: &'a SqliteConnection,
     logger: &'a Logger,
+    matrix_api: &'a MatrixApi,
 }
 
 impl<'a> Forwarder<'a> {
     /// Create a new `Forwarder`.
-    pub fn new(connection: &'a SqliteConnection, logger: &'a Logger) -> Forwarder<'a> {
+    pub fn new(connection: &'a SqliteConnection, logger: &'a Logger, matrix_api: &'a MatrixApi) -> Forwarder<'a> {
         Forwarder {
             connection: connection,
             logger: logger,
+            matrix_api: matrix_api,
         }
     }
 
     /// Forwards messages to Rocket.Chat
-    pub fn process(&self, event: &MessageEvent, room: &Room) -> Result<()> {
-        match room.rocketchat_server(self.connection)? {
+    pub fn process(&self, event: &MessageEvent, matrix_room_id: RoomId, rocketchat_channel_id: String) -> Result<()> {
+        match Room::rocketchat_server(self.connection, self.matrix_api, matrix_room_id.clone())? {
             Some(rocketchat_server) => {
                 let user_on_rocketchat_server =
                     UserOnRocketchatServer::find(self.connection, &event.user_id, rocketchat_server.id)?;
@@ -35,13 +38,12 @@ impl<'a> Forwarder<'a> {
 
                 match event.content {
                     MessageEventContent::Text(ref text_content) => {
-
                         let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url, self.logger.clone())?
                             .with_credentials(
                                 user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
                                 user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
                             );
-                        self.forward_text_message(text_content, rocketchat_api.as_ref(), room)?;
+                        rocketchat_api.post_chat_message(&text_content.body, &rocketchat_channel_id)?;
                     }
                     _ => info!(self.logger, format!("Forwarding the type {} is not implemented.", event.event_type)),
                 }
@@ -52,15 +54,5 @@ impl<'a> Forwarder<'a> {
         }
 
         Ok(())
-    }
-
-    /// Forward a text message
-    pub fn forward_text_message(
-        &self,
-        content: &TextMessageEventContent,
-        rocketchat_api: &RocketchatApi,
-        room: &Room,
-    ) -> Result<()> {
-        rocketchat_api.post_chat_message(&content.body, &room.rocketchat_room_id.clone().unwrap_or_default())
     }
 }

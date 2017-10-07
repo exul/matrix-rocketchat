@@ -13,7 +13,6 @@ extern crate tempdir;
 
 use std::convert::TryFrom;
 
-use diesel::result::Error as DieselError;
 use iron::status;
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::db::Room;
@@ -27,7 +26,7 @@ use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::send::send_state_event_for_empty_key::Endpoint as SendStateEventForEmptyKeyEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
-use ruma_client_api::r0::sync::get_state_events_for_empty_key::Endpoint as GetStateEventsForEmptyKey;
+use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
 use ruma_events::EventType;
 use ruma_events::collections::all::Event;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
@@ -52,12 +51,8 @@ fn successfully_create_an_admin_room() {
     ));
     assert!(message_received_by_matrix.contains("No Rocket.Chat server is connected yet."));
 
-    let connection = test.connection_pool.get().unwrap();
-    let room = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
-    assert!(room.is_admin_room);
-
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let members = room.user_ids(&(*matrix_api)).unwrap();
+    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
     assert_eq!(members.len(), 2);
     assert!(members.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
     assert!(members.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
@@ -86,10 +81,10 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
     );
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
@@ -110,10 +105,6 @@ fn bot_leaves_and_forgets_the_admin_room_when_the_user_leaves_it() {
 
     let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
 
-    let connection = test.connection_pool.get().unwrap();
-    let room = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
-    assert!(room.is_admin_room);
-
     helpers::leave_room(
         &test.config,
         RoomId::try_from("!admin_room_id:localhost").unwrap(),
@@ -122,10 +113,6 @@ fn bot_leaves_and_forgets_the_admin_room_when_the_user_leaves_it() {
 
     leave_receiver.recv_timeout(default_timeout()).unwrap();
     forget_receiver.recv_timeout(default_timeout()).unwrap();
-
-    let room_error = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).err().unwrap();
-    let room_diesel_error = room_error.error_chain.iter().nth(1).unwrap();
-    assert_eq!(format!("{}", room_diesel_error), format!("{}", DieselError::NotFound));
 }
 
 #[test]
@@ -173,11 +160,6 @@ fn the_user_does_not_get_a_message_when_joining_the_room_failes_for_the_bot_user
     );
 
     assert!(receiver.recv_timeout(default_timeout()).is_err());
-
-    let connection = test.connection_pool.get().unwrap();
-    let room =
-        Room::find_by_matrix_room_id(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap().unwrap();
-    assert_eq!(room.matrix_room_id, RoomId::try_from("!admin_room_id:localhost").unwrap());
 }
 
 #[test]
@@ -204,14 +186,16 @@ fn the_bot_user_leaves_the_admin_room_when_getting_the_room_members_failes() {
         UserId::try_from("@rocketchat:localhost").unwrap(),
     );
 
+    helpers::invite(
+        &test.config,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
     let leave_room_message = leave_room_receiver.recv_timeout(default_timeout()).unwrap();
     assert_eq!(leave_room_message, "{}");
     assert!(forget_receiver.recv_timeout(default_timeout()).is_ok());
-
-    let connection = test.connection_pool.get().unwrap();
-    let room_error = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).err().unwrap();
-    let room_diesel_error = room_error.error_chain.iter().nth(1).unwrap();
-    assert_eq!(format!("{}", room_diesel_error), format!("{}", DieselError::NotFound));
 }
 
 #[test]
@@ -239,18 +223,20 @@ fn the_bot_user_leaves_the_admin_room_when_the_room_members_cannot_be_deserializ
         UserId::try_from("@rocketchat:localhost").unwrap(),
     );
 
+    helpers::invite(
+        &test.config,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
     let leave_room_message = leave_room_receiver.recv_timeout(default_timeout()).unwrap();
     assert_eq!(leave_room_message, "{}");
     assert!(forget_receiver.recv_timeout(default_timeout()).is_ok());
-
-    let connection = test.connection_pool.get().unwrap();
-    let room_error = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).err().unwrap();
-    let room_diesel_error = room_error.error_chain.iter().nth(1).unwrap();
-    assert_eq!(format!("{}", room_diesel_error), format!("{}", DieselError::NotFound));
 }
 
 #[test]
-fn the_user_does_not_get_a_message_when_setting_the_room_display_name_fails() {
+fn the_bot_user_does_not_leave_the_admin_room_just_because_setting_the_room_display_name_fails() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
@@ -274,26 +260,81 @@ fn the_user_does_not_get_a_message_when_setting_the_room_display_name_fails() {
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    let connection = test.connection_pool.get().unwrap();
-    let room = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
-    assert!(room.is_admin_room);
-
-    // the bot doesn't leave the room just because setting the display name failed
+    // the bot doesn't leave the room
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let members = room.user_ids(&(*matrix_api)).unwrap();
+    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
     assert_eq!(members.len(), 2);
     assert!(members.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
     assert!(members.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
 }
 
 #[test]
-fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
+fn the_bot_user_does_not_leave_the_admin_room_just_because_getting_the_topic_failes() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
-    matrix_router.get(GetStateEventsForEmptyKey::router_path(), admin_room_creator_handler, "get_room_creator_admin_room");
+    let room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        event_type: EventType::RoomTopic.to_string(),
+    };
+    matrix_router.get(
+        GetStateEventsForEmptyKey::request_path(room_creator_params),
+        handlers::MatrixErrorResponder {
+            status: status::InternalServerError,
+            message: "Could not get room topic.".to_string(),
+        },
+        "get_room_topic",
+    );
+    let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
+
+    // the user doesn't receive a welcome message, because without a topic it's not possible to
+    // determine which message has to be sent
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
+
+    // the bot doesn't leave the room
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
+    assert_eq!(members.len(), 2);
+    assert!(members.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
+    assert!(members.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
+}
+
+#[test]
+fn the_bot_user_does_not_leave_the_admin_room_just_because_the_get_topic_response_cannot_be_deserialized() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let room_topic_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        event_type: EventType::RoomTopic.to_string(),
+    };
+    matrix_router.get(
+        GetStateEventsForEmptyKey::request_path(room_topic_params),
+        handlers::InvalidJsonResponse { status: status::Ok },
+        "get_room_topic",
+    );
+    let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
+
+    // he user doesn't receive a welcome message, because without a topic it's not possible to
+    // determine which message has to be sent
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
+
+    // the bot doesn't leave the room
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
+    assert_eq!(members.len(), 2);
+    assert!(members.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
+    assert!(members.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
+}
+
+#[test]
+fn the_user_does_not_get_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let error_responder = handlers::MatrixErrorResponder {
         status: status::InternalServerError,
         message: "Could not leave room".to_string(),
@@ -315,10 +356,10 @@ fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
     );
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
@@ -326,8 +367,7 @@ fn the_user_gets_a_message_when_an_leaving_the_room_failes_for_the_bot_user() {
         "Admin rooms must only contain the user that invites the bot. \
                                                         Too many members in the room, leaving.",
     ));
-    let error_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(error_message_received_by_matrix.contains("An internal error occurred"));
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 
 #[test]
@@ -336,8 +376,6 @@ fn the_user_does_not_get_a_message_when_forgetting_the_room_failes_for_the_bot_u
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
-    matrix_router.get(GetStateEventsForEmptyKey::router_path(), admin_room_creator_handler, "get_room_creator_admin_room");
     let error_responder = handlers::MatrixErrorResponder {
         status: status::InternalServerError,
         message: "Could not forget room".to_string(),
@@ -360,17 +398,16 @@ fn the_user_does_not_get_a_message_when_forgetting_the_room_failes_for_the_bot_u
     );
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
-    let welcome_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(welcome_message_received_by_matrix.contains(
-        "Admin rooms must only contain the user that invites the bot. \
-                                                        Too many members in the room, leaving.",
-    ));
+    // discard user readable error message that triggers the bot leave
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    // no error message is sent when the leave fails
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 
@@ -387,15 +424,19 @@ fn bot_leaves_when_a_third_user_joins_the_admin_room() {
 
     let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
 
-    let connection = test.connection_pool.get().unwrap();
-    let room = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).unwrap();
-    assert!(room.is_admin_room);
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = room.user_ids(&(*matrix_api)).unwrap();
+    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
     assert_eq!(user_ids.len(), 2);
 
-    helpers::send_join_event_from_matrix(
-        &test.config.as_url,
+    helpers::invite(
+        &test.config,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
+    helpers::join(
+        &test.config,
         RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@other_user:localhost").unwrap(),
     );
@@ -411,11 +452,6 @@ fn bot_leaves_when_a_third_user_joins_the_admin_room() {
 
     let message_received_by_matrix = message_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("Another user join the admin room, leaving, please create a new admin room."));
-
-    // room got deleted
-    let room_error = Room::find(&connection, &RoomId::try_from("!admin_room_id:localhost").unwrap()).err().unwrap();
-    let room_diesel_error = room_error.error_chain.iter().nth(1).unwrap();
-    assert_eq!(format!("{}", room_diesel_error), format!("{}", DieselError::NotFound));
 }
 
 #[test]
@@ -478,28 +514,6 @@ fn ignore_messages_from_the_bot_user() {
 }
 
 #[test]
-fn ignore_multiple_join_events_for_the_same_user() {
-    let test = Test::new();
-    let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut matrix_router = test.default_matrix_routes();
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-
-    let test = test.with_admin_room().with_matrix_routes(matrix_router).run();
-
-    helpers::join(
-        &test.config,
-        RoomId::try_from("!admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
-    );
-
-    // discard welcome message
-    receiver.recv_timeout(default_timeout()).unwrap();
-
-    // no message, because the join is ignored
-    assert!(receiver.recv_timeout(default_timeout()).is_err());
-}
-
-#[test]
 fn accept_invites_from_local_rooms_if_accept_remote_invites_is_set_to_false() {
     let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
     let mut config = build_test_config(&temp_dir);
@@ -533,7 +547,9 @@ fn ignore_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
         handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() },
         "get_state_events_for_empty_key",
     );
-    let user_ids = vec![UserId::try_from("@spec_user:other-homeserver.com").unwrap()];
+    let user_ids = vec![
+        (UserId::try_from("@spec_user:other-homeserver.com").unwrap(), MembershipState::Join),
+    ];
     matrix_router.get(
         GetMemberEventsEndpoint::router_path(),
         handlers::StaticRoomMembers { user_ids: user_ids },
@@ -542,10 +558,10 @@ fn ignore_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
     let test = test.with_matrix_routes(matrix_router).run();
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_server_room_id:other-homeserver.com").unwrap(),
-        UserId::try_from("@spec_user:other-homeserver.com").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:other-homeserver.com").unwrap(),
     );
 
     // the room doesn't get a message, because the bot user ignores the invite
@@ -586,7 +602,10 @@ fn accept_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
         handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:other-homeserver.com").unwrap() },
         "get_state_events_for_empty_key",
     );
-    let user_ids = vec![UserId::try_from("@spec_user:other-homeserver.com").unwrap()];
+    let user_ids = vec![
+        (UserId::try_from("@spec_user:other-homeserver.com").unwrap(), MembershipState::Join),
+        (UserId::try_from("@rocketchat:localhost").unwrap(), MembershipState::Join),
+    ];
     matrix_router.get(
         GetMemberEventsEndpoint::router_path(),
         handlers::StaticRoomMembers { user_ids: user_ids },
@@ -596,10 +615,10 @@ fn accept_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
     let test = test.with_matrix_routes(matrix_router).run();
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_server_room_id:other-homeserver.com").unwrap(),
-        UserId::try_from("@spec_user:other-homeserver.com").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:other-homeserver.com").unwrap(),
     );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
@@ -640,13 +659,17 @@ fn the_user_gets_a_message_when_getting_the_room_creator_fails() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
     matrix_router.get(
-        GetStateEventsForEmptyKey::router_path(),
+        GetStateEventsForEmptyKey::request_path(room_creator_params),
         handlers::MatrixErrorResponder {
             status: status::InternalServerError,
             message: "Could not get room creator.".to_string(),
         },
-        "get_state_events_for_empty_key",
+        "get_room_creator",
     );
     let (leave_room, leave_receiver) = handlers::MatrixLeaveRoom::with_forwarder(test.config.as_url.clone());
     matrix_router.post(LeaveRoomEndpoint::router_path(), leave_room, "leave_room");
@@ -659,23 +682,25 @@ fn the_user_gets_a_message_when_getting_the_room_creator_fails() {
         UserId::try_from("@rocketchat:localhost").unwrap(),
     );
 
-    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("An internal error occurred"));
-
+    let error_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(error_message_received_by_matrix.contains("An internal error occurred"));
     assert!(leave_receiver.recv_timeout(default_timeout()).is_ok());
 }
 
-
 #[test]
-fn the_user_does_not_get_a_message_when_getting_the_room_creator_cannot_be_deserialized() {
+fn the_user_does_get_a_message_when_getting_the_room_creator_cannot_be_deserialized() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
     matrix_router.get(
-        GetStateEventsForEmptyKey::router_path(),
+        GetStateEventsForEmptyKey::request_path(room_creator_params),
         handlers::InvalidJsonResponse { status: status::Ok },
-        "get_state_events_for_empty_key",
+        "get_state_events_for_empty_key_with_invalid_json",
     );
     let (leave_room, leave_receiver) = handlers::MatrixLeaveRoom::with_forwarder(test.config.as_url.clone());
     matrix_router.post(LeaveRoomEndpoint::router_path(), leave_room, "leave_room");
@@ -689,8 +714,58 @@ fn the_user_does_not_get_a_message_when_getting_the_room_creator_cannot_be_deser
         UserId::try_from("@rocketchat:localhost").unwrap(),
     );
 
+    helpers::invite(
+        &test.config,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("An internal error occurred"));
-
     assert!(leave_receiver.recv_timeout(default_timeout()).is_ok());
+}
+
+#[test]
+fn join_events_for_rooms_that_are_not_accessible_by_the_bot_user_are_ignored() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!some_room_id:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(
+        GetStateEventsForEmptyKey::request_path(room_creator_params),
+        handlers::MatrixErrorResponder {
+            status: status::Forbidden,
+            message: "Guest access not allowed".to_string(),
+        },
+        "get_state_events_for_empty_key_forbidden",
+    );
+
+    let test = test.with_matrix_routes(matrix_router).run();
+
+    helpers::create_room(
+        &test.config,
+        "some_room",
+        UserId::try_from("@spec_user:loalhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+    );
+
+    helpers::invite(
+        &test.config,
+        RoomId::try_from("!some_room_id:localhost").unwrap(),
+        UserId::try_from("@third_user:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
+    helpers::join(
+        &test.config,
+        RoomId::try_from("!some_room_id:localhost").unwrap(),
+        UserId::try_from("@third_user:localhost").unwrap(),
+    );
+
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
 }

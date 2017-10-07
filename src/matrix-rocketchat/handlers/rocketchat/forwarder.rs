@@ -54,55 +54,20 @@ impl<'a> Forwarder<'a> {
             return Ok(());
         }
 
+        let is_direct_message_room = message.channel_id.contains(&message.user_id);
+        let channel_id = if is_direct_message_room {
+            format!("{}#dm", message.channel_id)
+        } else {
+            message.channel_id.clone()
+        };
 
-        let matrix_room_id = match Room::find_by_rocketchat_room_id(
-            self.connection,
-            rocketchat_server.id.clone(),
-            message.channel_id.clone(),
+        let matrix_room_id = match Room::matrix_id_from_rocketchat_channel_id(
+            self.config,
+            self.matrix_api,
+            &rocketchat_server.id,
+            &channel_id,
         )? {
-            Some(ref mut room) if room.is_direct_message_room => {
-                debug!(self.logger, "Got a message for a direct message room (channel_id `{}`)", &message.channel_id);
-                let receiver_matrix_user_id = match self.find_matching_user_for_direct_message(rocketchat_server, message)? {
-                    Some(user_on_rocketchat_server) => user_on_rocketchat_server.matrix_user_id.clone(),
-                    None => {
-                        debug!(
-                            self.logger,
-                            "No matching user found. Not re-bridging channel {} automatically",
-                            message.channel_id
-                        );
-                        return Ok(());
-                    }
-                };
-
-                if !room.is_bridged {
-                    self.matrix_api.invite(
-                        room.matrix_room_id.clone(),
-                        receiver_matrix_user_id,
-                        user_on_rocketchat_server.matrix_user_id.clone(),
-                    )?;
-                    room.set_is_bridged(self.connection, true)?;
-                }
-                room.matrix_room_id.clone()
-            }
-            Some(ref room) if room.is_bridged => {
-                let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
-                virtual_user_handler.add_to_room(
-                    user_on_rocketchat_server.matrix_user_id.clone(),
-                    bot_matrix_user_id,
-                    room.matrix_room_id.clone(),
-                )?;
-                room.matrix_room_id.clone()
-            }
-            Some(ref room) => {
-                debug!(
-                    self.logger,
-                    "Ignoring message from Rocket.Chat channel `{}`, because the channel was bridged \
-                       with the matrix_room_id {}, but is not bridged anymore.",
-                    message.channel_id,
-                    &room.matrix_room_id
-                );
-                return Ok(());
-            }
+            Some(matrix_room_id) => matrix_room_id,
             None => {
                 match self.auto_bridge_direct_message_channel(&virtual_user_handler, rocketchat_server, message)? {
                     Some(matrix_room_id) => matrix_room_id,
@@ -116,6 +81,36 @@ impl<'a> Forwarder<'a> {
                     }
                 }
             }
+        };
+
+        if is_direct_message_room {
+            if Room::direct_message_room_matrix_user(
+                self.config,
+                self.matrix_api,
+                matrix_room_id.clone(),
+                Some(user_on_rocketchat_server.matrix_user_id.clone()),
+            )?
+                .is_none()
+            {
+                match self.find_matching_user_for_direct_message(rocketchat_server, message)? {
+                    Some(other_user) => {
+                        let invited_user_id = other_user.matrix_user_id.clone();
+                        let inviting_user_id = user_on_rocketchat_server.matrix_user_id.clone();
+                        virtual_user_handler.add_to_room(invited_user_id.clone(), inviting_user_id, matrix_room_id.clone())?;
+                    }
+                    None => {
+                        debug!(
+                            self.logger,
+                            "Ignoring message, because not matching user for the direct chat message was found"
+                        );
+                        return Ok(());
+                    }
+                }
+            };
+        } else {
+            let invited_user_id = user_on_rocketchat_server.matrix_user_id.clone();
+            let inviting_user_id = self.config.matrix_bot_user_id()?;
+            virtual_user_handler.add_to_room(invited_user_id, inviting_user_id, matrix_room_id.clone())?;
         };
 
         if Some(message.user_name.clone()) != user_on_rocketchat_server.rocketchat_username.clone() {
@@ -186,17 +181,22 @@ impl<'a> Forwarder<'a> {
             let room_display_name_suffix =
                 t!(["defaults", "direct_message_room_display_name_suffix"]).l(&direct_message_receiver.language);
             let room_display_name = format!("{} {}", message.user_name, room_display_name_suffix);
-            let room = room_handler.create_room(
-                direct_message_channel.id.clone(),
+            let dm_channel_id = format!("{}#dm", direct_message_channel.id.clone());
+            let matrix_room_id = room_handler.create_room(
+                dm_channel_id,
                 rocketchat_server.id.clone(),
                 direct_message_sender.matrix_user_id.clone(),
                 user_on_rocketchat_server.matrix_user_id.clone(),
                 Some(room_display_name),
-                true,
             )?;
-            debug!(self.logger, "Direct message room {} successfully created", &room.matrix_room_id);
 
-            Ok(Some(room.matrix_room_id.clone()))
+            // invite the bot user into the direct message room to be able to read the room members
+            // the bot will leave as soon as the AS gets the join event
+            let invitee_id = self.config.matrix_bot_user_id()?;
+            self.matrix_api.invite(matrix_room_id.clone(), invitee_id.clone(), direct_message_sender.matrix_user_id.clone())?;
+            debug!(self.logger, "Direct message room {} successfully created", &matrix_room_id);
+
+            Ok(Some(matrix_room_id))
         } else {
             debug!(
                 self.logger,

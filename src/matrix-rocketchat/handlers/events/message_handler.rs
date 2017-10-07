@@ -39,14 +39,14 @@ impl<'a> MessageHandler<'a> {
             return Ok(());
         }
 
-        match Room::find_by_matrix_room_id(self.connection, &event.room_id)? {
-            Some(ref room) if room.is_admin_room => {
-                CommandHandler::new(self.config, self.connection, self.logger, self.matrix_api.as_ref()).process(event, room)?;
-            }
-            Some(ref room) => {
-                Forwarder::new(self.connection, self.logger).process(event, room)?;
-            }
-            None => debug!(self.logger, "Skipping event, because the room is not bridged"),
+        let matrix_room_id = event.room_id.clone();
+        let matrix_api = self.matrix_api.as_ref();
+        if Room::is_admin_room(self.matrix_api.as_ref(), self.config, matrix_room_id.clone())? {
+            CommandHandler::new(self.config, self.connection, self.logger, matrix_api).process(event, matrix_room_id)?;
+        } else if let Some(channel_id) = Room::rocketchat_channel_id(matrix_api, matrix_room_id.clone())? {
+            Forwarder::new(self.connection, self.logger, matrix_api).process(event, matrix_room_id, channel_id)?;
+        } else {
+            debug!(self.logger, "Skipping event, because the room {} is not bridged", matrix_room_id);
         }
 
         Ok(())

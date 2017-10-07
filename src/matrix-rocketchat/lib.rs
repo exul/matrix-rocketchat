@@ -33,6 +33,7 @@ extern crate serde_yaml;
 #[macro_use]
 extern crate slog;
 extern crate slog_term;
+extern crate url;
 extern crate yaml_rust;
 
 embed_migrations!();

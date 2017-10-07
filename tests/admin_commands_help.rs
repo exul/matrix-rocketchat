@@ -1,5 +1,6 @@
 #![feature(try_from)]
 
+extern crate iron;
 extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
 extern crate router;
@@ -70,10 +71,10 @@ fn help_command_when_not_connected_and_someone_else_has_connected_a_server_alrea
     matrix_api.create_room(Some("other_admin_room".to_string()), None, &other_user_id).unwrap();
 
     helpers::invite(
-        &test.config.as_url,
+        &test.config,
         RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
-        UserId::try_from("@other_user:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
     );
 
     // other user connects the Rocket.Chat server

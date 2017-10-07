@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::io::Read;
 
+use url;
 use reqwest::{Client, Method, StatusCode, Url};
 use reqwest::header::Headers;
 use ruma_client_api::Method as RumaHttpMethod;
@@ -49,6 +50,7 @@ impl RestApi {
             Method::Get => client.get(&encoded_url),
             Method::Put => client.request(Method::Put, &encoded_url).body(payload),
             Method::Post => client.post(&encoded_url).body(payload),
+            Method::Delete => client.delete(&encoded_url),
             _ => {
                 return Err(Error::from(ErrorKind::UnsupportedHttpMethod(method.to_string())));
             }
@@ -67,10 +69,17 @@ impl RestApi {
     }
 
     fn encode_url(base: String, parameters: &HashMap<&str, &str>) -> Result<String> {
-        let query_string =
-            parameters.iter().fold("?".to_string(), |init, (k, v)| [init, [k.to_string(), v.to_string()].join("=")].join("&"));
+        let query_string = parameters.iter().fold("?".to_string(), |init, (k, v)| {
+            [
+                init,
+                [
+                    url::form_urlencoded::byte_serialize(k.as_bytes()).collect::<String>(),
+                    url::form_urlencoded::byte_serialize(v.as_bytes()).collect::<String>(),
+                ].join("="),
+            ].join("&")
+        });
         let url_string = [base, query_string].join("");
-        let url = Url::parse(&url_string).chain_err(|| ErrorKind::ApiCallFailed(url_string))?;
-        Ok(format!("{}", url))
+        let encoded_url = Url::parse(&url_string).chain_err(|| ErrorKind::ApiCallFailed(url_string))?;
+        Ok(encoded_url.to_string())
     }
 }

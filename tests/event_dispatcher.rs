@@ -49,7 +49,6 @@ fn error_message_language_falls_back_to_the_default_language_if_the_sender_is_no
         "spec message".to_string(),
     );
 
-
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard connect message

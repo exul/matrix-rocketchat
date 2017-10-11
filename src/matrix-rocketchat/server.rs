@@ -70,7 +70,7 @@ impl<'a> Server<'a> {
     }
 
     fn prepare_database(&self) -> Result<()> {
-        debug!(self.logger, format!("Setting up database {}", self.config.database_url));
+        debug!(self.logger, "Setting up database {}", self.config.database_url);
         let connection = SqliteConnection::establish(&self.config.database_url).chain_err(|| ErrorKind::DBConnectionError)?;
         setup_database(&connection).chain_err(|| ErrorKind::DatabaseSetupError)?;
         run_embedded_migrations(&connection).chain_err(|| ErrorKind::MigrationError).map_err(Error::from)
@@ -78,13 +78,13 @@ impl<'a> Server<'a> {
 
     fn setup_bot_user(&self, connection: &SqliteConnection, matrix_api: &MatrixApi) -> Result<()> {
         let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
-        debug!(self.logger, format!("Setting up bot user {}", matrix_bot_user_id));
+        debug!(self.logger, "Setting up bot user {}", matrix_bot_user_id);
         match User::find_by_matrix_user_id(connection, &matrix_bot_user_id)? {
             Some(user) => {
-                debug!(self.logger, format!("Bot user {} exists, skipping", user.matrix_user_id));
+                debug!(self.logger, "Bot user {} exists, skipping", user.matrix_user_id);
             }
             None => {
-                debug!(self.logger, format!("Bot user {} doesn't exists, starting registration", matrix_bot_user_id));
+                debug!(self.logger, "Bot user {} doesn't exists, starting registration", matrix_bot_user_id);
 
                 connection.transaction(|| {
                     let new_user = NewUser {
@@ -94,7 +94,7 @@ impl<'a> Server<'a> {
                     User::insert(connection, &new_user)?;
                     matrix_api.register(self.config.sender_localpart.clone())
                 })?;
-                info!(self.logger, format!("Bot user {} successfully registered", matrix_bot_user_id));
+                info!(self.logger, "Bot user {} successfully registered", matrix_bot_user_id);
             }
         }
         Ok(())

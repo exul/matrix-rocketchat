@@ -20,6 +20,7 @@ extern crate serde_derive;
 extern crate serde_json;
 #[macro_use]
 extern crate slog;
+extern crate slog_async;
 extern crate slog_json;
 extern crate slog_stream;
 extern crate slog_term;
@@ -65,7 +66,7 @@ use ruma_client_api::r0::send::send_state_event_for_empty_key::Endpoint as SendS
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::Endpoint as GetStateEventsForEmptyKeyEndpoint;
 use ruma_events::room::member::MembershipState;
-use slog::{DrainExt, Level, LevelFilter, Record};
+use slog::{Drain, FnValue, Level, LevelFilter, Record};
 use tempdir::TempDir;
 
 /// Name of the temporary directory that is used for each test
@@ -92,8 +93,12 @@ lazy_static! {
             Some("debug") => Level::Debug,
             _ => Level::Info,
         };
-        slog::Logger::root(LevelFilter::new(slog_term::streamer().full().build(), log_level).fuse(),
-                           o!("version" => env!("CARGO_PKG_VERSION"), "place" => file_line_logger_format))
+
+        let decorator = slog_term::TermDecorator::new().build();
+        let drain = slog_term::FullFormat::new(decorator).build().fuse();
+        let drain = LevelFilter::new(slog_async::Async::new(drain).build(), log_level).fuse();
+
+        slog::Logger::root(drain, o!("version" => env!("CARGO_PKG_VERSION"), "place" => FnValue(file_line_logger_format)))
     };
 }
 
@@ -529,7 +534,7 @@ pub fn build_test_config(temp_dir: &TempDir) -> Config {
     let as_url = format!("http://{}:{}", as_socket_addr.ip(), as_socket_addr.port());
     let database_path = temp_dir.path().join(DATABASE_NAME);
     let database_url = database_path.to_str().unwrap();
-    debug!(DEFAULT_LOGGER, format!("Database URL is: {}", database_url));
+    debug!(DEFAULT_LOGGER, "Database URL is: {}", database_url);
 
     Config {
         as_token: AS_TOKEN.to_string(),

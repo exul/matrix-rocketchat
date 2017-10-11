@@ -1,4 +1,4 @@
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::convert::TryFrom;
 use std::collections::HashMap;
 use std::io::Read;
@@ -85,14 +85,14 @@ fn validate_message_forwarding_for_user(request: &mut Request, url: Url) -> Iron
     let params = request.extensions.get::<Router>().unwrap().clone();
     let url_room_id = params.find("room_id").unwrap();
     let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
-    let room_id = RoomId::try_from(&decoded_room_id).unwrap();
+    let room_id = RoomId::try_from(decoded_room_id).unwrap();
 
     let mut query_pairs = url.query_pairs();
     let (_, user_id_param) = query_pairs.find(|&(ref key, _)| key == "user_id").unwrap_or((
         Cow::from("user_id"),
         Cow::from("@rocketchat:localhost"),
     ));
-    let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
+    let user_id = UserId::try_from(user_id_param.as_ref()).unwrap();
     let mutex = request.get::<Write<UsersInRooms>>().unwrap();
     let users_in_rooms = mutex.lock().unwrap();
     let empty_users = HashMap::new();

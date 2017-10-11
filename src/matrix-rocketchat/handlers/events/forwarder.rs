@@ -45,7 +45,7 @@ impl<'a> Forwarder<'a> {
                             );
                         rocketchat_api.post_chat_message(&text_content.body, &rocketchat_channel_id)?;
                     }
-                    _ => info!(self.logger, format!("Forwarding the type {} is not implemented.", event.event_type)),
+                    _ => info!(self.logger, "Forwarding the type {} is not implemented.", event.event_type),
                 }
 
                 user_on_rocketchat_server.user(self.connection)?.set_last_message_sent(self.connection)?;

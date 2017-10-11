@@ -102,12 +102,10 @@ impl<'a> VirtualUserHandler<'a> {
         {
             info!(
                 self.logger,
-                format!(
-                    "Setting display name `{}`, for user `{}` failed with {}",
-                    &user_on_rocketchat_server.matrix_user_id,
-                    &rocketchat_user_name,
-                    err
-                )
+                "Setting display name `{}`, for user `{}` failed with {}",
+                &user_on_rocketchat_server.matrix_user_id,
+                &rocketchat_user_name,
+                err
             );
         }
 

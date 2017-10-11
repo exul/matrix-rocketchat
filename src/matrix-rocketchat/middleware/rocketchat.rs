@@ -21,7 +21,7 @@ impl BeforeMiddleware for RocketchatToken {
             Err(err) => {
                 let msg = format!("Could not deserialize message that was sent to the rocketchat endpoint: `{}`", payload);
                 let json_err = simple_error!(ErrorKind::InvalidJSON(msg));
-                error!(logger, err);
+                error!(logger, "{}", err);
                 return Err(json_err.into());
             }
         };
@@ -30,7 +30,7 @@ impl BeforeMiddleware for RocketchatToken {
             Some(token) => token,
             None => {
                 let err = simple_error!(ErrorKind::MissingRocketchatToken);
-                info!(logger, err);
+                info!(logger, "{}", err);
                 return Err(err.into());
             }
         };
@@ -40,7 +40,7 @@ impl BeforeMiddleware for RocketchatToken {
             Some(rocketchat_server) => rocketchat_server,
             None => {
                 let err = simple_error!(ErrorKind::InvalidRocketchatToken(token));
-                info!(logger, err);
+                info!(logger, "{}", err);
                 return Err(err.into());
             }
         };

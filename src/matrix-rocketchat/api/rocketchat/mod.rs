@@ -104,7 +104,7 @@ impl RocketchatApi {
         let (body, status_code) = match RestApi::call(Method::Get, &url, "", &params, None) {
             Ok((body, status_code)) => (body, status_code),
             Err(err) => {
-                debug!(logger, err);
+                debug!(logger, "{}", err);
                 bail_error!(
                     ErrorKind::RocketchatServerUnreachable(url.clone()),
                     t!(["errors", "rocketchat_server_unreachable"]).with_vars(vec![("rocketchat_url", url)])

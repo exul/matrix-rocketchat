@@ -87,7 +87,7 @@ impl MatrixApi {
         let url = config.hs_url.clone() + &GetSupportedVersionsEndpoint::request_path(());
         let params = HashMap::new();
 
-        debug!(logger, format!("Querying homeserver {} for API versions", url));
+        debug!(logger, "Querying homeserver {} for API versions", url);
         let (body, status_code) = RestApi::call_matrix(GetSupportedVersionsEndpoint::method(), &url, "", &params)?;
         if !status_code.is_success() {
             let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
@@ -107,7 +107,7 @@ impl MatrixApi {
                 body
             ))
         })?;
-        debug!(logger, format!("Homeserver supports versions {:?}", supported_versions.versions));
+        debug!(logger, "Homeserver supports versions {:?}", supported_versions.versions);
         MatrixApi::get_max_supported_version_api(supported_versions.versions, config, logger)
     }
 

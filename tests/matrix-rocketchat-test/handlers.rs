@@ -1,5 +1,5 @@
 use rand::{Rng, thread_rng};
-use std::borrow::{Borrow, Cow};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::mpsc::Receiver;
@@ -330,7 +330,7 @@ impl Handler for MatrixCreateRoom {
         }
 
         if let Err(err) = add_membership_event_to_room(request, user_id.clone(), room_id.clone(), MembershipState::Join) {
-            debug!(DEFAULT_LOGGER, format!("{}", err));
+            debug!(DEFAULT_LOGGER, "{}", err);
             let payload = r#"{
                     "errcode":"M_UNKNOWN",
                     "error":"ERR_MSG"
@@ -340,7 +340,7 @@ impl Handler for MatrixCreateRoom {
         }
 
         if let Err(err) = add_state_to_room(request, &user_id, room_id.clone(), "creator".to_string(), user_id.to_string()) {
-            debug!(DEFAULT_LOGGER, format!("{}", err));
+            debug!(DEFAULT_LOGGER, "{}", err);
             let payload = r#"{
                     "errcode":"M_FORBIDDEN",
                     "error":"ERR_MSG"
@@ -353,7 +353,7 @@ impl Handler for MatrixCreateRoom {
             let room_alias_id = RoomAliasId::try_from(&format!("#{}:localhost", room_alias_name)).unwrap();
 
             if let Err(err) = add_alias_to_room(request, room_id.clone(), room_alias_id.clone()) {
-                debug!(DEFAULT_LOGGER, format!("{}", err));
+                debug!(DEFAULT_LOGGER, "{}", err);
                 let payload = r#"{
                     "errcode":"M_UNKNOWN",
                     "error":"Room alias already exists."
@@ -369,7 +369,7 @@ impl Handler for MatrixCreateRoom {
                 room_alias_id.to_string(),
             )
             {
-                debug!(DEFAULT_LOGGER, format!("{}", err));
+                debug!(DEFAULT_LOGGER, "{}", err);
                 let payload = r#"{
                     "errcode":"M_FORBIDDEN",
                     "error":"ERR_MSG"
@@ -405,7 +405,7 @@ impl Handler for SendRoomState {
         let params = request.extensions.get::<Router>().unwrap().clone();
         let url_room_id = params.find("room_id").unwrap();
         let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
-        let room_id = RoomId::try_from(&decoded_room_id).unwrap();
+        let room_id = RoomId::try_from(decoded_room_id.as_ref()).unwrap();
         let user_id = user_id_from_request(request);
 
         let request_payload = extract_payload(request);
@@ -416,7 +416,7 @@ impl Handler for SendRoomState {
                 for (k, v) in room_states {
                     let value = v.to_string().trim_matches('"').to_string();
                     if let Err(err) = add_state_to_room(request, &user_id, room_id.clone(), k, value) {
-                        debug!(DEFAULT_LOGGER, format!("{}", err));
+                        debug!(DEFAULT_LOGGER, "{}", err);
                         let payload = r#"{
                           "errcode":"M_FORBIDDEN",
                           "error":"ERR_MSG"
@@ -447,7 +447,7 @@ impl Handler for RoomMembers {
         let params = request.extensions.get::<Router>().unwrap().clone();
         let url_room_id = params.find("room_id").unwrap();
         let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
-        let room_id = RoomId::try_from(&decoded_room_id).unwrap();
+        let room_id = RoomId::try_from(decoded_room_id.as_ref()).unwrap();
 
         let url: Url = request.url.clone().into();
         let mut query_pairs = url.query_pairs();
@@ -455,7 +455,7 @@ impl Handler for RoomMembers {
             Cow::from("user_id"),
             Cow::from("@rocketchat:localhost"),
         ));
-        let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
+        let user_id = UserId::try_from(user_id_param.as_ref()).unwrap();
 
         let mutex = request.get::<Write<UsersInRooms>>().unwrap();
         let mut users_in_rooms = mutex.lock().unwrap();
@@ -492,7 +492,7 @@ impl Handler for StaticRoomMembers {
         let params = request.extensions.get::<Router>().unwrap().clone();
         let url_room_id = params.find("room_id").unwrap();
         let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
-        let room_id = RoomId::try_from(&decoded_room_id).unwrap();
+        let room_id = RoomId::try_from(decoded_room_id.as_ref()).unwrap();
 
         let member_events = build_member_events_from_user_ids(&self.user_ids, room_id);
 
@@ -536,7 +536,7 @@ impl Handler for GetRoomAlias {
         let params = request.extensions.get::<Router>().unwrap().clone();
         let url_room_alias = params.find("room_alias").unwrap();
         let decoded_room_alias = percent_decode(url_room_alias.as_bytes()).decode_utf8().unwrap();
-        let room_alias = RoomAliasId::try_from(&decoded_room_alias).unwrap();
+        let room_alias = RoomAliasId::try_from(decoded_room_alias.as_ref()).unwrap();
 
         match get_room_id_for_alias(request, &room_alias) {
             Some(room_id) => {
@@ -569,7 +569,7 @@ impl Handler for DeleteRoomAlias {
         let params = request.extensions.get::<Router>().unwrap().clone();
         let url_room_alias = params.find("room_alias").unwrap();
         let decoded_room_alias = percent_decode(url_room_alias.as_bytes()).decode_utf8().unwrap();
-        let room_alias = RoomAliasId::try_from(&decoded_room_alias).unwrap();
+        let room_alias = RoomAliasId::try_from(decoded_room_alias.as_ref()).unwrap();
 
         match remove_alias_from_room(request, &room_alias) {
             Some(room_id) => {
@@ -596,7 +596,7 @@ impl Handler for GetRoomState {
         let params = request.extensions.get::<Router>().unwrap().clone();
         let url_room_id = params.find("room_id").unwrap();
         let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
-        let room_id = RoomId::try_from(&decoded_room_id).unwrap();
+        let room_id = RoomId::try_from(decoded_room_id.as_ref()).unwrap();
 
         let url_event_type = params.find("event_type").unwrap();
         let event_type = percent_decode(url_event_type.as_bytes()).decode_utf8().unwrap();
@@ -675,7 +675,7 @@ impl Handler for MatrixJoinRoom {
         let params = request.extensions.get::<Router>().unwrap().clone();
         let url_room_id = params.find("room_id").unwrap();
         let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
-        let room_id = RoomId::try_from(&decoded_room_id).unwrap();
+        let room_id = RoomId::try_from(decoded_room_id.as_ref()).unwrap();
 
         let url: Url = request.url.clone().into();
         let mut query_pairs = url.query_pairs();
@@ -683,7 +683,7 @@ impl Handler for MatrixJoinRoom {
             Cow::from("user_id"),
             Cow::from("@rocketchat:localhost"),
         ));
-        let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
+        let user_id = UserId::try_from(user_id_param.as_ref()).unwrap();
 
         let inviter_id;
         // scope to release the mutex
@@ -697,7 +697,9 @@ impl Handler for MatrixJoinRoom {
                 None => {
                     debug!(
                         DEFAULT_LOGGER,
-                        format!("Matrix mock server: Join failed, because user {} is not invited to room {}", user_id, room_id)
+                        "Matrix mock server: Join failed, because user {} is not invited to room {}",
+                        user_id,
+                        room_id
                     );
 
                     let payload = r#"{
@@ -710,7 +712,7 @@ impl Handler for MatrixJoinRoom {
         }
 
         if let Err(err) = add_membership_event_to_room(request, user_id.clone(), room_id.clone(), MembershipState::Join) {
-            debug!(DEFAULT_LOGGER, format!("{}", err));
+            debug!(DEFAULT_LOGGER, "{}", err);
             let payload = r#"{
                     "errcode":"M_UNKNOWN",
                     "error":"ERR_MSG"
@@ -744,7 +746,7 @@ impl Handler for MatrixInviteUser {
         let params = request.extensions.get::<Router>().unwrap().clone();
         let url_room_id = params.find("room_id").unwrap();
         let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
-        let room_id = RoomId::try_from(&decoded_room_id).unwrap();
+        let room_id = RoomId::try_from(decoded_room_id.as_ref()).unwrap();
 
         let url: Url = request.url.clone().into();
         let mut query_pairs = url.query_pairs();
@@ -752,7 +754,7 @@ impl Handler for MatrixInviteUser {
             Cow::from("user_id"),
             Cow::from("@rocketchat:localhost"),
         ));
-        let inviter_id = UserId::try_from(user_id_param.borrow()).unwrap();
+        let inviter_id = UserId::try_from(user_id_param.as_ref()).unwrap();
 
         let request_payload = extract_payload(request);
         let invite_payload: invite_user::BodyParams = serde_json::from_str(&request_payload).unwrap();
@@ -791,7 +793,7 @@ impl Handler for MatrixLeaveRoom {
         let params = request.extensions.get::<Router>().unwrap().clone();
         let url_room_id = params.find("room_id").unwrap();
         let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
-        let room_id = RoomId::try_from(&decoded_room_id).unwrap();
+        let room_id = RoomId::try_from(decoded_room_id.as_ref()).unwrap();
 
         let url: Url = request.url.clone().into();
         let mut query_pairs = url.query_pairs();
@@ -799,10 +801,10 @@ impl Handler for MatrixLeaveRoom {
             Cow::from("user_id"),
             Cow::from("@rocketchat:localhost"),
         ));
-        let user_id = UserId::try_from(user_id_param.borrow()).unwrap();
+        let user_id = UserId::try_from(user_id_param.as_ref()).unwrap();
 
         if let Err(err) = add_membership_event_to_room(request, user_id.clone(), room_id.clone(), MembershipState::Leave) {
-            debug!(DEFAULT_LOGGER, format!("{}", err));
+            debug!(DEFAULT_LOGGER, "{}", err);
             let payload = r#"{
                     "errcode":"M_UNKNOWN",
                     "error":"ERR_MSG"
@@ -1179,7 +1181,7 @@ fn user_id_from_request(request: &mut Request) -> UserId {
         Cow::from("user_id"),
         Cow::from("@rocketchat:localhost"),
     ));
-    UserId::try_from(user_id_param.borrow()).unwrap()
+    UserId::try_from(user_id_param.as_ref()).unwrap()
 }
 
 fn add_pending_invite(

@@ -102,18 +102,12 @@ impl<'a> CommandHandler<'a> {
                 let rocketchat_server = match command.by_ref().next() {
                     Some(token) => {
                         let rocketchat_id = command.by_ref().next().unwrap_or_default();
-                        self.connect_new_rocketchat_server(
-                            rocketchat_id,
-                            rocketchat_url,
-                            token,
-                            &event.user_id,
-                        )?
+                        self.connect_new_rocketchat_server(rocketchat_id, rocketchat_url, token, &event.user_id)?
                     }
                     None => self.get_existing_rocketchat_server(rocketchat_url.to_string())?,
                 };
 
                 let new_user_on_rocketchat_server = NewUserOnRocketchatServer {
-                    is_virtual_user: false,
                     matrix_user_id: event.user_id.clone(),
                     rocketchat_server_id: rocketchat_server.id,
                     rocketchat_user_id: None,
@@ -158,7 +152,10 @@ impl<'a> CommandHandler<'a> {
             bail_error!(
                 ErrorKind::ConnectWithInvalidRocketchatServerId(rocketchat_server_id.to_owned()),
                 t!(["errors", "connect_with_invalid_rocketchat_server_id"]).with_vars(vec![
-                    ("rocketchat_server_id", rocketchat_server_id.to_owned()),
+                    (
+                        "rocketchat_server_id",
+                        rocketchat_server_id.to_owned()
+                    ),
                     (
                         "max_rocketchat_server_id_length",
                         MAX_ROCKETCHAT_SERVER_ID_LENGTH.to_string()
@@ -168,9 +165,9 @@ impl<'a> CommandHandler<'a> {
         } else if RocketchatServer::find_by_id(self.connection, rocketchat_server_id)?.is_some() {
             bail_error!(
                 ErrorKind::RocketchatServerIdAlreadyInUse(rocketchat_server_id.to_owned()),
-                t!(["errors", "rocketchat_server_id_already_in_use"]).with_vars(
-                    vec![("rocketchat_server_id", rocketchat_server_id.to_owned())],
-                )
+                t!(["errors", "rocketchat_server_id_already_in_use"]).with_vars(vec![
+                    ("rocketchat_server_id", rocketchat_server_id.to_owned()),
+                ])
             );
         }
 

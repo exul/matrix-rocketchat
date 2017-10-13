@@ -13,8 +13,6 @@ use db::schema::users_on_rocketchat_servers;
 #[primary_key(matrix_user_id, rocketchat_server_id)]
 #[table_name = "users_on_rocketchat_servers"]
 pub struct UserOnRocketchatServer {
-    /// Flag to indicate if the user is only used to send messages from Rocket.Chat
-    pub is_virtual_user: bool,
     /// Time when the user sent the last message in seconds since UNIX_EPOCH
     pub last_message_sent: i64,
     /// The users unique id on the Rocket.Chat server.
@@ -37,8 +35,6 @@ pub struct UserOnRocketchatServer {
 #[derive(Insertable)]
 #[table_name = "users_on_rocketchat_servers"]
 pub struct NewUserOnRocketchatServer {
-    /// Flag to indicate if the user is only used to send messages from Rocket.Chat
-    pub is_virtual_user: bool,
     /// The users unique id on the Rocket.Chat server.
     pub matrix_user_id: UserId,
     /// The unique id for the Rocket.Chat server
@@ -100,21 +96,34 @@ impl UserOnRocketchatServer {
         Ok(user_on_rocketchat_server)
     }
 
+    /// Find a `UserOnRocketchatServer` by his matrix user ID and the Rocket.Chat server ID, return
+    /// `None` if the `UserOnRocketchatServer` is not found
+    pub fn find_by_matrix_user_id(
+        connection: &SqliteConnection,
+        matrix_user_id: &UserId,
+        rocketchat_server_id: String,
+    ) -> Result<Option<UserOnRocketchatServer>> {
+        let user_on_rocketchat_server =
+            users_on_rocketchat_servers::table
+                .filter(users_on_rocketchat_servers::matrix_user_id.eq(matrix_user_id).and(
+                    users_on_rocketchat_servers::rocketchat_server_id.eq(rocketchat_server_id),
+                ))
+                .load(connection)
+                .chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(user_on_rocketchat_server.into_iter().next())
+    }
+
     /// Find a `UserOnRocketchatServer` by his Rocket.Chat user ID. Returns `None`,
     /// if the `UserOnRocketchatServer` is not found.
     pub fn find_by_rocketchat_user_id(
         connection: &SqliteConnection,
         rocketchat_server_id: String,
         rocketchat_user_id: String,
-        is_virtual_user: bool,
     ) -> Result<Option<UserOnRocketchatServer>> {
         let users_on_rocketchat_servers = users_on_rocketchat_servers::table
-            .filter(
-                users_on_rocketchat_servers::rocketchat_server_id
-                    .eq(rocketchat_server_id)
-                    .and(users_on_rocketchat_servers::rocketchat_user_id.eq(rocketchat_user_id))
-                    .and(users_on_rocketchat_servers::is_virtual_user.eq(is_virtual_user)),
-            )
+            .filter(users_on_rocketchat_servers::rocketchat_server_id.eq(rocketchat_server_id).and(
+                users_on_rocketchat_servers::rocketchat_user_id.eq(rocketchat_user_id),
+            ))
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(users_on_rocketchat_servers.into_iter().next())

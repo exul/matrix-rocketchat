@@ -28,13 +28,17 @@ impl<'a> Forwarder<'a> {
     pub fn process(&self, event: &MessageEvent, matrix_room_id: RoomId, rocketchat_channel_id: String) -> Result<()> {
         match Room::rocketchat_server(self.connection, self.matrix_api, matrix_room_id.clone())? {
             Some(rocketchat_server) => {
-                let mut user_on_rocketchat_server =
-                    UserOnRocketchatServer::find(self.connection, &event.user_id, rocketchat_server.id)?;
-
-                if user_on_rocketchat_server.is_virtual_user {
-                    debug!(self.logger, "Skipping event, because it was sent by a virtual user");
-                    return Ok(());
-                }
+                let mut user_on_rocketchat_server = match UserOnRocketchatServer::find_by_matrix_user_id(
+                    self.connection,
+                    &event.user_id,
+                    rocketchat_server.id,
+                )? {
+                    Some(user_on_rocketchat_server) => user_on_rocketchat_server,
+                    None => {
+                        debug!(self.logger, "Skipping event, because it was sent by a virtual user");
+                        return Ok(());
+                    }
+                };
 
                 match event.content {
                     MessageEventContent::Text(ref text_content) => {

@@ -61,6 +61,8 @@ use ruma_client_api::r0::membership::invite_user::Endpoint as InviteUserEndpoint
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
 use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinRoomByIdEndpoint;
 use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
+use ruma_client_api::r0::profile::get_display_name::Endpoint as GetDisplaynameEndpoint;
+use ruma_client_api::r0::profile::set_display_name::Endpoint as SetDisplaynameEndpoint;
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_state_event_for_empty_key::Endpoint as SendStateEventForEmptyKeyEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
@@ -118,7 +120,7 @@ pub use message_forwarder::{Message, MessageForwarder};
 
 /// Keep track of users that are registered on the Matrix server mock
 #[derive(Copy, Clone)]
-pub struct UsernameList;
+pub struct UserList;
 
 #[derive(Copy, Clone)]
 pub struct UsersInRooms;
@@ -132,8 +134,8 @@ pub struct RoomAliasMap;
 #[derive(Copy, Clone)]
 pub struct PendingInvites;
 
-impl Key for UsernameList {
-    type Value = Vec<String>;
+impl Key for UserList {
+    type Value = HashMap<UserId, Option<String>>;
 }
 
 impl Key for UsersInRooms {
@@ -331,7 +333,7 @@ impl Test {
 
         thread::spawn(move || {
             let mut chain = Chain::new(router);
-            chain.link_before(Write::<UsernameList>::one(Vec::new()));
+            chain.link_before(Write::<UserList>::one(HashMap::new()));
             chain.link_before(Write::<UsersInRooms>::one(HashMap::new()));
             chain.link_before(Write::<RoomsStatesMap>::one(HashMap::new()));
             chain.link_before(Write::<RoomAliasMap>::one(HashMap::new()));
@@ -488,6 +490,10 @@ impl Test {
         router.get(GetMemberEventsEndpoint::router_path(), get_members, "room_members");
 
         router.post(RegisterEndpoint::router_path(), handlers::MatrixRegister {}, "register");
+
+        router.get(GetDisplaynameEndpoint::router_path(), handlers::MatrixGetDisplayName {}, "get_displayname");
+
+        router.put(SetDisplaynameEndpoint::router_path(), handlers::MatrixSetDisplayName {}, "set_displayname");
 
         router.post(
             CreateRoomEndpoint::router_path(),

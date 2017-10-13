@@ -108,15 +108,6 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn does_user_exist(&self, matrix_user_id: UserId) -> Result<bool> {
-        let path_params = get_display_name::PathParams { user_id: matrix_user_id };
-        let endpoint = self.base_url.clone() + &GetDisplayNameEndpoint::request_path(path_params);
-        let params = self.params_hash();
-
-        let (_, status_code) = RestApi::call_matrix(GetDisplayNameEndpoint::method(), &endpoint, "", &params)?;
-        Ok(status_code != StatusCode::NotFound)
-    }
-
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()> {
         let path_params = forget_room::PathParams { room_id: matrix_room_id };
         let endpoint = self.base_url.clone() + &ForgetRoomEndpoint::request_path(path_params);
@@ -127,6 +118,29 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
         Ok(())
+    }
+
+    fn get_display_name(&self, matrix_user_id: UserId) -> Result<Option<String>> {
+        let path_params = get_display_name::PathParams { user_id: matrix_user_id };
+        let endpoint = self.base_url.clone() + &GetDisplayNameEndpoint::request_path(path_params);
+        let params = self.params_hash();
+
+        let (body, status_code) = RestApi::call_matrix(GetDisplayNameEndpoint::method(), &endpoint, "", &params)?;
+        if status_code == StatusCode::NotFound {
+            return Ok(None);
+        }
+
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        let get_display_name_response: get_display_name::Response = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(
+                format!("Could not deserialize response from Matrix get_display_name API endpoint: `{}`", body),
+            )
+        })?;
+
+        Ok(get_display_name_response.displayname.clone())
     }
 
     fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<Option<RoomId>> {

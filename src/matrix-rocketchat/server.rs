@@ -77,7 +77,7 @@ impl<'a> Server<'a> {
     fn setup_bot_user(&self, matrix_api: &MatrixApi) -> Result<()> {
         let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
         debug!(self.logger, "Setting up bot user {}", matrix_bot_user_id);
-        if matrix_api.does_user_exist(matrix_bot_user_id.clone())? {
+        if matrix_api.get_display_name(matrix_bot_user_id.clone())?.is_some() {
             debug!(self.logger, "Bot user {} exists, skipping", matrix_bot_user_id);
             return Ok(());
         }

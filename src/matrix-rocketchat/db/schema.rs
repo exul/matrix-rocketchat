@@ -12,7 +12,6 @@ table! {
 
 table! {
     users_on_rocketchat_servers (matrix_user_id, rocketchat_server_id) {
-        is_virtual_user -> Bool,
         last_message_sent -> BigInt,
         matrix_user_id -> Text,
         rocketchat_server_id -> Text,

@@ -317,13 +317,9 @@ impl<'a> RoomHandler<'a> {
         let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
         for username in &channel.usernames {
             let rocketchat_user = rocketchat_api.users_info(username)?;
-            let user_on_rocketchat_server =
+            let matrix_user_id =
                 virtual_user_handler.find_or_register(rocketchat_server_id.clone(), rocketchat_user.id, username.to_string())?;
-            virtual_user_handler.add_to_room(
-                user_on_rocketchat_server.matrix_user_id,
-                bot_matrix_user_id.clone(),
-                matrix_room_id.clone(),
-            )?;
+            virtual_user_handler.add_to_room(matrix_user_id, bot_matrix_user_id.clone(), matrix_room_id.clone())?;
         }
 
         debug!(self.logger, "Successfully added {} virtual users to room {}", channel.usernames.len(), matrix_room_id);

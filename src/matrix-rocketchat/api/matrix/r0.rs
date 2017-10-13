@@ -11,6 +11,7 @@ use ruma_client_api::r0::membership::forget_room::{self, Endpoint as ForgetRoomE
 use ruma_client_api::r0::membership::invite_user::{self, Endpoint as InviteUserEndpoint};
 use ruma_client_api::r0::membership::join_room_by_id::{self, Endpoint as JoinRoomByIdEndpoint};
 use ruma_client_api::r0::membership::leave_room::{self, Endpoint as LeaveRoomEndpoint};
+use ruma_client_api::r0::profile::get_display_name::{self, Endpoint as GetDisplayNameEndpoint};
 use ruma_client_api::r0::profile::set_display_name::{self, Endpoint as SetDisplayNameEndpoint};
 use ruma_client_api::r0::room::create_room::{self, Endpoint as CreateRoomEndpoint, RoomPreset};
 use ruma_client_api::r0::send::send_message_event::{self, Endpoint as SendMessageEventEndpoint};
@@ -105,6 +106,15 @@ impl super::MatrixApi for MatrixApi {
         }
 
         Ok(())
+    }
+
+    fn does_user_exist(&self, matrix_user_id: UserId) -> Result<bool> {
+        let path_params = get_display_name::PathParams { user_id: matrix_user_id };
+        let endpoint = self.base_url.clone() + &GetDisplayNameEndpoint::request_path(path_params);
+        let params = self.params_hash();
+
+        let (_, status_code) = RestApi::call_matrix(GetDisplayNameEndpoint::method(), &endpoint, "", &params)?;
+        Ok(status_code != StatusCode::NotFound)
     }
 
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()> {

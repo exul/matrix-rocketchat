@@ -123,18 +123,17 @@ impl<'a> Forwarder<'a> {
         self.matrix_api.send_text_message_event(matrix_room_id, user_on_rocketchat_server.matrix_user_id, message.text.clone())
     }
 
-    fn is_sendable_message(&self, virtual_user_on_rocketchat_server: &UserOnRocketchatServer) -> Result<bool> {
+    fn is_sendable_message(&self, user_on_rocketchat_server: &UserOnRocketchatServer) -> Result<bool> {
         match UserOnRocketchatServer::find_by_rocketchat_user_id(
             self.connection,
-            virtual_user_on_rocketchat_server.rocketchat_server_id.clone(),
-            virtual_user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
+            user_on_rocketchat_server.rocketchat_server_id.clone(),
+            user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
             false,
         )? {
             Some(user_on_rocketchat_server) => {
-                let user = user_on_rocketchat_server.user(self.connection)?;
                 let now =
                     SystemTime::now().duration_since(UNIX_EPOCH).chain_err(|| ErrorKind::InternalServerError)?.as_secs() as i64;
-                let last_sent = now - user.last_message_sent;
+                let last_sent = now - user_on_rocketchat_server.last_message_sent;
                 Ok(last_sent > RESEND_THRESHOLD_IN_SECONDS)
             }
             None => Ok(true),
@@ -177,9 +176,7 @@ impl<'a> Forwarder<'a> {
             )?;
             let room_handler = RoomHandler::new(self.config, self.connection, self.logger, self.matrix_api);
 
-            let direct_message_receiver = user_on_rocketchat_server.user(self.connection)?;
-            let room_display_name_suffix =
-                t!(["defaults", "direct_message_room_display_name_suffix"]).l(&direct_message_receiver.language);
+            let room_display_name_suffix = t!(["defaults", "direct_message_room_display_name_suffix"]).l(DEFAULT_LANGUAGE);
             let room_display_name = format!("{} {}", message.user_name, room_display_name_suffix);
             let dm_channel_id = format!("{}#dm", direct_message_channel.id.clone());
             let matrix_room_id = room_handler.create_room(

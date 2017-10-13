@@ -21,6 +21,8 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn create_room(&self, room_name: Option<String>, room_alias_name: Option<String>, creator_id: &UserId) -> Result<RoomId>;
     /// Delete a room alias.
     fn delete_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<()>;
+    /// Check if a user with the given ID already exists on the homeserver
+    fn does_user_exist(&self, matrix_user_id: UserId) -> Result<bool>;
     /// Forget a room.
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()>;
     /// Get the room id based on the room alias.

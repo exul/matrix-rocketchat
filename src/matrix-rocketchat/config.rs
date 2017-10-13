@@ -55,4 +55,10 @@ impl Config {
         let user_id = format!("@{}:{}", &self.sender_localpart, &self.hs_domain);
         UserId::try_from(&user_id).chain_err(|| ErrorKind::InvalidUserId(user_id)).map_err(Error::from)
     }
+
+    /// Check if the user ID is part of the application service namespace
+    pub fn is_application_service_user(&self, matrix_user_id: &UserId) -> bool {
+        let id_prefix = format!("@{}", self.sender_localpart);
+        matrix_user_id.to_string().starts_with(&id_prefix)
+    }
 }

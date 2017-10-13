@@ -15,7 +15,7 @@ use std::convert::TryFrom;
 use iron::{Chain, status};
 use matrix_rocketchat::api::{MatrixApi, RestApi};
 use matrix_rocketchat::api::rocketchat::Message;
-use matrix_rocketchat::db::{Room, User, UserOnRocketchatServer};
+use matrix_rocketchat::db::{Room, UserOnRocketchatServer};
 use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
 use reqwest::{Method, StatusCode};
 use ruma_client_api::Endpoint;
@@ -465,6 +465,13 @@ fn ignore_messages_forwarded_from_rocketchat_if_the_non_virtual_user_just_sent_a
         .with_bridged_room(("spec_channel", "spec_user"))
         .run();
 
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "message from Matrix".to_string(),
+    );
+
     let message = Message {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
@@ -476,6 +483,8 @@ fn ignore_messages_forwarded_from_rocketchat_if_the_non_virtual_user_just_sent_a
     };
     let payload = to_string(&message).unwrap();
 
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard connect message
@@ -484,14 +493,6 @@ fn ignore_messages_forwarded_from_rocketchat_if_the_non_virtual_user_just_sent_a
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard room bridged message
     receiver.recv_timeout(default_timeout()).unwrap();
-
-    // simulate that the user just sent a message
-    let connection = test.connection_pool.get().unwrap();
-    let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
-    let mut user = User::find(&connection, &spec_user_id).unwrap();
-    user.set_last_message_sent(&connection).unwrap();
-
-    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }

@@ -28,7 +28,7 @@ impl<'a> Forwarder<'a> {
     pub fn process(&self, event: &MessageEvent, matrix_room_id: RoomId, rocketchat_channel_id: String) -> Result<()> {
         match Room::rocketchat_server(self.connection, self.matrix_api, matrix_room_id.clone())? {
             Some(rocketchat_server) => {
-                let user_on_rocketchat_server =
+                let mut user_on_rocketchat_server =
                     UserOnRocketchatServer::find(self.connection, &event.user_id, rocketchat_server.id)?;
 
                 if user_on_rocketchat_server.is_virtual_user {
@@ -48,8 +48,9 @@ impl<'a> Forwarder<'a> {
                     _ => info!(self.logger, "Forwarding the type {} is not implemented.", event.event_type),
                 }
 
-                user_on_rocketchat_server.user(self.connection)?.set_last_message_sent(self.connection)?;
+                user_on_rocketchat_server.set_last_message_sent(self.connection)?;
             }
+
             None => debug!(self.logger, "Skipping event, because the room is not bridged"),
         }
 

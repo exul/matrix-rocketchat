@@ -6,9 +6,8 @@ use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
-use db::{NewUser, NewUserOnRocketchatServer, Room, User, UserOnRocketchatServer};
+use db::{NewUserOnRocketchatServer, Room, UserOnRocketchatServer};
 use errors::*;
-use i18n::*;
 
 /// Provides helper methods to manage virtual users.
 pub struct VirtualUserHandler<'a> {
@@ -77,12 +76,6 @@ impl<'a> VirtualUserHandler<'a> {
         }
 
         debug!(self.logger, "No user found, registring a new user with the matrix ID {}", &matrix_user_id);
-        let new_user = NewUser {
-            language: DEFAULT_LANGUAGE,
-            matrix_user_id: matrix_user_id.clone(),
-        };
-        User::insert(self.connection, &new_user)?;
-
         let new_user_on_rocketchat_server = NewUserOnRocketchatServer {
             is_virtual_user: true,
             matrix_user_id: matrix_user_id,

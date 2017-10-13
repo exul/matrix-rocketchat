@@ -356,6 +356,8 @@ impl Test {
         };
 
         router.get("/api/info", handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION }, "info");
+        router.post("*", handlers::EmptyJson {}, "default_post");
+        router.put("*", handlers::EmptyJson {}, "default_put");
 
         if self.with_logged_in_user {
             router.post(

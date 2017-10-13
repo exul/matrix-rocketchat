@@ -1,11 +1,12 @@
+use std::time::{SystemTime, UNIX_EPOCH};
+
 use diesel;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use ruma_identifiers::UserId;
 
 use errors::*;
-use super::schema::users_on_rocketchat_servers;
-use super::User;
+use db::schema::users_on_rocketchat_servers;
 
 /// A user on a Rocket.Chat server.
 #[derive(Associations, Debug, Identifiable, Queryable)]
@@ -14,6 +15,8 @@ use super::User;
 pub struct UserOnRocketchatServer {
     /// Flag to indicate if the user is only used to send messages from Rocket.Chat
     pub is_virtual_user: bool,
+    /// Time when the user sent the last message in seconds since UNIX_EPOCH
+    pub last_message_sent: i64,
     /// The users unique id on the Rocket.Chat server.
     pub matrix_user_id: UserId,
     /// The unique id for the Rocket.Chat server
@@ -150,9 +153,16 @@ impl UserOnRocketchatServer {
         Ok(())
     }
 
-    /// Get the `User` for a `UserOnRocketchatServer` record.
-    pub fn user(&self, connection: &SqliteConnection) -> Result<User> {
-        User::find(connection, &self.matrix_user_id)
+    /// Update last message sent.
+    pub fn set_last_message_sent(&mut self, connection: &SqliteConnection) -> Result<()> {
+        let last_message_sent =
+            SystemTime::now().duration_since(UNIX_EPOCH).chain_err(|| ErrorKind::InternalServerError)?.as_secs() as i64;
+        self.last_message_sent = last_message_sent;
+        diesel::update(users_on_rocketchat_servers::table.find((&self.matrix_user_id, self.rocketchat_server_id.clone())))
+            .set(users_on_rocketchat_servers::last_message_sent.eq(last_message_sent))
+            .execute(connection)
+            .chain_err(|| ErrorKind::DBUpdateError)?;
+        Ok(())
     }
 
     /// Returns true if the user is logged in on the Rocket.Chat server via the application

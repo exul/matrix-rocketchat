@@ -9,10 +9,9 @@ use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
-use db::{ConnectionPool, NewUser, User};
+use db::ConnectionPool;
 use errors::*;
 use handlers::iron::{Rocketchat, RocketchatLogin, Transactions, Welcome};
-use i18n::*;
 use log::IronLogger;
 
 /// The application service server
@@ -36,10 +35,9 @@ impl<'a> Server<'a> {
     pub fn run(&self, threads: usize) -> Result<Listening> {
         self.prepare_database()?;
         let connection_pool = ConnectionPool::create(&self.config.database_url)?;
-        let connection = connection_pool.get().chain_err(|| ErrorKind::ConnectionPoolExtractionError)?;
 
         let matrix_api = MatrixApi::new(self.config, self.logger.clone())?;
-        self.setup_bot_user(&connection, matrix_api.as_ref())?;
+        self.setup_bot_user(matrix_api.as_ref())?;
 
         let router = self.setup_routes(matrix_api);
         let mut chain = Chain::new(router);
@@ -76,27 +74,17 @@ impl<'a> Server<'a> {
         run_embedded_migrations(&connection).chain_err(|| ErrorKind::MigrationError).map_err(Error::from)
     }
 
-    fn setup_bot_user(&self, connection: &SqliteConnection, matrix_api: &MatrixApi) -> Result<()> {
+    fn setup_bot_user(&self, matrix_api: &MatrixApi) -> Result<()> {
         let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
         debug!(self.logger, "Setting up bot user {}", matrix_bot_user_id);
-        match User::find_by_matrix_user_id(connection, &matrix_bot_user_id)? {
-            Some(user) => {
-                debug!(self.logger, "Bot user {} exists, skipping", user.matrix_user_id);
-            }
-            None => {
-                debug!(self.logger, "Bot user {} doesn't exists, starting registration", matrix_bot_user_id);
-
-                connection.transaction(|| {
-                    let new_user = NewUser {
-                        matrix_user_id: matrix_bot_user_id.clone(),
-                        language: DEFAULT_LANGUAGE,
-                    };
-                    User::insert(connection, &new_user)?;
-                    matrix_api.register(self.config.sender_localpart.clone())
-                })?;
-                info!(self.logger, "Bot user {} successfully registered", matrix_bot_user_id);
-            }
+        if matrix_api.does_user_exist(matrix_bot_user_id.clone())? {
+            debug!(self.logger, "Bot user {} exists, skipping", matrix_bot_user_id);
+            return Ok(());
         }
+
+        debug!(self.logger, "Bot user {} doesn't exists, starting registration", matrix_bot_user_id);
+        matrix_api.register(self.config.sender_localpart.clone())?;
+        info!(self.logger, "Bot user {} successfully registered", matrix_bot_user_id);
         Ok(())
     }
 }

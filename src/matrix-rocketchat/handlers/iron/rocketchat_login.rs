@@ -34,7 +34,7 @@ impl Handler for RocketchatLogin {
             logger: &logger,
             matrix_api: self.matrix_api.as_ref(),
         };
-        let rocketchat_server = match RocketchatServer::find_by_url(&connection, credentials.rocketchat_url.clone())? {
+        let rocketchat_server = match RocketchatServer::find_by_url(&connection, &credentials.rocketchat_url)? {
             Some(rocketchat_server) => rocketchat_server,
             None => {
                 return Err(user_error!(

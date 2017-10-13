@@ -26,13 +26,13 @@ pub struct RocketchatServer {
 /// A new `Room`, not yet saved.
 #[derive(Insertable)]
 #[table_name = "rocketchat_servers"]
-pub struct NewRocketchatServer {
+pub struct NewRocketchatServer<'a> {
     /// The unique identifier for the Rocket.Chat server
-    pub id: String,
+    pub id: &'a str,
     /// The URL to connect to the Rocket.Chat server
-    pub rocketchat_url: String,
+    pub rocketchat_url: &'a str,
     /// The token to identify reuqests from the Rocket.Chat server
-    pub rocketchat_token: Option<String>,
+    pub rocketchat_token: Option<&'a str>,
 }
 
 impl RocketchatServer {
@@ -42,13 +42,13 @@ impl RocketchatServer {
             || ErrorKind::DBInsertError,
         )?;
 
-        let rocketchat_server = RocketchatServer::find(connection, new_rocketchat_server.rocketchat_url.clone())?;
+        let rocketchat_server = RocketchatServer::find(connection, new_rocketchat_server.rocketchat_url)?;
         Ok(rocketchat_server)
     }
 
     /// Find a `RocketchatServer` by its URL, return an error if the `RocketchatServer` is not
     /// found.
-    pub fn find(connection: &SqliteConnection, url: String) -> Result<RocketchatServer> {
+    pub fn find(connection: &SqliteConnection, url: &str) -> Result<RocketchatServer> {
         let rocketchat_server = rocketchat_servers::table
             .filter(rocketchat_servers::rocketchat_url.eq(url))
             .first(connection)
@@ -66,7 +66,7 @@ impl RocketchatServer {
     }
 
     /// Find a `RocketchatServer` by its URL.
-    pub fn find_by_url(connection: &SqliteConnection, url: String) -> Result<Option<RocketchatServer>> {
+    pub fn find_by_url(connection: &SqliteConnection, url: &str) -> Result<Option<RocketchatServer>> {
         let rocketchat_servers = rocketchat_servers::table
             .filter(rocketchat_servers::rocketchat_url.eq(url))
             .load(connection)
@@ -75,7 +75,7 @@ impl RocketchatServer {
     }
 
     /// Find a `RocketchatServer` bit its token.
-    pub fn find_by_token(connection: &SqliteConnection, token: String) -> Result<Option<RocketchatServer>> {
+    pub fn find_by_token(connection: &SqliteConnection, token: &str) -> Result<Option<RocketchatServer>> {
         let rocketchat_servers = rocketchat_servers::table
             .filter(rocketchat_servers::rocketchat_token.eq(Some(token)))
             .load(connection)
@@ -95,7 +95,7 @@ impl RocketchatServer {
     /// Get all users that are connected to this Rocket.Chat server.
     pub fn logged_in_users_on_rocketchat_server(&self, connection: &SqliteConnection) -> Result<Vec<UserOnRocketchatServer>> {
         let users_on_rocketchat_server: Vec<UserOnRocketchatServer> = users_on_rocketchat_servers::table
-            .filter(users_on_rocketchat_servers::rocketchat_server_id.eq(self.id.clone()))
+            .filter(users_on_rocketchat_servers::rocketchat_server_id.eq(&self.id))
             .filter(users_on_rocketchat_servers::rocketchat_auth_token.is_not_null())
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;

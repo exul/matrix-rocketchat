@@ -101,11 +101,11 @@ impl<'a> CommandHandler<'a> {
 
                 let rocketchat_server = match command.by_ref().next() {
                     Some(token) => {
-                        let rocketchat_id = command.by_ref().next().unwrap_or_default().to_string();
-                        self.connect_new_rocktechat_server(
+                        let rocketchat_id = command.by_ref().next().unwrap_or_default();
+                        self.connect_new_rocketchat_server(
                             rocketchat_id,
-                            rocketchat_url.to_string(),
-                            token.to_string(),
+                            rocketchat_url,
+                            token,
                             &event.user_id,
                         )?
                     }
@@ -144,11 +144,11 @@ impl<'a> CommandHandler<'a> {
             .map_err(Error::from)
     }
 
-    fn connect_new_rocktechat_server(
+    fn connect_new_rocketchat_server(
         &self,
-        rocketchat_server_id: String,
-        rocketchat_url: String,
-        token: String,
+        rocketchat_server_id: &str,
+        rocketchat_url: &str,
+        token: &str,
         matrix_user_id: &UserId,
     ) -> Result<RocketchatServer> {
         if rocketchat_server_id.is_empty() {
@@ -157,45 +157,45 @@ impl<'a> CommandHandler<'a> {
                    rocketchat_server_id.chars().any(|c| c.is_uppercase() || (!c.is_digit(36) && c != '_'))
         {
             bail_error!(
-                ErrorKind::ConnectWithInvalidRocketchatServerId(rocketchat_server_id.clone()),
+                ErrorKind::ConnectWithInvalidRocketchatServerId(rocketchat_server_id.to_owned()),
                 t!(["errors", "connect_with_invalid_rocketchat_server_id"]).with_vars(vec![
-                    ("rocketchat_server_id", rocketchat_server_id),
+                    ("rocketchat_server_id", rocketchat_server_id.to_owned()),
                     (
                         "max_rocketchat_server_id_length",
-                        format!("{}", MAX_ROCKETCHAT_SERVER_ID_LENGTH)
+                        MAX_ROCKETCHAT_SERVER_ID_LENGTH.to_string()
                     ),
                 ])
             );
-        } else if RocketchatServer::find_by_id(self.connection, &rocketchat_server_id)?.is_some() {
+        } else if RocketchatServer::find_by_id(self.connection, rocketchat_server_id)?.is_some() {
             bail_error!(
-                ErrorKind::RocketchatServerIdAlreadyInUse(rocketchat_server_id.clone()),
+                ErrorKind::RocketchatServerIdAlreadyInUse(rocketchat_server_id.to_owned()),
                 t!(["errors", "rocketchat_server_id_already_in_use"]).with_vars(
-                    vec![("rocketchat_server_id", rocketchat_server_id)],
+                    vec![("rocketchat_server_id", rocketchat_server_id.to_owned())],
                 )
             );
         }
 
-        if let Some(rocketchat_server) = RocketchatServer::find_by_url(self.connection, rocketchat_url.clone())? {
+        if let Some(rocketchat_server) = RocketchatServer::find_by_url(self.connection, rocketchat_url)? {
             if rocketchat_server.rocketchat_token.is_some() {
                 bail_error!(
-                    ErrorKind::RocketchatServerAlreadyConnected(rocketchat_url.clone()),
+                    ErrorKind::RocketchatServerAlreadyConnected(rocketchat_url.to_owned()),
                     t!(["errors", "rocketchat_server_already_connected"]).with_vars(vec![
-                        ("rocketchat_url", rocketchat_url),
+                        ("rocketchat_url", rocketchat_url.to_owned()),
                         ("matrix_user_id", matrix_user_id.to_string()),
                     ])
                 );
             }
         }
 
-        if RocketchatServer::find_by_token(self.connection, token.clone())?.is_some() {
+        if RocketchatServer::find_by_token(self.connection, token)?.is_some() {
             bail_error!(
-                ErrorKind::RocketchatTokenAlreadyInUse(token.clone()),
-                t!(["errors", "token_already_in_use"]).with_vars(vec![("token", token)])
+                ErrorKind::RocketchatTokenAlreadyInUse(token.to_owned()),
+                t!(["errors", "token_already_in_use"]).with_vars(vec![("token", token.to_owned())])
             );
         }
 
         // see if we can reach the server and if the server has a supported API version
-        RocketchatApi::new(rocketchat_url.clone(), self.logger.clone())?;
+        RocketchatApi::new(rocketchat_url.to_owned(), self.logger.clone())?;
 
         let new_rocketchat_server = NewRocketchatServer {
             id: rocketchat_server_id,
@@ -388,7 +388,7 @@ impl<'a> CommandHandler<'a> {
     }
 
     fn get_existing_rocketchat_server(&self, rocketchat_url: String) -> Result<RocketchatServer> {
-        let rocketchat_server: RocketchatServer = match RocketchatServer::find_by_url(self.connection, rocketchat_url)? {
+        let rocketchat_server: RocketchatServer = match RocketchatServer::find_by_url(self.connection, &rocketchat_url)? {
             Some(rocketchat_server) => rocketchat_server,
             None => {
                 bail_error!(ErrorKind::RocketchatTokenMissing, t!(["errors", "rocketchat_token_missing"]));

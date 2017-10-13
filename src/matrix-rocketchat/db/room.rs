@@ -52,7 +52,7 @@ impl Room {
     ) -> Result<Option<RocketchatServer>> {
         let rocketchat_server_url = matrix_api.get_room_topic(matrix_room_id)?;
         match rocketchat_server_url {
-            Some(rocketchat_server_url) => RocketchatServer::find_by_url(connection, rocketchat_server_url),
+            Some(rocketchat_server_url) => RocketchatServer::find_by_url(connection, &rocketchat_server_url),
             None => Ok(None),
         }
     }
@@ -151,7 +151,7 @@ impl Room {
     pub fn is_connected(connection: &SqliteConnection, matrix_api: &MatrixApi, matrix_room_id: RoomId) -> Result<bool> {
         match matrix_api.get_room_topic(matrix_room_id)? {
             Some(rocketchat_server_url) => {
-                let rocketchat_server = RocketchatServer::find_by_url(connection, rocketchat_server_url)?;
+                let rocketchat_server = RocketchatServer::find_by_url(connection, &rocketchat_server_url)?;
                 Ok(rocketchat_server.is_some())
             }
             None => Ok(false),

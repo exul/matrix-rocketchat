@@ -41,7 +41,7 @@ fn successfully_connect_rocketchat_server() {
 
     let connection = test.connection_pool.get().unwrap();
     let rocketchat_server =
-        RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap().unwrap();
+        RocketchatServer::find_by_url(&connection, &test.rocketchat_mock_url.clone().unwrap()).unwrap().unwrap();
     assert_eq!(rocketchat_server.rocketchat_token.unwrap(), RS_TOKEN.to_string());
 
     let users_on_rocketchat_server =
@@ -91,7 +91,7 @@ fn attempt_to_connect_to_an_incompatible_rocketchat_server_version() {
     ));
 
     let connection = test.connection_pool.get().unwrap();
-    let rocketchat_server = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    let rocketchat_server = RocketchatServer::find_by_url(&connection, &test.rocketchat_mock_url.clone().unwrap()).unwrap();
     assert!(rocketchat_server.is_none());
 }
 
@@ -134,7 +134,7 @@ fn attempt_to_connect_to_a_non_rocketchat_server() {
     assert!(message_received_by_matrix.contains(&expected_message));
 
     let connection = test.connection_pool.get().unwrap();
-    let rocketchat_server = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    let rocketchat_server = RocketchatServer::find_by_url(&connection, &test.rocketchat_mock_url.clone().unwrap()).unwrap();
     assert!(rocketchat_server.is_none());
 }
 
@@ -182,7 +182,7 @@ fn attempt_to_connect_to_a_server_with_the_correct_endpoint_but_an_incompatible_
     assert!(message_received_by_matrix.contains(&expected_message));
 
     let connection = test.connection_pool.get().unwrap();
-    let rocketchat_server = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    let rocketchat_server = RocketchatServer::find_by_url(&connection, &test.rocketchat_mock_url.clone().unwrap()).unwrap();
     assert!(rocketchat_server.is_none());
 }
 
@@ -213,7 +213,7 @@ fn attempt_to_connect_to_non_existing_server() {
     assert!(message_received_by_matrix.contains(&expected_message));
 
     let connection = test.connection_pool.get().unwrap();
-    let rocketchat_server = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    let rocketchat_server = RocketchatServer::find_by_url(&connection, &test.rocketchat_mock_url.clone().unwrap()).unwrap();
     assert!(rocketchat_server.is_none());
 }
 
@@ -244,7 +244,7 @@ fn attempt_to_connect_without_a_rocketchat_server_id() {
     ));
 
     let connection = test.connection_pool.get().unwrap();
-    let rocketchat_server = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    let rocketchat_server = RocketchatServer::find_by_url(&connection, &test.rocketchat_mock_url.clone().unwrap()).unwrap();
     assert!(rocketchat_server.is_none());
 }
 
@@ -274,7 +274,7 @@ fn attempt_to_connect_with_an_incompatible_rocketchat_server_id() {
     ));
 
     let connection = test.connection_pool.get().unwrap();
-    let rocketchat_server = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    let rocketchat_server = RocketchatServer::find_by_url(&connection, &test.rocketchat_mock_url.clone().unwrap()).unwrap();
     assert!(rocketchat_server.is_none());
 }
 
@@ -342,7 +342,7 @@ fn attempt_to_connect_with_a_rocketchat_server_id_that_is_already_in_use() {
     assert!(message_received_by_matrix.contains("The provided ID `rc_id` is already in use, please choose another one."));
 
     let connection = test.connection_pool.get().unwrap();
-    let rocketchat_server = RocketchatServer::find(&connection, other_rocketchat_mock_url).unwrap();
+    let rocketchat_server = RocketchatServer::find(&connection, &other_rocketchat_mock_url).unwrap();
     assert_eq!(rocketchat_server.id, "rc_id".to_string());
 }
 
@@ -595,7 +595,7 @@ fn connecting_a_room_failes_when_the_room_topic_failes() {
     assert!(message_received_by_matrix.contains("An internal error occurred"));
 
     let connection = test.connection_pool.get().unwrap();
-    let rocketchat_server_option = RocketchatServer::find_by_url(&connection, test.rocketchat_mock_url.clone().unwrap())
+    let rocketchat_server_option = RocketchatServer::find_by_url(&connection, &test.rocketchat_mock_url.clone().unwrap())
         .unwrap();
     assert!(rocketchat_server_option.is_none());
 }

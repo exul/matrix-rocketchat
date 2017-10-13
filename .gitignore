@@ -3,3 +3,4 @@ database.sqlite3
 matrix-rocketchat.log
 target
 tests/matrix-rocketchat-test/Cargo.lock
+*.swp

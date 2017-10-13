@@ -60,7 +60,7 @@ fn sucessfully_login_via_chat_mesage() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let connection = test.connection_pool.get().unwrap();
-    let rocketchat_server = RocketchatServer::find(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    let rocketchat_server = RocketchatServer::find(&connection, &test.rocketchat_mock_url.clone().unwrap()).unwrap();
     let user_on_rocketchat_server =
         UserOnRocketchatServer::find(&connection, &UserId::try_from("@spec_user:localhost").unwrap(), rocketchat_server.id)
             .unwrap();
@@ -183,7 +183,7 @@ fn sucessfully_login_via_rest_api() {
     assert!(status_code.is_success());
 
     let connection = test.connection_pool.get().unwrap();
-    let rocketchat_server = RocketchatServer::find(&connection, test.rocketchat_mock_url.clone().unwrap()).unwrap();
+    let rocketchat_server = RocketchatServer::find(&connection, &test.rocketchat_mock_url.clone().unwrap()).unwrap();
     let user_on_rocketchat_server =
         UserOnRocketchatServer::find(&connection, &UserId::try_from("@spec_user:localhost").unwrap(), rocketchat_server.id)
             .unwrap();

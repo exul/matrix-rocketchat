@@ -4,7 +4,7 @@ use slog::Logger;
 
 use api::{MatrixApi, RocketchatApi};
 use config::Config;
-use db::{RocketchatServer, User, UserOnRocketchatServer};
+use db::{RocketchatServer, UserOnRocketchatServer};
 use errors::*;
 use handlers::events::CommandHandler;
 
@@ -46,8 +46,6 @@ impl<'a> Login<'a> {
     ) -> Result<()> {
         let mut user_on_rocketchat_server =
             UserOnRocketchatServer::find(self.connection, &credentials.matrix_user_id, rocketchat_server.id.clone())?;
-        let user = User::find(self.connection, &credentials.matrix_user_id)?;
-
         let mut rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())?;
 
         let (rocketchat_user_id, rocketchat_auth_token) =
@@ -69,7 +67,7 @@ impl<'a> Login<'a> {
                 self.matrix_api,
                 self.config.as_url.clone(),
                 matrix_room_id.clone(),
-                &user,
+                &credentials.matrix_user_id,
             )?;
             self.matrix_api.send_text_message_event(matrix_room_id, bot_matrix_user_id, message)?;
         }

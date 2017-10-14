@@ -11,7 +11,7 @@ use slog::Logger;
 use api::{MatrixApi, RocketchatApi};
 use api::rocketchat::Channel;
 use config::Config;
-use db::{RocketchatServer, Room, User};
+use db::{RocketchatServer, Room};
 use errors::*;
 use handlers::ErrorNotifier;
 use handlers::rocketchat::VirtualUserHandler;
@@ -128,7 +128,8 @@ impl<'a> RoomHandler<'a> {
         rocketchat_channel_name: String,
     ) -> Result<()> {
         debug!(self.logger, "Briding existing room, Rocket.Chat channel: {}", rocketchat_channel_name);
-        if User::is_in_room(self.matrix_api, &matrix_user_id, matrix_room_id.clone())? {
+
+        if Room::user_ids(self.matrix_api, matrix_room_id.clone(), None)?.iter().any(|id| id == &matrix_user_id) {
             bail_error!(
                 ErrorKind::RocketchatChannelAlreadyBridged(rocketchat_channel_name.clone()),
                 t!(["errors", "rocketchat_channel_already_bridged"]).with_vars(vec![("channel_name", rocketchat_channel_name)])
@@ -197,13 +198,12 @@ impl<'a> RoomHandler<'a> {
         }
 
         self.connection.transaction(|| {
-            let invitation_submitter = User::find_or_create_by_matrix_user_id(self.connection, inviter_id.clone())?;
             match CommandHandler::build_help_message(
                 self.connection,
                 self.matrix_api,
                 self.config.as_url.clone(),
                 matrix_room_id.clone(),
-                &invitation_submitter,
+                &inviter_id,
             ) {
                 Ok(body) => {
                     self.matrix_api.send_text_message_event(matrix_room_id.clone(), matrix_bot_user_id, body)?;
@@ -213,7 +213,7 @@ impl<'a> RoomHandler<'a> {
                 }
             }
 
-            let room_name = t!(["defaults", "admin_room_display_name"]).l(&invitation_submitter.language);
+            let room_name = t!(["defaults", "admin_room_display_name"]).l(DEFAULT_LANGUAGE);
             if let Err(err) = self.matrix_api.set_room_name(matrix_room_id, room_name) {
                 log::log_info(self.logger, &err);
             }
@@ -227,9 +227,8 @@ impl<'a> RoomHandler<'a> {
             !self.is_private_room(matrix_room_id.clone())?
         {
             info!(self.logger, "Another user join the admin room {}, bot user is leaving", matrix_room_id);
-            let admin_room_language = self.admin_room_language(matrix_room_id.clone())?;
-            let body = t!(["errors", "other_user_joined"]).l(&admin_room_language);
             let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
+            let body = t!(["errors", "other_user_joined"]).l(DEFAULT_LANGUAGE);
             self.matrix_api.send_text_message_event(matrix_room_id.clone(), bot_matrix_user_id.clone(), body)?;
             self.leave_and_forget_room(matrix_room_id, bot_matrix_user_id)?;
         }
@@ -248,12 +247,6 @@ impl<'a> RoomHandler<'a> {
     fn leave_and_forget_room(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {
         self.matrix_api.leave_room(matrix_room_id.clone(), matrix_user_id)?;
         self.matrix_api.forget_room(matrix_room_id)
-    }
-
-    fn admin_room_language(&self, matrix_room_id: RoomId) -> Result<String> {
-        let user_id = self.matrix_api.get_room_creator(matrix_room_id.clone())?;
-        let user = User::find(self.connection, &user_id)?;
-        Ok(user.language.clone())
     }
 
     fn is_remote_invite(&self, matrix_room_id: &RoomId) -> Result<bool> {
@@ -324,13 +317,9 @@ impl<'a> RoomHandler<'a> {
         let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
         for username in &channel.usernames {
             let rocketchat_user = rocketchat_api.users_info(username)?;
-            let user_on_rocketchat_server =
+            let matrix_user_id =
                 virtual_user_handler.find_or_register(rocketchat_server_id.clone(), rocketchat_user.id, username.to_string())?;
-            virtual_user_handler.add_to_room(
-                user_on_rocketchat_server.matrix_user_id,
-                bot_matrix_user_id.clone(),
-                matrix_room_id.clone(),
-            )?;
+            virtual_user_handler.add_to_room(matrix_user_id, bot_matrix_user_id.clone(), matrix_room_id.clone())?;
         }
 
         debug!(self.logger, "Successfully added {} virtual users to room {}", channel.usernames.len(), matrix_room_id);
@@ -345,7 +334,7 @@ impl<'a> RoomHandler<'a> {
             logger: self.logger,
             matrix_api: self.matrix_api,
         };
-        if let Err(err) = error_notifier.send_message_to_user(err, matrix_room_id.clone(), &matrix_bot_user_id) {
+        if let Err(err) = error_notifier.send_message_to_user(err, matrix_room_id.clone()) {
             log::log_error(self.logger, &err);
         }
 

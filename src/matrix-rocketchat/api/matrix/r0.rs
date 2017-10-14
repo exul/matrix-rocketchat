@@ -11,6 +11,7 @@ use ruma_client_api::r0::membership::forget_room::{self, Endpoint as ForgetRoomE
 use ruma_client_api::r0::membership::invite_user::{self, Endpoint as InviteUserEndpoint};
 use ruma_client_api::r0::membership::join_room_by_id::{self, Endpoint as JoinRoomByIdEndpoint};
 use ruma_client_api::r0::membership::leave_room::{self, Endpoint as LeaveRoomEndpoint};
+use ruma_client_api::r0::profile::get_display_name::{self, Endpoint as GetDisplayNameEndpoint};
 use ruma_client_api::r0::profile::set_display_name::{self, Endpoint as SetDisplayNameEndpoint};
 use ruma_client_api::r0::room::create_room::{self, Endpoint as CreateRoomEndpoint, RoomPreset};
 use ruma_client_api::r0::send::send_message_event::{self, Endpoint as SendMessageEventEndpoint};
@@ -117,6 +118,29 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
         Ok(())
+    }
+
+    fn get_display_name(&self, matrix_user_id: UserId) -> Result<Option<String>> {
+        let path_params = get_display_name::PathParams { user_id: matrix_user_id };
+        let endpoint = self.base_url.clone() + &GetDisplayNameEndpoint::request_path(path_params);
+        let params = self.params_hash();
+
+        let (body, status_code) = RestApi::call_matrix(GetDisplayNameEndpoint::method(), &endpoint, "", &params)?;
+        if status_code == StatusCode::NotFound {
+            return Ok(None);
+        }
+
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        let get_display_name_response: get_display_name::Response = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(
+                format!("Could not deserialize response from Matrix get_display_name API endpoint: `{}`", body),
+            )
+        })?;
+
+        Ok(get_display_name_response.displayname.clone())
     }
 
     fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<Option<RoomId>> {

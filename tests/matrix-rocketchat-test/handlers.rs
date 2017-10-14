@@ -15,13 +15,14 @@ use router::Router;
 use ruma_client_api::r0::alias::get_alias;
 use ruma_client_api::r0::account::register;
 use ruma_client_api::r0::membership::invite_user;
+use ruma_client_api::r0::profile::{get_display_name, set_display_name};
 use ruma_client_api::r0::room::create_room;
 use ruma_client_api::r0::sync::get_member_events;
 use ruma_events::EventType;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
 use ruma_identifiers::{EventId, RoomAliasId, RoomId, UserId};
 use serde_json;
-use super::{DEFAULT_LOGGER, Message, MessageForwarder, PendingInvites, RoomAliasMap, RoomsStatesMap, TestError, UsernameList,
+use super::{DEFAULT_LOGGER, Message, MessageForwarder, PendingInvites, RoomAliasMap, RoomsStatesMap, TestError, UserList,
             UsersInRooms, extract_payload, helpers};
 
 #[derive(Serialize)]
@@ -270,10 +271,11 @@ impl Handler for MatrixRegister {
         let request_payload = extract_payload(request);
         let register_payload: register::BodyParams = serde_json::from_str(&request_payload).unwrap();
 
-        let mutex = request.get::<Write<UsernameList>>().unwrap();
-        let mut username_list = mutex.lock().unwrap();
+        let mutex = request.get::<Write<UserList>>().unwrap();
+        let mut user_list = mutex.lock().unwrap();
 
-        if username_list.iter().any(|u| u == register_payload.username.as_ref().unwrap()) {
+        let user_id = UserId::try_from(&format!("@{}:localhost", register_payload.username.unwrap())).unwrap();
+        if user_list.contains_key(&user_id) {
             let error_response = MatrixErrorResponse {
                 errcode: "M_USER_IN_USE".to_string(),
                 error: "The desired user ID is already taken.".to_string(),
@@ -281,9 +283,78 @@ impl Handler for MatrixRegister {
             let response_payload = serde_json::to_string(&error_response).unwrap();
             Ok(Response::with((status::BadRequest, response_payload)))
         } else {
-            username_list.push(register_payload.username.unwrap());
+            user_list.insert(user_id, None);
             Ok(Response::with((status::Ok, "{}".to_string())))
         }
+    }
+}
+
+pub struct MatrixSetDisplayName {}
+
+impl MatrixSetDisplayName {
+    pub fn with_forwarder() -> (Chain, Receiver<String>) {
+        let (message_forwarder, receiver) = MessageForwarder::new();
+        let mut chain = Chain::new(MatrixSetDisplayName {});
+        chain.link_before(message_forwarder);;
+        (chain, receiver)
+    }
+}
+
+impl Handler for MatrixSetDisplayName {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        debug!(DEFAULT_LOGGER, "Matrix mock server got set display name request");
+        let request_payload = extract_payload(request);
+        let set_display_name_payload: set_display_name::BodyParams = serde_json::from_str(&request_payload).unwrap();
+
+        let params = request.extensions.get::<Router>().unwrap().clone();
+        let url_user_id = params.find("user_id").unwrap();
+        let decoded_user_id = percent_decode(url_user_id.as_bytes()).decode_utf8().unwrap();
+        let user_id = UserId::try_from(decoded_user_id.as_ref()).unwrap();
+
+        let mutex = request.get::<Write<UserList>>().unwrap();
+        let mut user_list = mutex.lock().unwrap();
+
+        if !user_list.contains_key(&user_id) {
+            debug!(DEFAULT_LOGGER, "Cannot set display name, user {} does not exist", user_id);
+            let payload = r#"{
+                    "errcode":"M_UNKNOWN",
+                    "error":"Cannot set display name, user does not exist"
+                }"#;
+            return Ok(Response::with((status::NotFound, payload.to_string())));
+        }
+
+        user_list.insert(user_id, Some(set_display_name_payload.displayname.unwrap_or_default()));
+        Ok(Response::with((status::Ok, "{}".to_string())))
+    }
+}
+
+pub struct MatrixGetDisplayName {}
+
+impl Handler for MatrixGetDisplayName {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        debug!(DEFAULT_LOGGER, "Matrix mock server got get display name request");
+        let params = request.extensions.get::<Router>().unwrap().clone();
+        let url_user_id = params.find("user_id").unwrap();
+        let decoded_user_id = percent_decode(url_user_id.as_bytes()).decode_utf8().unwrap();
+        let user_id = UserId::try_from(decoded_user_id.as_ref()).unwrap();
+
+        let mutex = request.get::<Write<UserList>>().unwrap();
+        let user_list = mutex.lock().unwrap();
+
+        if !user_list.contains_key(&user_id) {
+            debug!(DEFAULT_LOGGER, "Cannot get display name, user {} does not exist", user_id);
+            let payload = r#"{
+                    "errcode":"M_UNKNOWN",
+                    "error":"Cannot get display name, user does not exist"
+                }"#;
+            return Ok(Response::with((status::NotFound, payload.to_string())));
+        }
+
+        let displayname = user_list.get(&user_id).unwrap();
+        let get_display_name_response = get_display_name::Response { displayname: displayname.to_owned() };
+
+        let payload = serde_json::to_string(&get_display_name_response).unwrap();
+        Ok(Response::with((status::Ok, payload.to_string())))
     }
 }
 

@@ -6,9 +6,8 @@ use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
-use db::{NewUser, NewUserOnRocketchatServer, Room, User, UserOnRocketchatServer};
+use db::Room;
 use errors::*;
-use i18n::*;
 
 /// Provides helper methods to manage virtual users.
 pub struct VirtualUserHandler<'a> {
@@ -52,63 +51,43 @@ impl<'a> VirtualUserHandler<'a> {
         rocketchat_server_id: String,
         rocketchat_user_id: String,
         rocketchat_user_name: String,
-    ) -> Result<UserOnRocketchatServer> {
+    ) -> Result<UserId> {
+        let matrix_user_id = self.build_matrix_user_id(&rocketchat_user_id, &rocketchat_server_id)?;
+
         debug!(
             self.logger,
-            "Trying to find user with Rocket.Chat user ID {} and Rocket.Chat Server ID {}",
+            "Trying to find user with Rocket.Chat user ID {}, Rocket.Chat Server ID {} and Matrix ID: {}",
             &rocketchat_user_id,
-            &rocketchat_server_id
+            &rocketchat_server_id,
+            &matrix_user_id,
         );
-        let user_id_local_part =
-            format!("{}_{}_{}", self.config.sender_localpart, &rocketchat_user_id, rocketchat_server_id.clone());
-        let user_id = format!("@{}:{}", user_id_local_part, self.config.hs_domain);
-        let matrix_user_id = UserId::try_from(&user_id).chain_err(|| ErrorKind::InvalidUserId(user_id))?;
 
-        if let Some(user_on_rocketchat_server) =
-            UserOnRocketchatServer::find_by_rocketchat_user_id(
-                self.connection,
-                rocketchat_server_id.clone(),
-                rocketchat_user_id.clone(),
-                true,
-            )?
-        {
-            debug!(self.logger, "Found user with matrix_id {}", user_on_rocketchat_server.matrix_user_id);
-            return Ok(user_on_rocketchat_server);
+        if self.matrix_api.get_display_name(matrix_user_id.clone())?.is_some() {
+            debug!(self.logger, "Found user with matrix_id {}", matrix_user_id);
+            return Ok(matrix_user_id);
         }
 
         debug!(self.logger, "No user found, registring a new user with the matrix ID {}", &matrix_user_id);
-        let new_user = NewUser {
-            language: DEFAULT_LANGUAGE,
-            matrix_user_id: matrix_user_id.clone(),
-        };
-        User::insert(self.connection, &new_user)?;
+        self.matrix_api.register(matrix_user_id.localpart().to_string())?;
+        debug!(self.logger, "Successfully registred user {}", &matrix_user_id);
 
-        let new_user_on_rocketchat_server = NewUserOnRocketchatServer {
-            is_virtual_user: true,
-            matrix_user_id: matrix_user_id,
-            rocketchat_auth_token: None,
-            rocketchat_server_id: rocketchat_server_id,
-            rocketchat_user_id: Some(rocketchat_user_id.clone()),
-            rocketchat_username: Some(rocketchat_user_name.clone()),
-        };
-        let user_on_rocketchat_server = UserOnRocketchatServer::upsert(self.connection, &new_user_on_rocketchat_server)?;
-
-        self.matrix_api.register(user_id_local_part.clone())?;
-        debug!(self.logger, "Successfully registred user {}", user_on_rocketchat_server.matrix_user_id);
-        if let Err(err) = self.matrix_api.set_display_name(
-            user_on_rocketchat_server.matrix_user_id.clone(),
-            rocketchat_user_name.clone(),
-        )
-        {
-            info!(
+        if let Err(err) = self.matrix_api.set_display_name(matrix_user_id.clone(), rocketchat_user_name.clone()) {
+            warn!(
                 self.logger,
                 "Setting display name `{}`, for user `{}` failed with {}",
-                &user_on_rocketchat_server.matrix_user_id,
+                &matrix_user_id,
                 &rocketchat_user_name,
                 err
             );
         }
 
-        Ok(user_on_rocketchat_server)
+        Ok(matrix_user_id)
+    }
+
+    /// Build the matrix user ID based on the Rocket.Chat user ID and the Rocket.Chat server ID.
+    pub fn build_matrix_user_id(&self, rocketchat_user_id: &str, rocketchat_server_id: &str) -> Result<UserId> {
+        let user_id_local_part = format!("{}_{}_{}", self.config.sender_localpart, rocketchat_user_id, rocketchat_server_id);
+        let user_id = format!("@{}:{}", user_id_local_part, self.config.hs_domain);
+        Ok(UserId::try_from(&user_id).chain_err(|| ErrorKind::InvalidUserId(user_id))?)
     }
 }

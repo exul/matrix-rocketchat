@@ -17,7 +17,6 @@ table! {
         rocketchat_server_id -> Text,
         rocketchat_user_id -> Nullable<Text>,
         rocketchat_auth_token -> Nullable<Text>,
-        rocketchat_username -> Nullable<Text>,
         created_at -> Timestamp,
         updated_at -> Timestamp,
     }

@@ -11,6 +11,8 @@ extern crate serde_json;
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use iron::{Chain, status};
 use matrix_rocketchat::api::{MatrixApi, RestApi};
@@ -65,6 +67,9 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     // discard bot registration
     register_receiver.recv_timeout(default_timeout()).unwrap();
 
+    // discard spec user registration
+    register_receiver.recv_timeout(default_timeout()).unwrap();
+
     // virtual user was registered
     let register_message = register_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(register_message.contains("\"username\":\"rocketchat_spec_user_id_rc_id\""));
@@ -85,6 +90,8 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     // receive set display
     let set_display_name_spec_user = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(set_display_name_spec_user.contains("spec_user"));
+    let set_display_name_virtual_spec_user = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(set_display_name_virtual_spec_user.contains("spec_user"));
     let set_display_name_new_spec_user = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(set_display_name_new_spec_user.contains("new_spec_user"));
 
@@ -177,6 +184,8 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     // receive set display name
     let set_display_name_spec_user = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(set_display_name_spec_user.contains("spec_user"));
+    let set_display_name_virtual_spec_user = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(set_display_name_virtual_spec_user.contains("spec_user"));
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -196,6 +205,9 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     assert_eq!(user_ids.len(), 3);
 
     // discard bot registration
+    register_receiver.recv_timeout(default_timeout()).unwrap();
+
+    // discard spec user registration
     register_receiver.recv_timeout(default_timeout()).unwrap();
 
     // the virtual user was create with the Rocket.Chat user ID because the exiting matrix user
@@ -242,8 +254,8 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
         channel_name: Some("spec_channel".to_string()),
-        user_id: "virtual_spec_user_id".to_string(),
-        user_name: "virtual_spec_user".to_string(),
+        user_id: "other_virtual_user_id".to_string(),
+        user_name: "other virtual user".to_string(),
         text: "spec_message".to_string(),
     };
     let payload = to_string(&message).unwrap();
@@ -253,15 +265,17 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
     let spec_user_display_name_message = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_display_name_message.contains("spec_user"));
     let virtual_spec_user_display_name_message = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(virtual_spec_user_display_name_message.contains("virtual_spec_user"));
+    assert!(virtual_spec_user_display_name_message.contains("spec_user"));
+    let other_virtual_user_display_name_message = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(other_virtual_user_display_name_message.contains("other virtual user"));
 
     let second_message_with_new_username = Message {
         message_id: "spec_id_2".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
         channel_name: Some("spec_channel".to_string()),
-        user_id: "virtual_spec_user_id".to_string(),
-        user_name: "virtual_spec_user_new".to_string(),
+        user_id: "other_virtual_user_id".to_string(),
+        user_name: "other virtual user new".to_string(),
         text: "spec_message 2".to_string(),
     };
     let second_payload_with_new_username = to_string(&second_message_with_new_username).unwrap();
@@ -269,29 +283,33 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &second_payload_with_new_username);
 
     let new_display_name_message = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(new_display_name_message.contains("virtual_spec_user_new"));
+    assert!(new_display_name_message.contains("other virtual user new"));
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let virtual_spec_user_id = UserId::try_from("@rocketchat_virtual_spec_user_id_rc_id:localhost").unwrap();
+    let virtual_spec_user_id = UserId::try_from("@rocketchat_other_virtual_user_id_rc_id:localhost").unwrap();
     let displayname = matrix_api.get_display_name(virtual_spec_user_id).unwrap().unwrap();
 
-    assert_eq!(displayname, "virtual_spec_user_new".to_string());
+    assert_eq!(displayname, "other virtual user new".to_string());
 }
 
 #[test]
 fn message_is_forwarded_even_if_setting_the_display_name_failes() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
+    let error_responder_active = Arc::new(AtomicBool::new(false));
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.put(
-        SetDisplayNameEndpoint::router_path(),
-        handlers::MatrixErrorResponder {
-            status: status::InternalServerError,
-            message: "Could not set display name".to_string(),
-        },
-        "set_display_name",
-    );
+
+
+    let set_display_name = handlers::MatrixSetDisplayName {};
+    let error_responder = handlers::MatrixActivatableErrorResponder {
+        status: status::InternalServerError,
+        message: "Could not set display name".to_string(),
+        active: Arc::clone(&error_responder_active),
+    };
+    let mut set_display_name_with_error = Chain::new(set_display_name);
+    set_display_name_with_error.link_before(error_responder);
+    matrix_router.put(SetDisplayNameEndpoint::router_path(), set_display_name_with_error, "set_display_name");
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -299,6 +317,8 @@ fn message_is_forwarded_even_if_setting_the_display_name_failes() {
         .with_logged_in_user()
         .with_bridged_room(("spec_channel", "spec_user"))
         .run();
+
+    error_responder_active.store(true, Ordering::Relaxed);
 
     let message = Message {
         message_id: "spec_id".to_string(),
@@ -475,14 +495,6 @@ fn do_not_forward_messages_when_the_channel_was_bridged_but_is_unbridged_now() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.put(
-        SetDisplayNameEndpoint::router_path(),
-        handlers::MatrixErrorResponder {
-            status: status::InternalServerError,
-            message: "Could not set display name".to_string(),
-        },
-        "set_display_name",
-    );
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()

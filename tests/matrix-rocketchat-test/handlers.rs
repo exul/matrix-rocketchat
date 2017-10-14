@@ -3,7 +3,8 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::mpsc::Receiver;
-use std::sync::MutexGuard;
+use std::sync::{Arc, MutexGuard};
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use iron::prelude::*;
 use iron::url::Url;
@@ -283,6 +284,7 @@ impl Handler for MatrixRegister {
             let response_payload = serde_json::to_string(&error_response).unwrap();
             Ok(Response::with((status::BadRequest, response_payload)))
         } else {
+            debug!(DEFAULT_LOGGER, "Matrix mock server adds user with ID {}", &user_id);
             user_list.insert(user_id, None);
             Ok(Response::with((status::Ok, "{}".to_string())))
         }
@@ -914,6 +916,33 @@ impl Handler for MatrixErrorResponder {
         };
         let payload = serde_json::to_string(&error_response).unwrap();
         Ok(Response::with((self.status, payload)))
+    }
+}
+
+pub struct MatrixActivatableErrorResponder {
+    pub status: status::Status,
+    pub message: String,
+    pub active: Arc<AtomicBool>,
+}
+
+impl BeforeMiddleware for MatrixActivatableErrorResponder {
+    fn before(&self, request: &mut Request) -> IronResult<()> {
+        let request_payload = extract_payload(request);
+
+        if self.active.load(Ordering::Relaxed) {
+            let error_response = MatrixErrorResponse {
+                errcode: "1234".to_string(),
+                error: self.message.clone(),
+            };
+            let payload = serde_json::to_string(&error_response).unwrap();
+            let err = IronError::new(TestError("Conditional Error".to_string()), (self.status, payload));
+            return Err(err.into());
+        }
+
+        let message = Message { payload: request_payload };
+        request.extensions.insert::<Message>(message);
+
+        Ok(())
     }
 }
 

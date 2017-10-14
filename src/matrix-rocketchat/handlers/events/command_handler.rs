@@ -112,7 +112,6 @@ impl<'a> CommandHandler<'a> {
                     rocketchat_server_id: rocketchat_server.id,
                     rocketchat_user_id: None,
                     rocketchat_auth_token: None,
-                    rocketchat_username: None,
                 };
 
                 UserOnRocketchatServer::upsert(self.connection, &new_user_on_rocketchat_server)?;
@@ -279,7 +278,7 @@ impl<'a> CommandHandler<'a> {
             }
         };
 
-        let username = user_on_rocketchat_server.rocketchat_username.clone().unwrap_or_default();
+        let username = self.matrix_api.get_display_name(event.user_id.clone())?.unwrap_or_default();
         if !channel.usernames.iter().any(|u| u == &username) {
             bail_error!(
                 ErrorKind::RocketchatJoinFirst(channel_name.to_string()),
@@ -394,7 +393,7 @@ impl<'a> CommandHandler<'a> {
         matrix_user_id: &UserId,
         channels: Vec<Channel>,
     ) -> Result<String> {
-        let user = UserOnRocketchatServer::find(self.connection, matrix_user_id, rocketchat_server_id.to_string())?;
+        let display_name = self.matrix_api.get_display_name(matrix_user_id.clone())?;
         let mut channel_list = "".to_string();
 
         for channel in channels {
@@ -407,7 +406,7 @@ impl<'a> CommandHandler<'a> {
             )?
             {
                 "**"
-            } else if channel.usernames.iter().any(|username| Some(username) == user.rocketchat_username.as_ref()) {
+            } else if channel.usernames.iter().any(|username| Some(username) == display_name.as_ref()) {
                 "*"
             } else {
                 ""

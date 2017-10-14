@@ -156,6 +156,9 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
         .with_custom_channel_list(channels)
         .run();
 
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    matrix_api.register("other_user".to_string()).unwrap();
+
     // login spec user
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
@@ -181,7 +184,6 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
         other_user_id.clone(),
         format!("connect {}", test.rocketchat_mock_url.clone().unwrap()),
     );
-
 
     // login other user
     helpers::send_room_message_from_matrix(

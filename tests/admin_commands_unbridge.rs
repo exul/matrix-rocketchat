@@ -130,6 +130,9 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
         .with_bridged_room(("bridged_channel", "spec_user"))
         .run();
 
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    matrix_api.register("other_user".to_string()).unwrap();
+
     // create other admin room
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     matrix_api

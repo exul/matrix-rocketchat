@@ -58,7 +58,7 @@ impl<'a> Login<'a> {
 
         rocketchat_api = rocketchat_api.with_credentials(rocketchat_user_id, rocketchat_auth_token);
         let username = rocketchat_api.current_username()?;
-        user_on_rocketchat_server.set_rocketchat_username(self.connection, Some(username.clone()))?;
+        self.matrix_api.set_display_name(credentials.matrix_user_id.clone(), username.clone())?;
 
         if let Some(matrix_room_id) = admin_room_id {
             let bot_matrix_user_id = self.config.matrix_bot_user_id()?;

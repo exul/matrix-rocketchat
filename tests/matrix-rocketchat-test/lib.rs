@@ -426,6 +426,10 @@ impl Test {
         });
 
         let as_listening = as_rx.recv_timeout(default_timeout() * 2).unwrap();
+
+        let matrix_api = MatrixApi::new(&self.config, DEFAULT_LOGGER.clone()).unwrap();
+        matrix_api.register("spec_user".to_string()).unwrap();
+
         self.as_listening = Some(as_listening);
     }
 

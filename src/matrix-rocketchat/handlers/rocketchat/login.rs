@@ -46,7 +46,7 @@ impl<'a> Login<'a> {
     ) -> Result<()> {
         let mut user_on_rocketchat_server =
             UserOnRocketchatServer::find(self.connection, &credentials.matrix_user_id, rocketchat_server.id.clone())?;
-        let mut rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())?;
+        let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())?;
 
         let (rocketchat_user_id, rocketchat_auth_token) =
             rocketchat_api.login(&credentials.rocketchat_username, &credentials.password)?;
@@ -55,10 +55,6 @@ impl<'a> Login<'a> {
             Some(rocketchat_user_id.clone()),
             Some(rocketchat_auth_token.clone()),
         )?;
-
-        rocketchat_api = rocketchat_api.with_credentials(rocketchat_user_id, rocketchat_auth_token);
-        let username = rocketchat_api.current_username()?;
-        self.matrix_api.set_display_name(credentials.matrix_user_id.clone(), username.clone())?;
 
         if let Some(matrix_room_id) = admin_room_id {
             let bot_matrix_user_id = self.config.matrix_bot_user_id()?;

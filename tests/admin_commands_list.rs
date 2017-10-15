@@ -42,6 +42,11 @@ fn sucessfully_list_rocketchat_rooms() {
         .with_bridged_room(("bridged_channel", "spec_user"))
         .run();
 
+    // the listing has to work even when the Matrix user's display name is different from the one on
+    // Rocket.Chat
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    matrix_api.set_display_name(UserId::try_from("@spec_user:localhost").unwrap(), "something different".to_string()).unwrap();
+
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard connect message

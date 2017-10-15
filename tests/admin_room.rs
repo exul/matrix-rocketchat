@@ -631,18 +631,32 @@ fn reject_invites_when_the_inviting_user_is_not_the_room_creator() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.get(
-        GetStateEventsForEmptyKey::router_path(),
-        handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() },
-        "get_state_events_for_empty_key",
-    );
     let test = test.with_matrix_routes(matrix_router).run();
 
     helpers::create_room(
         &test.config,
         "admin_room",
-        UserId::try_from("@spec_user:loalhost").unwrap(),
+        UserId::try_from("@other_user:loalhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
+    helpers::join(
+        &test.config,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
+    helpers::leave_room(
+        &test.config,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+    );
+
+    helpers::invite(
+        &test.config,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();

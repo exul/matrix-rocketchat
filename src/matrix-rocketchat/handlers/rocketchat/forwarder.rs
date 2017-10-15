@@ -128,6 +128,7 @@ impl<'a> Forwarder<'a> {
                 let now =
                     SystemTime::now().duration_since(UNIX_EPOCH).chain_err(|| ErrorKind::InternalServerError)?.as_secs() as i64;
                 let last_sent = now - user_on_rocketchat_server.last_message_sent;
+                debug!(self.logger, "Found {}, last message sent {}s ago", user_on_rocketchat_server.matrix_user_id, last_sent);
                 Ok(last_sent > RESEND_THRESHOLD_IN_SECONDS)
             }
             None => Ok(true),

@@ -35,7 +35,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (register_forwarder, register_receiver) = handlers::MatrixRegister::with_forwarder();
     let (invite_forwarder, invite_receiver) = handlers::MatrixInviteUser::with_forwarder(test.config.as_url.clone());
-    let (join_forwarder, join_receiver) = handlers::MatrixJoinRoom::with_forwarder(test.config.as_url.clone());
+    let (join_forwarder, join_receiver) = handlers::MatrixJoinRoom::with_forwarder(test.config.as_url.clone(), true);
     let (set_display_name_forwarder, set_display_name_receiver) = handlers::MatrixSetDisplayName::with_forwarder();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
@@ -139,7 +139,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (register_forwarder, register_receiver) = handlers::MatrixRegister::with_forwarder();
     let (invite_forwarder, invite_receiver) = handlers::MatrixInviteUser::with_forwarder(test.config.as_url.clone());
-    let (join_forwarder, join_receiver) = handlers::MatrixJoinRoom::with_forwarder(test.config.as_url.clone());
+    let (join_forwarder, join_receiver) = handlers::MatrixJoinRoom::with_forwarder(test.config.as_url.clone(), true);
     let (set_display_name_forwarder, set_display_name_receiver) = handlers::MatrixSetDisplayName::with_forwarder();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");

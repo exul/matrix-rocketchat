@@ -77,7 +77,7 @@ en:
     connect_without_rocketchat_server_id: "You have to provide an id to connect to a Rocket.Chat server. It can contain any alphanumeric character and `_`. For example `connect https://rocketchat.example.com my_token rocketchat_example`"
     connect_with_invalid_rocketchat_server_id: "The provided Rocket.Chat server ID `${rocketchat_server_id}` is not valid, it can only contain lowercase alphanumeric characters and `_`. The maximum length is ${max_rocketchat_server_id_length} characters."
     internal: "An internal error occurred"
-    inviter_unknown: "The invite didn't contain a sender, the admin room could not be validated"
+    inviter_unknown: "Could not determine if the admin room is valid, because the inviter is unknown. Possibly because the bot user was invited into an existing room. Please start a direct chat with the bot user ${bot_user_id}."
     no_rocketchat_server: "No Rocket.Chat server found when querying ${rocketchat_url} (version information is missing from the response)"
     other_user_joined: "Another user join the admin room, leaving, please create a new admin room."
     only_room_creator_can_invite_bot_user: "Only the room creator can invite the Rocket.Chat bot user, please create a new room and invite the Rocket.Chat user to create an admin room."

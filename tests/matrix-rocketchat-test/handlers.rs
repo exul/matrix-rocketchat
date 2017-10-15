@@ -731,12 +731,16 @@ impl Handler for RoomStateCreate {
 
 pub struct MatrixJoinRoom {
     pub as_url: String,
+    pub send_inviter: bool,
 }
 
 impl MatrixJoinRoom {
-    pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
+    pub fn with_forwarder(as_url: String, send_inviter: bool) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
-        let mut chain = Chain::new(MatrixJoinRoom { as_url: as_url });
+        let mut chain = Chain::new(MatrixJoinRoom {
+            as_url: as_url,
+            send_inviter: send_inviter,
+        });
         chain.link_before(message_forwarder);;
         (chain, receiver)
     }
@@ -794,7 +798,12 @@ impl Handler for MatrixJoinRoom {
             return Ok(Response::with((status::Conflict, payload.to_string())));
         }
 
-        helpers::send_join_event_from_matrix(&self.as_url, room_id, user_id, Some(inviter_id));
+        let join_inviter = if self.send_inviter {
+            Some(inviter_id)
+        } else {
+            None
+        };
+        helpers::send_join_event_from_matrix(&self.as_url, room_id, user_id, join_inviter);
 
         Ok(Response::with((status::Ok, "{}")))
     }

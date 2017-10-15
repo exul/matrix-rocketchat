@@ -4,7 +4,6 @@ CREATE TABLE users_on_rocketchat_servers (
   rocketchat_server_id VARCHAR NOT NULL,
   rocketchat_user_id VARCHAR,
   rocketchat_auth_token VARCHAR,
-  rocketchat_username VARCHAR,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 )

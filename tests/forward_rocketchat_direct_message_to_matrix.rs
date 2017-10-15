@@ -87,6 +87,9 @@ fn successfully_forwards_a_direct_message() {
     // discard bot registration
     register_receiver.recv_timeout(default_timeout()).unwrap();
 
+    // discard spec user registration
+    register_receiver.recv_timeout(default_timeout()).unwrap();
+
     let register_message = register_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(register_message.contains("\"username\":\"rocketchat_other_user_id_rc_id\""));
 

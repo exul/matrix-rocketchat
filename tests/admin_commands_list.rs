@@ -11,8 +11,9 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use iron::status;
-use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, ME_PATH};
-use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat::api::MatrixApi;
+use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, LOGIN_PATH, ME_PATH};
+use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, Test, default_timeout, handlers, helpers};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -40,6 +41,11 @@ fn sucessfully_list_rocketchat_rooms() {
         .with_custom_channel_list(channels)
         .with_bridged_room(("bridged_channel", "spec_user"))
         .run();
+
+    // the listing has to work even when the Matrix user's display name is different from the one on
+    // Rocket.Chat
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    matrix_api.set_display_name(UserId::try_from("@spec_user:localhost").unwrap(), "something different".to_string()).unwrap();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -158,4 +164,115 @@ fn attempt_to_list_rooms_when_the_admin_room_is_not_connected() {
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("This room is not connected to a Rocket.Chat server"));
+}
+
+#[test]
+fn the_user_gets_a_message_when_the_me_endpoint_returns_an_error() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let mut rocketchat_router = Router::new();
+    rocketchat_router.post(
+        LOGIN_PATH,
+        handlers::RocketchatLogin {
+            successful: true,
+            rocketchat_user_id: None,
+        },
+        "login",
+    );
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatErrorResponder {
+            status: status::InternalServerError,
+            message: "Spec Error".to_string(),
+        },
+        "me",
+    );
+
+    let mut channels = HashMap::new();
+    channels.insert("spec_channel", Vec::new());
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_custom_channel_list(channels)
+        .run();
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "login spec_user secret".to_string(),
+    );
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "list".to_string(),
+    );
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
+}
+
+#[test]
+fn the_user_gets_a_message_when_the_me_response_cannot_be_deserialized() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let mut rocketchat_router = Router::new();
+    rocketchat_router.post(
+        LOGIN_PATH,
+        handlers::RocketchatLogin {
+            successful: true,
+            rocketchat_user_id: None,
+        },
+        "login",
+    );
+    rocketchat_router.get(ME_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "me");
+
+    let mut channels = HashMap::new();
+    channels.insert("spec_channel", Vec::new());
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_custom_channel_list(channels)
+        .run();
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "login spec_user secret".to_string(),
+    );
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "list".to_string(),
+    );
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("An internal error occurred"));
 }

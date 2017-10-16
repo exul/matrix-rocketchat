@@ -140,7 +140,7 @@ impl super::MatrixApi for MatrixApi {
             )
         })?;
 
-        Ok(get_display_name_response.displayname.clone())
+        Ok(Some(get_display_name_response.displayname.unwrap_or_default()))
     }
 
     fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<Option<RoomId>> {

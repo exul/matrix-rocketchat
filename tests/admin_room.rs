@@ -116,7 +116,7 @@ fn bot_leaves_and_forgets_the_admin_room_when_the_user_leaves_it() {
 }
 
 #[test]
-fn bot_ignoeres_when_a_user_leaves_a_room_that_is_not_in_the_database() {
+fn bot_ignoeres_when_a_user_leaves_a_room_that_is_not_bridged() {
     let test = Test::new();
     let (leave_message_forwarder, leave_receiver) = MessageForwarder::new();
     let (forget_message_forwarder, forget_receiver) = MessageForwarder::new();
@@ -631,18 +631,32 @@ fn reject_invites_when_the_inviting_user_is_not_the_room_creator() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.get(
-        GetStateEventsForEmptyKey::router_path(),
-        handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() },
-        "get_state_events_for_empty_key",
-    );
     let test = test.with_matrix_routes(matrix_router).run();
 
     helpers::create_room(
         &test.config,
         "admin_room",
-        UserId::try_from("@spec_user:loalhost").unwrap(),
+        UserId::try_from("@other_user:loalhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
+    helpers::join(
+        &test.config,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
+    helpers::leave_room(
+        &test.config,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+    );
+
+    helpers::invite(
+        &test.config,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
         UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
@@ -768,4 +782,41 @@ fn join_events_for_rooms_that_are_not_accessible_by_the_bot_user_are_ignored() {
     );
 
     assert!(receiver.recv_timeout(default_timeout()).is_err());
+}
+
+#[test]
+fn the_bot_user_leaves_the_admin_room_the_inviter_is_unknown() {
+    let test = Test::new();
+    let mut matrix_router = test.default_matrix_routes();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let (leave_room, leave_room_receiver) = handlers::MatrixLeaveRoom::with_forwarder(test.config.as_url.clone());
+    matrix_router.post(LeaveRoomEndpoint::router_path(), leave_room, "leave_room");
+    let (forget_forwarder, forget_receiver) = MessageForwarder::new();
+    matrix_router.post(ForgetRoomEndpoint::router_path(), forget_forwarder, "forget");
+    matrix_router.post(JoinEndpoint::router_path(), handlers::EmptyJson {}, "join_room");
+    let join_room_handler = handlers::MatrixJoinRoom {
+        as_url: test.config.as_url.clone(),
+        send_inviter: false,
+    };
+    matrix_router.post(JoinEndpoint::router_path(), join_room_handler, "join_room");
+
+    let test = test.with_matrix_routes(matrix_router).run();
+
+    helpers::create_room(
+        &test.config,
+        "admin_room",
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
+    );
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains(
+        "Could not determine if the admin room is valid, because the inviter is unknown. \
+        Possibly because the bot user was invited into an existing room. \
+        Please start a direct chat with the bot user @rocketchat:localhost",
+    ));
+
+    assert!(leave_room_receiver.recv_timeout(default_timeout()).is_ok());
+    assert!(forget_receiver.recv_timeout(default_timeout()).is_ok());
 }

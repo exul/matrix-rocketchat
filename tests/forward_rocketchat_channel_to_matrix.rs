@@ -35,7 +35,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (register_forwarder, register_receiver) = handlers::MatrixRegister::with_forwarder();
     let (invite_forwarder, invite_receiver) = handlers::MatrixInviteUser::with_forwarder(test.config.as_url.clone());
-    let (join_forwarder, join_receiver) = handlers::MatrixJoinRoom::with_forwarder(test.config.as_url.clone());
+    let (join_forwarder, join_receiver) = handlers::MatrixJoinRoom::with_forwarder(test.config.as_url.clone(), true);
     let (set_display_name_forwarder, set_display_name_receiver) = handlers::MatrixSetDisplayName::with_forwarder();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
@@ -91,9 +91,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let set_display_name_spec_user = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(set_display_name_spec_user.contains("spec_user"));
     let set_display_name_virtual_spec_user = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(set_display_name_virtual_spec_user.contains("spec_user"));
-    let set_display_name_new_spec_user = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(set_display_name_new_spec_user.contains("new_spec_user"));
+    assert!(set_display_name_virtual_spec_user.contains("new_spec_user"));
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -139,7 +137,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (register_forwarder, register_receiver) = handlers::MatrixRegister::with_forwarder();
     let (invite_forwarder, invite_receiver) = handlers::MatrixInviteUser::with_forwarder(test.config.as_url.clone());
-    let (join_forwarder, join_receiver) = handlers::MatrixJoinRoom::with_forwarder(test.config.as_url.clone());
+    let (join_forwarder, join_receiver) = handlers::MatrixJoinRoom::with_forwarder(test.config.as_url.clone(), true);
     let (set_display_name_forwarder, set_display_name_receiver) = handlers::MatrixSetDisplayName::with_forwarder();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
@@ -184,8 +182,6 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     // receive set display name
     let set_display_name_spec_user = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(set_display_name_spec_user.contains("spec_user"));
-    let set_display_name_virtual_spec_user = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(set_display_name_virtual_spec_user.contains("spec_user"));
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -264,8 +260,6 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
 
     let spec_user_display_name_message = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_display_name_message.contains("spec_user"));
-    let virtual_spec_user_display_name_message = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(virtual_spec_user_display_name_message.contains("spec_user"));
     let other_virtual_user_display_name_message = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(other_virtual_user_display_name_message.contains("other virtual user"));
 

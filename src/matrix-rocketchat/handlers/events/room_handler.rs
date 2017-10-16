@@ -171,6 +171,7 @@ impl<'a> RoomHandler<'a> {
 
         if is_admin_room {
             self.setup_admin_room(matrix_room_id.clone(), matrix_bot_user_id.clone(), inviter_id)?;
+            return Ok(());
         }
 
         // leave direct message room, the bot only joined it to be able to read the room members
@@ -187,7 +188,14 @@ impl<'a> RoomHandler<'a> {
         let inviter_id = match inviter_id {
             Some(inviter_id) => inviter_id,
             None => {
-                bail_error!(ErrorKind::InviterUnknown(matrix_room_id.clone()), t!(["errors", "inviter_unknown"]));
+                info!(self.logger, "Inviter is unknown, bot will leave and forget the room {}", matrix_room_id);
+                let bot_user_id = self.config.matrix_bot_user_id()?;
+                let err = user_error!(
+                    ErrorKind::InviterUnknown(matrix_room_id.clone(), bot_user_id.clone()),
+                    t!(["errors", "inviter_unknown"]).with_vars(vec![("bot_user_id", bot_user_id.to_string())])
+                );
+                self.handle_admin_room_setup_error(&err, matrix_room_id, matrix_bot_user_id);
+                return Ok(());
             }
         };
 

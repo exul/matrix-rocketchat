@@ -477,7 +477,10 @@ impl Test {
     pub fn default_matrix_routes(&self) -> Router {
         let mut router = Router::new();
 
-        let join_room_handler = handlers::MatrixJoinRoom { as_url: self.config.as_url.clone() };
+        let join_room_handler = handlers::MatrixJoinRoom {
+            as_url: self.config.as_url.clone(),
+            send_inviter: true,
+        };
         router.post(JoinRoomByIdEndpoint::router_path(), join_room_handler, "join_room");
 
         let leave_room_handler = handlers::MatrixLeaveRoom { as_url: self.config.as_url.clone() };

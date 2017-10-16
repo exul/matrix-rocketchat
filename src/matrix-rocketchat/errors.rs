@@ -305,9 +305,10 @@ error_chain!{
             display("Room {} has more then two members and cannot be used as admin room", room_id)
         }
 
-        InviterUnknown(room_id: RoomId) {
+        InviterUnknown(room_id: RoomId, bot_user_id: UserId) {
             description("Inviter for join event was not found")
-            display("Could not determine if the admin room {} is valid, because the inviter is unknown", room_id)
+            display("Could not determine if the admin room {} is valid, because the inviter is unknown. \
+            Please invite the bot user {} to a direct chat.", room_id, bot_user_id)
         }
 
         OnlyRoomCreatorCanInviteBotUser(inviter_id: UserId, room_id: RoomId, creator_id: UserId) {

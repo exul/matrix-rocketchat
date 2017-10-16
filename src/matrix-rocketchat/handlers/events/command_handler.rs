@@ -7,7 +7,6 @@ use slog::Logger;
 
 use MAX_ROCKETCHAT_SERVER_ID_LENGTH;
 use api::{MatrixApi, RocketchatApi};
-use api::rocketchat::Channel;
 use config::Config;
 use db::{NewRocketchatServer, NewUserOnRocketchatServer, RocketchatServer, Room, UserOnRocketchatServer};
 use errors::*;
@@ -243,10 +242,8 @@ impl<'a> CommandHandler<'a> {
                 user_on_rocketchat_server.rocketchat_user_id.unwrap_or_default(),
                 user_on_rocketchat_server.rocketchat_auth_token.unwrap_or_default(),
             );
-        let channels = rocketchat_api.channels_list()?;
-
         let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
-        let channels_list = self.build_channels_list(&rocketchat_server.id, &event.user_id, channels)?;
+        let channels_list = self.build_channels_list(rocketchat_api.as_ref(), &rocketchat_server.id, &event.user_id)?;
         let message = t!(["admin_room", "list_channels"]).with_vars(vec![("channel_list", channels_list)]);
         self.matrix_api.send_text_message_event(event.room_id.clone(), bot_matrix_user_id, message.l(DEFAULT_LANGUAGE))?;
 
@@ -278,7 +275,7 @@ impl<'a> CommandHandler<'a> {
             }
         };
 
-        let username = self.matrix_api.get_display_name(event.user_id.clone())?.unwrap_or_default();
+        let username = rocketchat_api.current_username()?;
         if !channel.usernames.iter().any(|u| u == &username) {
             bail_error!(
                 ErrorKind::RocketchatJoinFirst(channel_name.to_string()),
@@ -389,11 +386,13 @@ impl<'a> CommandHandler<'a> {
 
     fn build_channels_list(
         &self,
+        rocketchat_api: &RocketchatApi,
         rocketchat_server_id: &str,
         matrix_user_id: &UserId,
-        channels: Vec<Channel>,
     ) -> Result<String> {
-        let display_name = self.matrix_api.get_display_name(matrix_user_id.clone())?;
+        let display_name = rocketchat_api.current_username()?;
+        let channels = rocketchat_api.channels_list()?;
+
         let mut channel_list = "".to_string();
 
         for channel in channels {
@@ -406,7 +405,7 @@ impl<'a> CommandHandler<'a> {
             )?
             {
                 "**"
-            } else if channel.usernames.iter().any(|username| Some(username) == display_name.as_ref()) {
+            } else if channel.usernames.iter().any(|username| username == &display_name) {
                 "*"
             } else {
                 ""

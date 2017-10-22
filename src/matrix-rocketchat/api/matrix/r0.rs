@@ -16,6 +16,7 @@ use ruma_client_api::r0::profile::set_display_name::{self, Endpoint as SetDispla
 use ruma_client_api::r0::room::create_room::{self, Endpoint as CreateRoomEndpoint, RoomPreset};
 use ruma_client_api::r0::send::send_message_event::{self, Endpoint as SendMessageEventEndpoint};
 use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint as SendStateEventForEmptyKeyEndpoint};
+use ruma_client_api::r0::sync::sync_events::Endpoint as SyncEventsEndpoint;
 use ruma_client_api::r0::sync::get_member_events::{self, Endpoint as GetMemberEventsEndpoint};
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKeyEndpoint};
 use ruma_events::EventType;
@@ -118,6 +119,28 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
         Ok(())
+    }
+
+    fn get_joined_rooms(&self, matrix_user_id: UserId) -> Result<Vec<RoomId>> {
+        let endpoint = self.base_url.clone() + &SyncEventsEndpoint::request_path(());
+        let user_id = matrix_user_id.to_string();
+        let mut params = self.params_hash();
+        params.insert("user_id", &user_id);
+
+        let (body, status_code) = RestApi::call_matrix(SyncEventsEndpoint::method(), &endpoint, "", &params)?;
+
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        let sync_response: Value = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix sync_events API endpoint: `{}`", body))
+        })?;
+
+        let empty_rooms = Value::Object(Map::new());
+        let raw_rooms = sync_response.get("rooms").unwrap_or(&empty_rooms).get("join").unwrap_or(&empty_rooms);
+        let rooms: HashMap<RoomId, Value> = serde_json::from_value(raw_rooms.clone()).unwrap_or_default();
+        Ok(rooms.keys().map(|k| k.to_owned()).collect())
     }
 
     fn get_display_name(&self, matrix_user_id: UserId) -> Result<Option<String>> {

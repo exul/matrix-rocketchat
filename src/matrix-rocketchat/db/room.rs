@@ -116,24 +116,24 @@ impl Room {
     }
 
     /// Check if the room is a direct message room.
-    pub fn is_direct_message_room(matrix_api: &MatrixApi, room_id: RoomId) -> Result<bool> {
-        let alias = matrix_api.get_room_canonical_alias(room_id)?.map(|alias| alias.alias().to_string()).unwrap_or_default();
-        Ok(alias.ends_with("#dm"))
+    pub fn is_direct_message_room(config: &Config, matrix_api: &MatrixApi, room_id: RoomId) -> Result<bool> {
+        let room_creator_id = matrix_api.get_room_creator(room_id)?;
+        Ok(config.is_application_service_virtual_user(&room_creator_id))
     }
 
     /// Checks if a room is an admin room.
-    pub fn is_admin_room(matrix_api: &MatrixApi, config: &Config, matrix_room_id: RoomId) -> Result<bool> {
+    pub fn is_admin_room(config: &Config, matrix_api: &MatrixApi, matrix_room_id: RoomId) -> Result<bool> {
         // it cannot be an admin room if the bot user does not have access to it
         if !Room::is_accessible_by_bot(matrix_api, matrix_room_id.clone())? {
             return Ok(false);
         }
 
-        let virtual_user_prefix = format!("@{}", config.sender_localpart);
         let matrix_bot_user_id = config.matrix_bot_user_id()?;
         let matrix_user_ids = Room::user_ids(matrix_api, matrix_room_id.clone(), None)?;
         let bot_user_in_room = matrix_user_ids.iter().any(|id| id == &matrix_bot_user_id);
-        let room_creator = matrix_api.get_room_creator(matrix_room_id)?.to_string();
-        Ok(!room_creator.starts_with(&virtual_user_prefix) && bot_user_in_room)
+        let room_creator_id = matrix_api.get_room_creator(matrix_room_id)?;
+
+        Ok(!config.is_application_service_user(&room_creator_id) && bot_user_in_room)
     }
 
     /// Gets the Rocket.Chat channel id for a room that is bridged to Matrix.

@@ -157,7 +157,7 @@ impl<'a> RoomHandler<'a> {
     }
 
     fn handle_bot_join(&self, matrix_room_id: RoomId, matrix_bot_user_id: UserId, inviter_id: Option<UserId>) -> Result<()> {
-        let is_admin_room = match Room::is_admin_room(self.matrix_api, self.config, matrix_room_id.clone()) {
+        let is_admin_room = match Room::is_admin_room(self.config, self.matrix_api, matrix_room_id.clone()) {
             Ok(is_admin_room) => is_admin_room,
             Err(err) => {
                 warn!(
@@ -175,7 +175,7 @@ impl<'a> RoomHandler<'a> {
         }
 
         // leave direct message room, the bot only joined it to be able to read the room members
-        if Room::is_direct_message_room(self.matrix_api, matrix_room_id.clone())? {
+        if Room::is_direct_message_room(self.config, self.matrix_api, matrix_room_id.clone())? {
             self.matrix_api.leave_room(matrix_room_id.clone(), matrix_bot_user_id)?;
         }
 
@@ -231,7 +231,7 @@ impl<'a> RoomHandler<'a> {
     }
 
     fn handle_user_join(&self, matrix_room_id: RoomId) -> Result<()> {
-        if Room::is_admin_room(self.matrix_api, self.config, matrix_room_id.clone())? &&
+        if Room::is_admin_room(self.config, self.matrix_api, matrix_room_id.clone())? &&
             !self.is_private_room(matrix_room_id.clone())?
         {
             info!(self.logger, "Another user join the admin room {}, bot user is leaving", matrix_room_id);
@@ -244,7 +244,7 @@ impl<'a> RoomHandler<'a> {
     }
 
     fn handle_user_leave(&self, matrix_room_id: RoomId) -> Result<()> {
-        if Room::is_admin_room(self.matrix_api, self.config, matrix_room_id.clone())? {
+        if Room::is_admin_room(self.config, self.matrix_api, matrix_room_id.clone())? {
             let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
             return self.leave_and_forget_room(matrix_room_id, bot_matrix_user_id);
         }

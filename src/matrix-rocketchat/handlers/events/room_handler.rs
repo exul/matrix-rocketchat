@@ -107,13 +107,9 @@ impl<'a> RoomHandler<'a> {
         invited_user_id: UserId,
     ) -> Result<RoomId> {
         debug!(self.logger, "Briding new room, Rocket.Chat channel: {}", channel.name.clone().unwrap_or_default());
-        let matrix_room_id = self.create_room(
-            channel.id.clone(),
-            rocketchat_server.id.clone(),
-            room_creator_id,
-            invited_user_id,
-            channel.name.clone(),
-        )?;
+
+        let matrix_room_alias = Room::build_room_alias_name(self.config, &rocketchat_server.id, &channel.id);
+        let matrix_room_id = self.create_room(room_creator_id, invited_user_id, Some(matrix_room_alias), channel.name.clone())?;
         let matrix_room_alias_id = Room::build_room_alias_id(self.config, &rocketchat_server.id, &channel.id)?;
         self.matrix_api.put_canonical_room_alias(matrix_room_id.clone(), Some(matrix_room_alias_id))?;
         self.add_virtual_users_to_room(rocketchat_api, channel, rocketchat_server.id.clone(), matrix_room_id.clone())?;
@@ -285,15 +281,12 @@ impl<'a> RoomHandler<'a> {
     /// Create a room on the Matrix homeserver with the power levels for a bridged room.
     pub fn create_room(
         &self,
-        rocketchat_channel_id: String,
-        rocketchat_server_id: String,
         room_creator_id: UserId,
         invited_user_id: UserId,
+        room_alias: Option<String>,
         room_display_name: Option<String>,
     ) -> Result<RoomId> {
-        let matrix_room_alias_id = Room::build_room_alias_name(self.config, &rocketchat_server_id, &rocketchat_channel_id);
-        let matrix_room_id =
-            self.matrix_api.create_room(room_display_name.clone(), Some(matrix_room_alias_id), &room_creator_id)?;
+        let matrix_room_id = self.matrix_api.create_room(room_display_name.clone(), room_alias, &room_creator_id)?;
         debug!(self.logger, "Successfully created room, matrix_room_id is {}", &matrix_room_id);
         self.matrix_api.set_default_powerlevels(matrix_room_id.clone(), room_creator_id.clone())?;
         debug!(self.logger, "Successfully set powerlevels for room {}", &matrix_room_id);

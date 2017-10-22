@@ -52,18 +52,11 @@ impl<'a> Forwarder<'a> {
             return Ok(());
         }
 
-        let is_direct_message_room = message.channel_id.contains(&message.user_id);
-        let channel_id = if is_direct_message_room {
-            format!("{}#dm", message.channel_id)
-        } else {
-            message.channel_id.clone()
-        };
-
         let matrix_room_id = match Room::matrix_id_from_rocketchat_channel_id(
             self.config,
             self.matrix_api,
             &rocketchat_server.id,
-            &channel_id,
+            &message.channel_id,
         )? {
             Some(matrix_room_id) => matrix_room_id,
             None => {
@@ -81,6 +74,7 @@ impl<'a> Forwarder<'a> {
             }
         };
 
+        let is_direct_message_room = message.channel_id.contains(&message.user_id);
         if is_direct_message_room {
             if Room::direct_message_room_matrix_user(
                 self.config,
@@ -161,9 +155,7 @@ impl<'a> Forwarder<'a> {
                 user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
             );
 
-        if let Some(direct_message_channel) =
-            rocketchat_api.direct_messages_list()?.iter().find(|dm| dm.id == message.channel_id)
-        {
+        if rocketchat_api.direct_messages_list()?.iter().find(|dm| dm.id == message.channel_id).is_some() {
             let direct_message_sender_id = virtual_user_handler.find_or_register(
                 rocketchat_server.id.clone(),
                 message.user_id.clone(),
@@ -173,12 +165,11 @@ impl<'a> Forwarder<'a> {
 
             let room_display_name_suffix = t!(["defaults", "direct_message_room_display_name_suffix"]).l(DEFAULT_LANGUAGE);
             let room_display_name = format!("{} {}", message.user_name, room_display_name_suffix);
-            let dm_channel_id = format!("{}#dm", direct_message_channel.id.clone());
+
             let matrix_room_id = room_handler.create_room(
-                dm_channel_id,
-                rocketchat_server.id.clone(),
                 direct_message_sender_id.clone(),
                 user_on_rocketchat_server.matrix_user_id.clone(),
+                None,
                 Some(room_display_name),
             )?;
 

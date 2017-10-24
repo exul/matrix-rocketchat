@@ -31,12 +31,12 @@ use serde_json::to_string;
 
 
 #[test]
-fn successfully_forwards_a_direct_message() {
+fn successfully_forwards_a_direct_message_to_matrix() {
     let test = Test::new();
     let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let (register_forwarder, register_receiver) = handlers::MatrixRegister::with_forwarder();
     let (invite_forwarder, invite_receiver) = handlers::MatrixInviteUser::with_forwarder(test.config.as_url.clone());
-    let (message_forwarder, receiver) = MessageForwarder::new();
+    let (message_forwarder, receiver) = MessageForwarder::with_path_filter("other_userDMRocketChat_id:localhost");
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
@@ -81,7 +81,6 @@ fn successfully_forwards_a_direct_message() {
     create_room_receiver.recv_timeout(default_timeout()).unwrap();
 
     let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat#rc_id#spec_user_id_other_user_id#dm\""));
     assert!(create_room_message.contains("\"name\":\"other_user (DM Rocket.Chat)\""));
 
     // discard bot registration
@@ -91,17 +90,10 @@ fn successfully_forwards_a_direct_message() {
     register_receiver.recv_timeout(default_timeout()).unwrap();
 
     let register_message = register_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(register_message.contains("\"username\":\"rocketchat_other_user_id_rc_id\""));
+    assert!(register_message.contains("\"username\":\"rocketchat_other_user_id_rcid\""));
 
     // discard admin room invite
     invite_receiver.recv_timeout(default_timeout()).unwrap();
-
-    // discard welcome message
-    receiver.recv_timeout(default_timeout()).unwrap();
-    // discard connect message
-    receiver.recv_timeout(default_timeout()).unwrap();
-    // discard login message
-    receiver.recv_timeout(default_timeout()).unwrap();
 
     let spec_user_invite = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_invite.contains("\"user_id\":\"@spec_user:localhost\""));
@@ -110,7 +102,7 @@ fn successfully_forwards_a_direct_message() {
     assert!(first_message_received_by_matrix.contains("Hey there"));
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let other_user_id = UserId::try_from("@rocketchat_other_user_id_rc_id:localhost").unwrap();
+    let other_user_id = UserId::try_from("@rocketchat_other_user_id_rcid:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
     let user_ids = Room::user_ids(
         &(*matrix_api),
@@ -200,7 +192,7 @@ fn the_bot_user_stays_in_the_direct_message_room_if_the_user_leaves() {
     assert!(forget_receiver.recv_timeout(default_timeout()).is_err());
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let other_user_id = UserId::try_from("@rocketchat_other_user_id_rc_id:localhost").unwrap();
+    let other_user_id = UserId::try_from("@rocketchat_other_user_id_rcid:localhost").unwrap();
     let user_ids = Room::user_ids(
         &(*matrix_api),
         RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
@@ -211,7 +203,7 @@ fn the_bot_user_stays_in_the_direct_message_room_if_the_user_leaves() {
 }
 
 #[test]
-fn successfully_forwards_a_direct_message_to_a_room_that_was_bridged_before() {
+fn successfully_forwards_a_direct_message_to_a_matrix_room_that_was_bridged_before() {
     let test = Test::new();
 
     let mut rocketchat_router = Router::new();
@@ -375,8 +367,8 @@ fn do_not_forwards_a_direct_message_to_a_room_if_the_user_is_no_longer_logged_in
 
     let connection = test.connection_pool.get().unwrap();
     let receier_user_id = UserId::try_from("@spec_user:localhost").unwrap();
-    let user = UserOnRocketchatServer::find(&connection, &receier_user_id, "rc_id".to_string()).unwrap();
-    helpers::logout_user_from_rocketchat_server_on_bridge(&connection, "rc_id".to_string(), &user.matrix_user_id);
+    let user = UserOnRocketchatServer::find(&connection, &receier_user_id, "rcid".to_string()).unwrap();
+    helpers::logout_user_from_rocketchat_server_on_bridge(&connection, "rcid".to_string(), &user.matrix_user_id);
 
     let direct_message = Message {
         message_id: "spec_id_2".to_string(),

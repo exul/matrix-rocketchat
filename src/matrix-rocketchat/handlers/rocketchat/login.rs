@@ -38,15 +38,10 @@ impl<'a> Login<'a> {
     /// Perform a login request on the Rocket.Chat server.
     /// Stores the credentials if the login is successful.
     /// Returns an error if the login fails.
-    pub fn call(
-        &self,
-        credentials: &Credentials,
-        rocketchat_server: &RocketchatServer,
-        admin_room_id: Option<RoomId>,
-    ) -> Result<()> {
+    pub fn call(&self, credentials: &Credentials, server: &RocketchatServer, admin_room_id: Option<RoomId>) -> Result<()> {
         let mut user_on_rocketchat_server =
-            UserOnRocketchatServer::find(self.connection, &credentials.matrix_user_id, rocketchat_server.id.clone())?;
-        let rocketchat_api = RocketchatApi::new(rocketchat_server.rocketchat_url.clone(), self.logger.clone())?;
+            UserOnRocketchatServer::find(self.connection, &credentials.matrix_user_id, server.id.clone())?;
+        let rocketchat_api = RocketchatApi::new(server.rocketchat_url.clone(), self.logger.clone())?;
 
         let (rocketchat_user_id, rocketchat_auth_token) =
             rocketchat_api.login(&credentials.rocketchat_username, &credentials.password)?;
@@ -72,7 +67,7 @@ impl<'a> Login<'a> {
             self.logger,
             "Successfully executed login command for user {} on Rocket.Chat server {}",
             credentials.rocketchat_username,
-            rocketchat_server.rocketchat_url
+            server.rocketchat_url
         ))
     }
 }

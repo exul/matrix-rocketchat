@@ -42,7 +42,6 @@ impl<'a> RoomHandler<'a> {
             logger: logger,
             matrix_api: matrix_api,
         }
-
     }
 
     /// Handles room membership changes
@@ -60,8 +59,8 @@ impl<'a> RoomHandler<'a> {
             MembershipState::Join if addressed_to_matrix_bot => {
                 debug!(self.logger, "Received join event for bot user {} and room {}", matrix_bot_user_id, event.room_id);
 
-                let unsigned: HashMap<String, Value> = serde_json::from_value(event.unsigned.clone().unwrap_or_default())
-                    .unwrap_or_default();
+                let unsigned: HashMap<String, Value> =
+                    serde_json::from_value(event.unsigned.clone().unwrap_or_default()).unwrap_or_default();
                 let inviter_id = match unsigned.get("prev_sender") {
                     Some(prev_sender) => {
                         let raw_id: String = serde_json::from_value(prev_sender.clone()).unwrap_or_else(|_| "".to_string());
@@ -101,18 +100,18 @@ impl<'a> RoomHandler<'a> {
     pub fn bridge_new_room(
         &self,
         rocketchat_api: Box<RocketchatApi>,
-        rocketchat_server: &RocketchatServer,
+        server: &RocketchatServer,
         channel: &Channel,
         room_creator_id: UserId,
         invited_user_id: UserId,
     ) -> Result<RoomId> {
         debug!(self.logger, "Briding new room, Rocket.Chat channel: {}", channel.name.clone().unwrap_or_default());
 
-        let matrix_room_alias = Room::build_room_alias_name(self.config, &rocketchat_server.id, &channel.id);
+        let matrix_room_alias = Room::build_room_alias_name(self.config, &server.id, &channel.id);
         let matrix_room_id = self.create_room(room_creator_id, invited_user_id, Some(matrix_room_alias), channel.name.clone())?;
-        let matrix_room_alias_id = Room::build_room_alias_id(self.config, &rocketchat_server.id, &channel.id)?;
+        let matrix_room_alias_id = Room::build_room_alias_id(self.config, &server.id, &channel.id)?;
         self.matrix_api.put_canonical_room_alias(matrix_room_id.clone(), Some(matrix_room_alias_id))?;
-        self.add_virtual_users_to_room(rocketchat_api, channel, rocketchat_server.id.clone(), matrix_room_id.clone())?;
+        self.add_virtual_users_to_room(rocketchat_api, channel, server.id.clone(), matrix_room_id.clone())?;
         Ok(matrix_room_id)
     }
 
@@ -141,7 +140,7 @@ impl<'a> RoomHandler<'a> {
             info!(
                 self.logger,
                 "Bot was invited by a user from another homeserver ({}). \
-                  Ignoring the invite because remote invites are disabled.",
+                 Ignoring the invite because remote invites are disabled.",
                 &matrix_room_id
             );
             return Ok(());
@@ -227,8 +226,8 @@ impl<'a> RoomHandler<'a> {
     }
 
     fn handle_user_join(&self, matrix_room_id: RoomId) -> Result<()> {
-        if Room::is_admin_room(self.config, self.matrix_api, matrix_room_id.clone())? &&
-            !self.is_private_room(matrix_room_id.clone())?
+        if Room::is_admin_room(self.config, self.matrix_api, matrix_room_id.clone())?
+            && !self.is_private_room(matrix_room_id.clone())?
         {
             info!(self.logger, "Another user join the admin room {}, bot user is leaving", matrix_room_id);
             let bot_matrix_user_id = self.config.matrix_bot_user_id()?;

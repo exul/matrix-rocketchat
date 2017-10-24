@@ -10,10 +10,10 @@ extern crate r2d2;
 extern crate r2d2_diesel;
 extern crate rand;
 extern crate reqwest;
+extern crate router;
 extern crate ruma_client_api;
 extern crate ruma_events;
 extern crate ruma_identifiers;
-extern crate router;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
@@ -42,7 +42,7 @@ use std::thread;
 use std::time::Duration;
 
 use diesel::sqlite::SqliteConnection;
-use iron::{Chain, Iron, Listening, status};
+use iron::{status, Chain, Iron, Listening};
 use iron::prelude::*;
 use iron::typemap::Key;
 use matrix_rocketchat::{Config, Server};
@@ -304,7 +304,6 @@ impl Test {
         }
 
         if self.with_logged_in_user {
-
             helpers::send_room_message_from_matrix(
                 &self.config.as_url,
                 RoomId::try_from("!admin_room_id:localhost").unwrap(),
@@ -357,7 +356,13 @@ impl Test {
             None => Router::new(),
         };
 
-        router.get("/api/info", handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION }, "info");
+        router.get(
+            "/api/info",
+            handlers::RocketchatInfo {
+                version: DEFAULT_ROCKETCHAT_VERSION,
+            },
+            "info",
+        );
         router.post("*", handlers::EmptyJson {}, "default_post");
         router.put("*", handlers::EmptyJson {}, "default_put");
 
@@ -370,7 +375,13 @@ impl Test {
                 },
                 "login",
             );
-            router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
+            router.get(
+                ME_PATH,
+                handlers::RocketchatMe {
+                    username: "spec_user".to_string(),
+                },
+                "me",
+            );
             router.get(USERS_INFO_PATH, handlers::RocketchatUsersInfo {}, "users_info");
         }
 
@@ -450,7 +461,7 @@ impl Test {
                     &self.config.as_url,
                     RoomId::try_from("!admin_room_id:localhost").unwrap(),
                     UserId::try_from("@spec_user:localhost").unwrap(),
-                    format!("connect {} {} rc_id", rocketchat_mock_url, RS_TOKEN),
+                    format!("connect {} {} rcid", rocketchat_mock_url, RS_TOKEN),
                 );
             }
             None => panic!("No Rocket.Chat mock present to connect to"),
@@ -483,10 +494,18 @@ impl Test {
         };
         router.post(JoinRoomByIdEndpoint::router_path(), join_room_handler, "join_room");
 
-        let leave_room_handler = handlers::MatrixLeaveRoom { as_url: self.config.as_url.clone() };
+        let leave_room_handler = handlers::MatrixLeaveRoom {
+            as_url: self.config.as_url.clone(),
+        };
         router.post(LeaveRoomEndpoint::router_path(), leave_room_handler, "leave_room");
 
-        router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "versions");
+        router.get(
+            "/_matrix/client/versions",
+            handlers::MatrixVersion {
+                versions: default_matrix_api_versions(),
+            },
+            "versions",
+        );
 
         let mut get_state_event = Chain::new(handlers::GetRoomState {});
         get_state_event.link_before(handlers::PermissionCheck {});
@@ -504,11 +523,15 @@ impl Test {
 
         router.post(
             CreateRoomEndpoint::router_path(),
-            handlers::MatrixCreateRoom { as_url: self.config.as_url.clone() },
+            handlers::MatrixCreateRoom {
+                as_url: self.config.as_url.clone(),
+            },
             "create_room",
         );
 
-        let invite_user_handler = handlers::MatrixInviteUser { as_url: self.config.as_url.clone() };
+        let invite_user_handler = handlers::MatrixInviteUser {
+            as_url: self.config.as_url.clone(),
+        };
         router.post(InviteUserEndpoint::router_path(), invite_user_handler, "invite_user");
 
         let mut send_room_state = Chain::new(handlers::SendRoomState {});
@@ -600,7 +623,9 @@ pub fn extract_payload(request: &mut Request) -> String {
             payload = message.payload.clone()
         }
     } else {
-        let message = Message { payload: payload.clone() };
+        let message = Message {
+            payload: payload.clone(),
+        };
         request.extensions.insert::<Message>(message);
     }
 

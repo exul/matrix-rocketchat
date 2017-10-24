@@ -1,10 +1,11 @@
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::message::MessageEvent;
+use ruma_identifiers::RoomId;
 use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
-use db::Room;
+use db::{RocketchatServer, Room};
 use errors::*;
 use super::{CommandHandler, Forwarder};
 
@@ -43,12 +44,26 @@ impl<'a> MessageHandler<'a> {
         let matrix_api = self.matrix_api.as_ref();
         if Room::is_admin_room(self.config, self.matrix_api.as_ref(), matrix_room_id.clone())? {
             CommandHandler::new(self.config, self.connection, self.logger, matrix_api).process(event, matrix_room_id)?;
-        } else if let Some(channel_id) = Room::rocketchat_channel_id(matrix_api, matrix_room_id.clone())? {
-            Forwarder::new(self.connection, self.logger, matrix_api).process(event, matrix_room_id, channel_id)?;
+        } else if let Some((server, channel_id)) = self.get_rocketchat_server_with_room(matrix_room_id.clone())? {
+            Forwarder::new(self.connection, self.logger).process(event, server, channel_id)?;
         } else {
             debug!(self.logger, "Skipping event, because the room {} is not bridged", matrix_room_id);
         }
 
         Ok(())
+    }
+
+    fn get_rocketchat_server_with_room(&self, room_id: RoomId) -> Result<Option<(RocketchatServer, String)>> {
+        let matrix_api = self.matrix_api.as_ref();
+
+        // if it's a normal room, this will match
+        if let Some(channel_id) = Room::rocketchat_channel_id(matrix_api, room_id.clone())? {
+            if let Some(server) = Room::rocketchat_server(self.connection, matrix_api, room_id.clone())? {
+                return Ok(Some((server, channel_id)));
+            }
+        }
+
+
+        Room::rocketchat_for_direct_room(self.config, self.connection, self.logger, matrix_api, room_id)
     }
 }

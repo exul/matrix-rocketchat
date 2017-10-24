@@ -31,7 +31,7 @@ impl<'a> ErrorNotifier<'a> {
         let matrix_bot_id = self.config.matrix_bot_user_id()?;
         let user_message = match err.user_message {
             Some(ref user_message) => {
-                debug!(self.logger, "{}", msg);
+                info!(self.logger, "{}", msg);
                 user_message
             }
             None => {

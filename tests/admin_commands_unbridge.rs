@@ -85,7 +85,7 @@ fn successfully_unbridge_a_rocketchat_room() {
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!bridged_channel_id:localhost").unwrap(), None).unwrap();
     let rocketchat_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
-    let new_user_id = UserId::try_from("@rocketchat_new_user_id_rc_id:localhost").unwrap();
+    let new_user_id = UserId::try_from("@rocketchat_new_user_id_rcid:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
 
     assert!(user_ids.iter().any(|id| id == &rocketchat_user_id));

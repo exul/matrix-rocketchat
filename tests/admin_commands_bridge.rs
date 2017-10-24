@@ -68,7 +68,7 @@ fn successfully_bridge_a_rocketchat_room() {
 
     let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(create_room_message.contains("\"name\":\"joined_channel\""));
-    assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat#rc_id#joined_channel_id\""));
+    assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat#rcid#joined_channel_id\""));
 
     // discard rocketchat user invite into admin room
     invite_receiver.recv_timeout(default_timeout()).unwrap();
@@ -76,13 +76,13 @@ fn successfully_bridge_a_rocketchat_room() {
     let invite_spec_user = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(invite_spec_user.contains("@spec_user:localhost"));
     let invite_virtual_spec_user = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(invite_virtual_spec_user.contains("rocketchat_spec_user_id_rc_id:localhost"));
+    assert!(invite_virtual_spec_user.contains("rocketchat_spec_user_id_rcid:localhost"));
     let invite_user_1 = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(invite_user_1.contains("@rocketchat_user_1_id_rc_id:localhost"));
+    assert!(invite_user_1.contains("@rocketchat_user_1_id_rcid:localhost"));
     let invite_user_2 = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(invite_user_2.contains("@rocketchat_user_2_id_rc_id:localhost"));
+    assert!(invite_user_2.contains("@rocketchat_user_2_id_rcid:localhost"));
     let invite_user_3 = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(invite_user_3.contains("@rocketchat_user_3_id_rc_id:localhost"));
+    assert!(invite_user_3.contains("@rocketchat_user_3_id_rcid:localhost"));
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("joined_channel is now bridged."));
@@ -112,10 +112,10 @@ fn successfully_bridge_a_rocketchat_room() {
     let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap(), None).unwrap();
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
-    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_spec_user_id_rc_id:localhost").unwrap()));
-    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_user_1_id_rc_id:localhost").unwrap()));
-    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_user_2_id_rc_id:localhost").unwrap()));
-    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_user_3_id_rc_id:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_spec_user_id_rcid:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_user_1_id_rcid:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_user_2_id_rcid:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_user_3_id_rcid:localhost").unwrap()));
 }
 
 #[test]
@@ -245,10 +245,10 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     assert!(spec_user_invite_received_by_matrix.contains("@spec_user:localhost"));
 
     let virtual_spec_user_invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(virtual_spec_user_invite_received_by_matrix.contains("@rocketchat_spec_user_id_rc_id:localhost"));
+    assert!(virtual_spec_user_invite_received_by_matrix.contains("@rocketchat_spec_user_id_rcid:localhost"));
 
     let other_user_invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(other_user_invite_received_by_matrix.contains("@rocketchat_other_user_id_rc_id:localhost"));
+    assert!(other_user_invite_received_by_matrix.contains("@rocketchat_other_user_id_rcid:localhost"));
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap(), None).unwrap();
@@ -386,8 +386,8 @@ fn successfully_bridge_two_different_rocketchat_rooms() {
         .unwrap();
     let rocketchat_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
-    let virtual_spec_user_id = UserId::try_from("@rocketchat_spec_user_id_rc_id:localhost").unwrap();
-    let virtual_other_user_id = UserId::try_from("@rocketchat_other_user_id_rc_id:localhost").unwrap();
+    let virtual_spec_user_id = UserId::try_from("@rocketchat_spec_user_id_rcid:localhost").unwrap();
+    let virtual_other_user_id = UserId::try_from("@rocketchat_other_user_id_rcid:localhost").unwrap();
 
     assert!(first_user_ids.iter().any(|id| id == &rocketchat_user_id));
     assert!(first_user_ids.iter().any(|id| id == &spec_user_id));
@@ -434,7 +434,7 @@ fn do_not_allow_to_bridge_channels_that_the_user_has_not_joined_on_the_rocketcha
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains(
         "You have to join the channel normal_channel on the Rocket.Chat server \
-                                                before you can bridge it.",
+         before you can bridge it.",
     ));
 }
 
@@ -593,7 +593,7 @@ fn bridge_a_room_after_setting_the_canonical_room_failed() {
     matrix_api
         .create_room(
             Some("joined_channel".to_string()),
-            Some("rocketchat#rc_id#joined_channel_id".to_string()),
+            Some("rocketchat#rcid#joined_channel_id".to_string()),
             &UserId::try_from("@rocketchat:localhost").unwrap(),
         )
         .unwrap();
@@ -613,7 +613,7 @@ fn bridge_a_room_after_setting_the_canonical_room_failed() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let put_canonical_room_alias_message = put_room_canonical_room_alias_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(put_canonical_room_alias_message.contains("rocketchat#rc_id#joined_channel_id"));
+    assert!(put_canonical_room_alias_message.contains("rocketchat#rcid#joined_channel_id"));
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("joined_channel is now bridged."))

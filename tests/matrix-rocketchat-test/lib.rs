@@ -67,6 +67,7 @@ use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_state_event_for_empty_key::Endpoint as SendStateEventForEmptyKeyEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::Endpoint as GetStateEventsForEmptyKeyEndpoint;
+use ruma_client_api::r0::sync::sync_events::Endpoint as SyncEventsEndpoint;
 use ruma_events::room::member::MembershipState;
 use slog::{Drain, FnValue, Level, LevelFilter, Record};
 use tempdir::TempDir;
@@ -487,6 +488,8 @@ impl Test {
     /// a staring point to add more routes.
     pub fn default_matrix_routes(&self) -> Router {
         let mut router = Router::new();
+
+        router.get(SyncEventsEndpoint::router_path(), handlers::MatrixSync {}, "sync");
 
         let join_room_handler = handlers::MatrixJoinRoom {
             as_url: self.config.as_url.clone(),

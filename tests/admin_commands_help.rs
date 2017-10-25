@@ -11,7 +11,7 @@ extern crate ruma_identifiers;
 use std::convert::TryFrom;
 
 use matrix_rocketchat::api::MatrixApi;
-use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
@@ -52,7 +52,9 @@ fn help_command_when_not_connected_and_someone_else_has_connected_a_server_alrea
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
+    let admin_room_creator_handler = handlers::RoomStateCreate {
+        creator: UserId::try_from("@other_user:localhost").unwrap(),
+    };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
         room_id: RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         event_type: EventType::RoomCreate.to_string(),

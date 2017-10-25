@@ -12,11 +12,11 @@ use std::convert::TryFrom;
 use std::sync::mpsc::channel;
 use std::thread;
 
-use iron::{Iron, Listening, status};
+use iron::{status, Iron, Listening};
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::db::{RocketchatServer, UserOnRocketchatServer};
-use matrix_rocketchat_test::{DEFAULT_LOGGER, DEFAULT_ROCKETCHAT_VERSION, IRON_THREADS, MessageForwarder, RS_TOKEN, Test,
-                             default_timeout, get_free_socket_addr, handlers, helpers};
+use matrix_rocketchat_test::{default_timeout, get_free_socket_addr, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER,
+                             DEFAULT_ROCKETCHAT_VERSION, IRON_THREADS, RS_TOKEN};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -292,7 +292,13 @@ fn attempt_to_connect_with_a_rocketchat_server_id_that_is_already_in_use() {
 
     thread::spawn(move || {
         let mut rocketchat_router = Router::new();
-        rocketchat_router.get("/api/info", handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION }, "info");
+        rocketchat_router.get(
+            "/api/info",
+            handlers::RocketchatInfo {
+                version: DEFAULT_ROCKETCHAT_VERSION,
+            },
+            "info",
+        );
         let mut server = Iron::new(rocketchat_router);
         server.threads = IRON_THREADS;
         let listening = server.http(&socket_addr).unwrap();
@@ -352,7 +358,9 @@ fn connect_an_existing_server() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
+    let admin_room_creator_handler = handlers::RoomStateCreate {
+        creator: UserId::try_from("@other_user:localhost").unwrap(),
+    };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
         room_id: RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         event_type: EventType::RoomCreate.to_string(),
@@ -402,7 +410,9 @@ fn attempt_to_connect_to_an_existing_server_with_a_token() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
+    let admin_room_creator_handler = handlers::RoomStateCreate {
+        creator: UserId::try_from("@other_user:localhost").unwrap(),
+    };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
         room_id: RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         event_type: EventType::RoomCreate.to_string(),
@@ -584,7 +594,7 @@ fn connecting_a_room_failes_when_the_room_topic_failes() {
     assert!(message_received_by_matrix.contains("An internal error occurred"));
 
     let connection = test.connection_pool.get().unwrap();
-    let rocketchat_server_option = RocketchatServer::find_by_url(&connection, &test.rocketchat_mock_url.clone().unwrap())
-        .unwrap();
+    let rocketchat_server_option =
+        RocketchatServer::find_by_url(&connection, &test.rocketchat_mock_url.clone().unwrap()).unwrap();
     assert!(rocketchat_server_option.is_none());
 }

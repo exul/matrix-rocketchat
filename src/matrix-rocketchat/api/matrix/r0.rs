@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use pulldown_cmark::{Options, Parser, html};
+use pulldown_cmark::{html, Options, Parser};
 use reqwest::StatusCode;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::alias::get_alias::{self, Endpoint as GetAliasEndpoint};
@@ -96,8 +96,8 @@ impl super::MatrixApi for MatrixApi {
 
     fn delete_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<()> {
         // the ruma client api path params cannot be used here, because they are not url encoded
-        let encoded_room_alias = url::form_urlencoded::byte_serialize(matrix_room_alias_id.to_string().as_bytes())
-            .collect::<String>();
+        let encoded_room_alias =
+            url::form_urlencoded::byte_serialize(matrix_room_alias_id.to_string().as_bytes()).collect::<String>();
         let endpoint = self.base_url.clone() + &format!("/_matrix/client/r0/directory/room/{}", &encoded_room_alias);
         let params = self.params_hash();
 
@@ -110,7 +110,9 @@ impl super::MatrixApi for MatrixApi {
     }
 
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()> {
-        let path_params = forget_room::PathParams { room_id: matrix_room_id };
+        let path_params = forget_room::PathParams {
+            room_id: matrix_room_id,
+        };
         let endpoint = self.base_url.clone() + &ForgetRoomEndpoint::request_path(path_params);
         let params = self.params_hash();
 
@@ -144,7 +146,9 @@ impl super::MatrixApi for MatrixApi {
     }
 
     fn get_display_name(&self, matrix_user_id: UserId) -> Result<Option<String>> {
-        let path_params = get_display_name::PathParams { user_id: matrix_user_id };
+        let path_params = get_display_name::PathParams {
+            user_id: matrix_user_id,
+        };
         let endpoint = self.base_url.clone() + &GetDisplayNameEndpoint::request_path(path_params);
         let params = self.params_hash();
 
@@ -168,8 +172,8 @@ impl super::MatrixApi for MatrixApi {
 
     fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<Option<RoomId>> {
         // the ruma client api path params cannot be used here, because they are not url encoded
-        let encoded_room_alias = url::form_urlencoded::byte_serialize(matrix_room_alias_id.to_string().as_bytes())
-            .collect::<String>();
+        let encoded_room_alias =
+            url::form_urlencoded::byte_serialize(matrix_room_alias_id.to_string().as_bytes()).collect::<String>();
         let endpoint = self.base_url.clone() + &format!("/_matrix/client/r0/directory/room/{}", &encoded_room_alias);
         let params = self.params_hash();
 
@@ -182,9 +186,9 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        let get_alias_response: get_alias::Response = serde_json::from_str(&body).chain_err(|| {
-            ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix get_alias API endpoint: `{}`", body))
-        })?;
+        let get_alias_response: get_alias::Response = serde_json::from_str(&body).chain_err(
+            || ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix get_alias API endpoint: `{}`", body)),
+        )?;
 
         Ok(Some(get_alias_response.room_id.clone()))
     }
@@ -247,7 +251,9 @@ impl super::MatrixApi for MatrixApi {
 
 
     fn get_room_members(&self, matrix_room_id: RoomId, sender_id: Option<UserId>) -> Result<Vec<MemberEvent>> {
-        let path_params = get_member_events::PathParams { room_id: matrix_room_id.clone() };
+        let path_params = get_member_events::PathParams {
+            room_id: matrix_room_id.clone(),
+        };
         let endpoint = self.base_url.clone() + &GetMemberEventsEndpoint::request_path(path_params);
         let user_id;
         let mut params = self.params_hash();
@@ -263,9 +269,9 @@ impl super::MatrixApi for MatrixApi {
 
         debug!(self.logger, "List of room members for room {} successfully received", matrix_room_id);
 
-        let room_member_events: get_member_events::Response = serde_json::from_str(&body).chain_err(|| {
-            ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix members API endpoint: `{}`", body))
-        })?;
+        let room_member_events: get_member_events::Response = serde_json::from_str(&body).chain_err(
+            || ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix members API endpoint: `{}`", body)),
+        )?;
         Ok(room_member_events.chunk)
     }
 
@@ -296,12 +302,16 @@ impl super::MatrixApi for MatrixApi {
     }
 
     fn invite(&self, matrix_room_id: RoomId, receiver_matrix_user_id: UserId, sender_matrix_user_id: UserId) -> Result<()> {
-        let path_params = invite_user::PathParams { room_id: matrix_room_id.clone() };
+        let path_params = invite_user::PathParams {
+            room_id: matrix_room_id.clone(),
+        };
         let endpoint = self.base_url.clone() + &InviteUserEndpoint::request_path(path_params);
         let user_id = sender_matrix_user_id.to_string();
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
-        let body_params = invite_user::BodyParams { user_id: receiver_matrix_user_id.clone() };
+        let body_params = invite_user::BodyParams {
+            user_id: receiver_matrix_user_id.clone(),
+        };
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("invite"))?;
 
         let (body, status_code) = RestApi::call_matrix(InviteUserEndpoint::method(), &endpoint, &payload, &params)?;
@@ -333,7 +343,9 @@ impl super::MatrixApi for MatrixApi {
     }
 
     fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {
-        let path_params = join_room_by_id::PathParams { room_id: matrix_room_id.clone() };
+        let path_params = join_room_by_id::PathParams {
+            room_id: matrix_room_id.clone(),
+        };
         let endpoint = self.base_url.clone() + &JoinRoomByIdEndpoint::request_path(path_params);
         let user_id = matrix_user_id.to_string();
         let mut params = self.params_hash();
@@ -349,7 +361,9 @@ impl super::MatrixApi for MatrixApi {
     }
 
     fn leave_room(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {
-        let path_params = leave_room::PathParams { room_id: matrix_room_id };
+        let path_params = leave_room::PathParams {
+            room_id: matrix_room_id,
+        };
         let endpoint = self.base_url.clone() + &LeaveRoomEndpoint::request_path(path_params);
         let user_id = matrix_user_id.to_string();
         let mut params = self.params_hash();
@@ -465,12 +479,16 @@ impl super::MatrixApi for MatrixApi {
     }
 
     fn set_display_name(&self, matrix_user_id: UserId, name: String) -> Result<()> {
-        let path_params = set_display_name::PathParams { user_id: matrix_user_id.clone() };
+        let path_params = set_display_name::PathParams {
+            user_id: matrix_user_id.clone(),
+        };
         let endpoint = self.base_url.clone() + &SetDisplayNameEndpoint::request_path(path_params);
         let user_id = matrix_user_id.to_string();
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
-        let body_params = set_display_name::BodyParams { displayname: Some(name) };
+        let body_params = set_display_name::BodyParams {
+            displayname: Some(name),
+        };
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("set display name"))?;
 
         let (body, status_code) = RestApi::call_matrix(SetDisplayNameEndpoint::method(), &endpoint, &payload, &params)?;
@@ -527,13 +545,13 @@ fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
         body
     );
     let json_error = ErrorKind::InvalidJSON(json_error_msg);
-    let matrix_error_resp: MatrixErrorResponse =
-        match serde_json::from_str(body).chain_err(|| json_error).map_err(Error::from) {
-            Ok(matrix_error_resp) => matrix_error_resp,
-            Err(err) => {
-                return err;
-            }
-        };
+    let matrix_error_resp: MatrixErrorResponse = match serde_json::from_str(body).chain_err(|| json_error).map_err(Error::from)
+    {
+        Ok(matrix_error_resp) => matrix_error_resp,
+        Err(err) => {
+            return err;
+        }
+    };
     Error::from(ErrorKind::MatrixError(matrix_error_resp.error))
 }
 

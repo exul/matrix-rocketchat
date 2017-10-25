@@ -97,7 +97,7 @@ impl MatrixApi {
             let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
                 ErrorKind::InvalidJSON(format!(
                     "Could not deserialize error response from Matrix supported versions \
-                                                    API endpoint: `{}` ",
+                     API endpoint: `{}` ",
                     body
                 ))
             })?;
@@ -107,7 +107,7 @@ impl MatrixApi {
         let supported_versions: GetSupportedVersionsResponse = serde_json::from_str(&body).chain_err(|| {
             ErrorKind::InvalidJSON(format!(
                 "Could not deserialize response from Matrix supported versions API \
-                                                endpoint: `{}`",
+                 endpoint: `{}`",
                 body
             ))
         })?;

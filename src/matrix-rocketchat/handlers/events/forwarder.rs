@@ -35,14 +35,8 @@ impl<'a> Forwarder<'a> {
         match event.content {
             MessageEventContent::Text(ref text_content) => {
                 let rocketchat_api = RocketchatApi::new(server.rocketchat_url, self.logger.clone())?.with_credentials(
-                    user_on_rocketchat_server
-                        .rocketchat_user_id
-                        .clone()
-                        .unwrap_or_default(),
-                    user_on_rocketchat_server
-                        .rocketchat_auth_token
-                        .clone()
-                        .unwrap_or_default(),
+                    user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
+                    user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
                 );
                 rocketchat_api.post_chat_message(&text_content.body, &channel_id)?;
             }

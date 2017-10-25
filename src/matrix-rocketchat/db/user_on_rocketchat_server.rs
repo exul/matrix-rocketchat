@@ -99,13 +99,14 @@ impl UserOnRocketchatServer {
         matrix_user_id: &UserId,
         rocketchat_server_id: String,
     ) -> Result<Option<UserOnRocketchatServer>> {
-        let user_on_rocketchat_server =
-            users_on_rocketchat_servers::table
-                .filter(users_on_rocketchat_servers::matrix_user_id.eq(matrix_user_id).and(
-                    users_on_rocketchat_servers::rocketchat_server_id.eq(rocketchat_server_id),
-                ))
-                .load(connection)
-                .chain_err(|| ErrorKind::DBSelectError)?;
+        let user_on_rocketchat_server = users_on_rocketchat_servers::table
+            .filter(
+                users_on_rocketchat_servers::matrix_user_id
+                    .eq(matrix_user_id)
+                    .and(users_on_rocketchat_servers::rocketchat_server_id.eq(rocketchat_server_id)),
+            )
+            .load(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(user_on_rocketchat_server.into_iter().next())
     }
 
@@ -117,9 +118,11 @@ impl UserOnRocketchatServer {
         rocketchat_user_id: String,
     ) -> Result<Option<UserOnRocketchatServer>> {
         let users_on_rocketchat_servers = users_on_rocketchat_servers::table
-            .filter(users_on_rocketchat_servers::rocketchat_server_id.eq(rocketchat_server_id).and(
-                users_on_rocketchat_servers::rocketchat_user_id.eq(rocketchat_user_id),
-            ))
+            .filter(
+                users_on_rocketchat_servers::rocketchat_server_id
+                    .eq(rocketchat_server_id)
+                    .and(users_on_rocketchat_servers::rocketchat_user_id.eq(rocketchat_user_id)),
+            )
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(users_on_rocketchat_servers.into_iter().next())

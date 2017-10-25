@@ -14,11 +14,11 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use iron::{Chain, status};
+use iron::{status, Chain};
 use matrix_rocketchat::api::{MatrixApi, RestApi};
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::db::Room;
-use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use reqwest::{Method, StatusCode};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
@@ -359,7 +359,9 @@ fn no_message_is_forwarded_when_inviting_the_user_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let invite_handler = handlers::MatrixInviteUser { as_url: test.config.as_url.clone() };
+    let invite_handler = handlers::MatrixInviteUser {
+        as_url: test.config.as_url.clone(),
+    };
     let conditional_error = handlers::MatrixConditionalErrorResponder {
         status: status::InternalServerError,
         message: "Could not invite user".to_string(),

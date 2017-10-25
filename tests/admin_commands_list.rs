@@ -13,7 +13,7 @@ use std::convert::TryFrom;
 use iron::status;
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, LOGIN_PATH, ME_PATH};
-use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -31,7 +31,13 @@ fn sucessfully_list_rocketchat_rooms() {
     channels.insert("normal_channel", Vec::new());
     channels.insert("joined_channel", vec!["spec_user"]);
     channels.insert("bridged_channel", vec!["spec_user"]);
-    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatMe {
+            username: "spec_user".to_string(),
+        },
+        "me",
+    );
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -76,7 +82,13 @@ fn the_user_gets_a_message_when_getting_room_list_failes() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatMe {
+            username: "spec_user".to_string(),
+        },
+        "me",
+    );
     rocketchat_router.get(
         CHANNELS_LIST_PATH,
         handlers::RocketchatErrorResponder {
@@ -117,7 +129,13 @@ fn the_user_gets_a_message_when_the_room_list_cannot_be_deserialized() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatMe {
+            username: "spec_user".to_string(),
+        },
+        "me",
+    );
     rocketchat_router.get(CHANNELS_LIST_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "channels_list");
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()

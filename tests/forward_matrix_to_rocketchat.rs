@@ -15,7 +15,7 @@ use iron::status;
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::v1::POST_CHAT_MESSAGE_PATH;
 use matrix_rocketchat::api::rocketchat::Message;
-use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;

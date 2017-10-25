@@ -11,11 +11,11 @@ extern crate ruma_identifiers;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
-use iron::{Chain, status};
+use iron::{status, Chain};
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH, USERS_INFO_PATH};
 use matrix_rocketchat::db::Room;
-use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::alias::get_alias::Endpoint as GetAliasEndpoint;
@@ -143,7 +143,13 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
         },
         "login",
     );
-    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatMe {
+            username: "spec_user".to_string(),
+        },
+        "me",
+    );
     rocketchat_router.get(USERS_INFO_PATH, handlers::RocketchatUsersInfo {}, "users_info");
 
     let mut channels = HashMap::new();
@@ -382,8 +388,8 @@ fn successfully_bridge_two_different_rocketchat_rooms() {
     );
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let first_user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!first_channel_id:localhost").unwrap(), None)
-        .unwrap();
+    let first_user_ids =
+        Room::user_ids(&(*matrix_api), RoomId::try_from("!first_channel_id:localhost").unwrap(), None).unwrap();
     let rocketchat_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
     let virtual_spec_user_id = UserId::try_from("@rocketchat_spec_user_id_rcid:localhost").unwrap();
@@ -626,7 +632,9 @@ fn the_user_gets_a_message_when_creating_the_room_failes() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
 
-    let create_room = handlers::MatrixCreateRoom { as_url: test.config.as_url.clone() };
+    let create_room = handlers::MatrixCreateRoom {
+        as_url: test.config.as_url.clone(),
+    };
     let conditional_error = handlers::MatrixConditionalErrorResponder {
         status: status::InternalServerError,
         message: "Could not set power levels".to_string(),
@@ -715,7 +723,9 @@ fn the_user_gets_a_message_when_inviting_the_user_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let invite_path = invite_user::PathParams { room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap() };
+    let invite_path = invite_user::PathParams {
+        room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap(),
+    };
     matrix_router.post(
         InviteEndpoint::request_path(invite_path),
         handlers::MatrixErrorResponder {
@@ -769,7 +779,13 @@ fn the_user_gets_a_message_when_getting_the_users_info_failes() {
         },
         "login",
     );
-    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatMe {
+            username: "spec_user".to_string(),
+        },
+        "me",
+    );
     rocketchat_router.get(
         USERS_INFO_PATH,
         handlers::RocketchatErrorResponder {
@@ -858,7 +874,9 @@ fn the_user_gets_a_message_when_the_create_room_response_cannot_be_deserialized(
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let create_room = handlers::MatrixCreateRoom { as_url: test.config.as_url.clone() };
+    let create_room = handlers::MatrixCreateRoom {
+        as_url: test.config.as_url.clone(),
+    };
     let conditional_invalid_json_responder = handlers::ConditionalInvalidJsonResponse {
         status: status::Ok,
         conditional_content: "joined_channel",
@@ -912,7 +930,13 @@ fn the_user_gets_a_message_when_the_users_info_response_cannot_be_deserialized()
         },
         "login",
     );
-    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatMe {
+            username: "spec_user".to_string(),
+        },
+        "me",
+    );
     rocketchat_router.get(USERS_INFO_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "users_info");
 
     let test = test.with_matrix_routes(matrix_router)

@@ -102,7 +102,6 @@ impl<'a> Forwarder<'a> {
             None => return Ok(None),
         };
 
-        self.invite_user_into_direct_message_room(matrix_room_id.clone(), &receiver)?;
         Ok(Some(matrix_room_id))
     }
 
@@ -113,6 +112,7 @@ impl<'a> Forwarder<'a> {
         message: &Message,
     ) -> Result<Option<RoomId>> {
         if let Some(matrix_room_id) = self.lookup_existing_direct_message_room(server, receiver, message)? {
+            self.invite_user_into_direct_message_room(matrix_room_id.clone(), receiver)?;
             return Ok(Some(matrix_room_id));
         }
 
@@ -126,7 +126,13 @@ impl<'a> Forwarder<'a> {
         message: &Message,
     ) -> Result<Option<RoomId>> {
         let sender_id = self.virtual_user_handler.build_matrix_user_id(&message.user_id, &server.id)?;
-        //TODO: This is highly inefficient and needs some kind of caching, but it no persistent storage or alias is needed
+
+        // If the user does not exist yet, there is no existing direct message room
+        if self.matrix_api.get_display_name(sender_id.clone())?.is_none() {
+            return Ok(None);
+        }
+
+        //TODO: This is highly inefficient and needs some kind of caching, but no persistent storage or alias is needed
         for room_id in self.matrix_api.get_joined_rooms(sender_id.clone())? {
             let user_ids = Room::user_ids(self.matrix_api, room_id.clone(), Some(sender_id.clone()))?;
             if user_ids.iter().all(|id| id == &sender_id || id == &receiver.matrix_user_id) {
@@ -197,7 +203,7 @@ impl<'a> Forwarder<'a> {
                 Some(room_display_name),
             )?;
 
-            // invite the bot user into the direct message room to be able to read the room members
+            // invite the bot user into the direct message room to be able to read the room state
             // the bot will leave as soon as the AS gets the join event
             let invitee_id = self.config.matrix_bot_user_id()?;
             self.matrix_api.invite(matrix_room_id.clone(), invitee_id.clone(), direct_message_sender_id)?;

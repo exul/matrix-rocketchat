@@ -248,6 +248,18 @@ impl Handler for MatrixSync {
         debug!(DEFAULT_LOGGER, "Matrix mock server got sync request");
 
         let user_id = user_id_from_request(request);
+
+        let mutex = request.get::<Write<UserList>>().unwrap();
+        let user_list = mutex.lock().unwrap();
+
+        if !user_list.contains_key(&user_id) {
+            let payload = r#"{
+                    "errcode":"M_GUEST_ACCESS_FORBIDDEN",
+                    "error":"User is not in room"
+                }"#;
+            return Ok(Response::with((status::Forbidden, payload.to_string())));
+        }
+
         let mut joined_rooms = Map::new();
         let mut left_rooms = Map::new();
         let mut invited_rooms = Map::new();

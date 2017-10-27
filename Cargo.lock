@@ -17,7 +17,7 @@ dependencies = [
  "reqwest 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "router 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ruma-client-api 0.1.0 (git+https://github.com/exul/ruma-client-api.git)",
- "ruma-events 0.8.0 (git+https://github.com/exul/ruma-events.git)",
+ "ruma-events 0.9.0 (git+https://github.com/exul/ruma-events.git)",
  "ruma-identifiers 0.11.0 (git+https://github.com/exul/ruma-identifiers.git)",
  "serde 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -461,7 +461,7 @@ dependencies = [
  "reqwest 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "router 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "ruma-client-api 0.1.0 (git+https://github.com/exul/ruma-client-api.git)",
- "ruma-events 0.8.0 (git+https://github.com/exul/ruma-events.git)",
+ "ruma-events 0.9.0 (git+https://github.com/exul/ruma-events.git)",
  "ruma-identifiers 0.11.0 (git+https://github.com/exul/ruma-identifiers.git)",
  "serde 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde_derive 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -746,7 +746,7 @@ version = "0.1.0"
 source = "git+https://github.com/exul/ruma-client-api.git#557c69ff0dc63a3fa4b1a1957a490c498d221adf"
 dependencies = [
  "ruma-api 0.3.0 (git+https://github.com/exul/ruma-api)",
- "ruma-events 0.8.0 (git+https://github.com/exul/ruma-events.git)",
+ "ruma-events 0.9.0 (git+https://github.com/exul/ruma-events.git)",
  "ruma-identifiers 0.11.0 (git+https://github.com/exul/ruma-identifiers.git)",
  "ruma-signatures 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.15 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -756,8 +756,8 @@ dependencies = [
 
 [[package]]
 name = "ruma-events"
-version = "0.8.0"
-source = "git+https://github.com/exul/ruma-events.git#bf26815ceb984cfa1f29c6544b7c1a6d6891b021"
+version = "0.9.0"
+source = "git+https://github.com/exul/ruma-events.git#41a26d5715bce3d33312bfa6a4f9e3c845443597"
 dependencies = [
  "ruma-identifiers 0.11.0 (git+https://github.com/exul/ruma-identifiers.git)",
  "ruma-signatures 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -1286,7 +1286,7 @@ dependencies = [
 "checksum router 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)" = "b9b1797ff166029cb632237bb5542696e54961b4cf75a324c6f05c9cf0584e4e"
 "checksum ruma-api 0.3.0 (git+https://github.com/exul/ruma-api)" = "<none>"
 "checksum ruma-client-api 0.1.0 (git+https://github.com/exul/ruma-client-api.git)" = "<none>"
-"checksum ruma-events 0.8.0 (git+https://github.com/exul/ruma-events.git)" = "<none>"
+"checksum ruma-events 0.9.0 (git+https://github.com/exul/ruma-events.git)" = "<none>"
 "checksum ruma-identifiers 0.11.0 (git+https://github.com/exul/ruma-identifiers.git)" = "<none>"
 "checksum ruma-signatures 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "895d8e7044367c451347f4a0327b7df1bf14a66ed6345ce431c4e8d01cdcb535"
 "checksum rustc-demangle 0.1.5 (registry+https://github.com/rust-lang/crates.io-index)" = "aee45432acc62f7b9a108cc054142dac51f979e69e71ddce7d6fc7adf29e817e"

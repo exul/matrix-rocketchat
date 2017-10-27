@@ -222,7 +222,7 @@ impl Room {
             None => return Ok(None),
         };
 
-        let virtual_user_matrix_id = match user_ids.iter().find(|id| config.is_application_service_virtual_user(id)){
+        let virtual_user_matrix_id = match user_ids.iter().find(|id| config.is_application_service_virtual_user(id)) {
             Some(user_id) => user_id,
             None => return Ok(None),
         };
@@ -239,8 +239,7 @@ impl Room {
             None => return Ok(None),
         };
 
-        let user_on_rocketchat_server = match UserOnRocketchatServer::find_by_matrix_user_id(conn, user_matrix_id, server_id)?
-        {
+        let user_on_rocketchat_server = match UserOnRocketchatServer::find_by_matrix_user_id(conn, user_matrix_id, server_id)? {
             Some(user_on_rocketchat_server) => user_on_rocketchat_server,
             None => return Ok(None),
         };

@@ -17,7 +17,7 @@ use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH};
 use matrix_rocketchat::db::Room;
-use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -85,7 +85,7 @@ fn successfully_unbridge_a_rocketchat_room() {
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!bridged_channel_id:localhost").unwrap(), None).unwrap();
     let rocketchat_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
-    let new_user_id = UserId::try_from("@rocketchat_new_user_id_rc_id:localhost").unwrap();
+    let new_user_id = UserId::try_from("@rocketchat_new_user_id_rcid:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
 
     assert!(user_ids.iter().any(|id| id == &rocketchat_user_id));
@@ -99,7 +99,9 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
+    let admin_room_creator_handler = handlers::RoomStateCreate {
+        creator: UserId::try_from("@other_user:localhost").unwrap(),
+    };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
         room_id: RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         event_type: EventType::RoomCreate.to_string(),
@@ -119,7 +121,13 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
         },
         "login",
     );
-    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "spec_user".to_string() }, "me");
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatMe {
+            username: "spec_user".to_string(),
+        },
+        "me",
+    );
 
 
     let test = test.with_matrix_routes(matrix_router)
@@ -205,9 +213,10 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
     assert!(message_received_by_matrix.contains("Cannot unbdrige room bridged_channel, because Matrix users"));
     assert!(message_received_by_matrix.contains("@spec_user:localhost"));
     assert!(message_received_by_matrix.contains("@other_user:localhost"));
-    assert!(message_received_by_matrix.contains(
-        "are still using the room. All Matrix users have to leave a room before it can be unbridged.",
-    ));
+    assert!(
+        message_received_by_matrix
+            .contains("are still using the room. All Matrix users have to leave a room before it can be unbridged.",)
+    );
 }
 
 #[test]

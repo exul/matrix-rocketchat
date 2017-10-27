@@ -36,8 +36,8 @@ impl BeforeMiddleware for RocketchatToken {
         };
 
         let connection = ConnectionPool::from_request(request)?;
-        let rocketchat_server = match RocketchatServer::find_by_token(&connection, &token)? {
-            Some(rocketchat_server) => rocketchat_server,
+        let server = match RocketchatServer::find_by_token(&connection, &token)? {
+            Some(server) => server,
             None => {
                 let err = simple_error!(ErrorKind::InvalidRocketchatToken(token));
                 info!(logger, "{}", err);
@@ -46,7 +46,7 @@ impl BeforeMiddleware for RocketchatToken {
         };
 
         request.extensions.insert::<Message>(message);
-        request.extensions.insert::<RocketchatServer>(rocketchat_server);
+        request.extensions.insert::<RocketchatServer>(server);
 
         Ok(())
     }

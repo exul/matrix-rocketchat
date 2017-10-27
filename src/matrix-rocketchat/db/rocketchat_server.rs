@@ -38,30 +38,31 @@ pub struct NewRocketchatServer<'a> {
 impl RocketchatServer {
     /// Insert a `RocketchatServer`.
     pub fn insert(connection: &SqliteConnection, new_rocketchat_server: &NewRocketchatServer) -> Result<RocketchatServer> {
-        diesel::insert(new_rocketchat_server).into(rocketchat_servers::table).execute(connection).chain_err(
-            || ErrorKind::DBInsertError,
-        )?;
+        diesel::insert(new_rocketchat_server)
+            .into(rocketchat_servers::table)
+            .execute(connection)
+            .chain_err(|| ErrorKind::DBInsertError)?;
 
-        let rocketchat_server = RocketchatServer::find(connection, new_rocketchat_server.rocketchat_url)?;
-        Ok(rocketchat_server)
+        let server = RocketchatServer::find(connection, new_rocketchat_server.rocketchat_url)?;
+        Ok(server)
     }
 
     /// Find a `RocketchatServer` by its URL, return an error if the `RocketchatServer` is not
     /// found.
     pub fn find(connection: &SqliteConnection, url: &str) -> Result<RocketchatServer> {
-        let rocketchat_server = rocketchat_servers::table
+        let server = rocketchat_servers::table
             .filter(rocketchat_servers::rocketchat_url.eq(url))
             .first(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
-        Ok(rocketchat_server)
+        Ok(server)
     }
 
     /// Find a `RocketchatServer` by its ID.
     pub fn find_by_id(connection: &SqliteConnection, id: &str) -> Result<Option<RocketchatServer>> {
-        let rocketchat_servers =
-            rocketchat_servers::table.filter(rocketchat_servers::id.eq(id)).load(connection).chain_err(
-                || ErrorKind::DBSelectError,
-            )?;
+        let rocketchat_servers = rocketchat_servers::table
+            .filter(rocketchat_servers::id.eq(id))
+            .load(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rocketchat_servers.into_iter().next())
     }
 

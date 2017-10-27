@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use iron::{Handler, status};
+use iron::{status, Handler};
 use iron::prelude::*;
 use iron::request::Body;
 use serde_json;
@@ -34,19 +34,18 @@ impl Handler for RocketchatLogin {
             logger: &logger,
             matrix_api: self.matrix_api.as_ref(),
         };
-        let rocketchat_server = match RocketchatServer::find_by_url(&connection, &credentials.rocketchat_url)? {
-            Some(rocketchat_server) => rocketchat_server,
+        let server = match RocketchatServer::find_by_url(&connection, &credentials.rocketchat_url)? {
+            Some(server) => server,
             None => {
                 return Err(user_error!(
                     ErrorKind::AdminRoomForRocketchatServerNotFound(credentials.rocketchat_url.clone()),
-                    t!(["errors", "rocketchat_server_not_found"]).with_vars(vec![
-                        ("rocketchat_url", credentials.rocketchat_url.clone()),
-                    ])
+                    t!(["errors", "rocketchat_server_not_found"])
+                        .with_vars(vec![("rocketchat_url", credentials.rocketchat_url.clone())])
                 ))?;
             }
         };
 
-        if let Err(err) = login.call(&credentials, &rocketchat_server, None) {
+        if let Err(err) = login.call(&credentials, &server, None) {
             return Err(err)?;
         }
 

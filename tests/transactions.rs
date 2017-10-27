@@ -1,17 +1,17 @@
 extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
 extern crate reqwest;
+extern crate router;
 extern crate ruma_client_api;
 extern crate ruma_events;
 extern crate ruma_identifiers;
-extern crate router;
 extern crate serde_json;
 
 use std::collections::HashMap;
 
 use matrix_rocketchat::api::RestApi;
 use matrix_rocketchat::models::Events;
-use matrix_rocketchat_test::{HS_TOKEN, MessageForwarder, Test, default_timeout, helpers};
+use matrix_rocketchat_test::{default_timeout, helpers, MessageForwarder, Test, HS_TOKEN};
 use reqwest::{Method, StatusCode};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -56,7 +56,9 @@ fn unknown_event_types_are_skipped() {
         unsigned: None,
     };
 
-    let events = Events { events: vec![Box::new(Event::CallHangup(unknown_event))] };
+    let events = Events {
+        events: vec![Box::new(Event::CallHangup(unknown_event))],
+    };
 
     let payload = to_string(&events).unwrap();
 

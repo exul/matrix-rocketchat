@@ -21,8 +21,7 @@ fn read_config_from_file() {
                         sender_localpart: "rocketchat"
                         database_url: "./database.sqlite3"
                         accept_remote_invites: true
-                        use_ssl: false"#
-        .replace("  ", ""); // hacky way to remove the whitespaces before the keys
+                        use_ssl: false"#.replace("  ", ""); // hacky way to remove the whitespaces before the keys
     let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
     let config_path = temp_dir.path().join("test.config");
 

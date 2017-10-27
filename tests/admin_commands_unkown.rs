@@ -7,7 +7,7 @@ extern crate ruma_identifiers;
 
 use std::convert::TryFrom;
 
-use matrix_rocketchat_test::{MessageForwarder, Test, default_timeout, helpers};
+use matrix_rocketchat_test::{default_timeout, helpers, MessageForwarder, Test};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_identifiers::{RoomId, UserId};

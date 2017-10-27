@@ -362,11 +362,10 @@ error_chain!{
 impl Error {
     pub fn status_code(&self) -> Status {
         match *self.error_chain {
-            ErrorKind::InvalidAccessToken(_) |
-            ErrorKind::InvalidRocketchatToken(_) => Status::Forbidden,
-            ErrorKind::MissingAccessToken |
-            ErrorKind::MissingRocketchatToken |
-            ErrorKind::AuthenticationFailed(_) => Status::Unauthorized,
+            ErrorKind::InvalidAccessToken(_) | ErrorKind::InvalidRocketchatToken(_) => Status::Forbidden,
+            ErrorKind::MissingAccessToken | ErrorKind::MissingRocketchatToken | ErrorKind::AuthenticationFailed(_) => {
+                Status::Unauthorized
+            }
             ErrorKind::InvalidJSON(_) => Status::UnprocessableEntity,
             ErrorKind::AdminRoomForRocketchatServerNotFound(_) => Status::NotFound,
             _ => Status::InternalServerError,

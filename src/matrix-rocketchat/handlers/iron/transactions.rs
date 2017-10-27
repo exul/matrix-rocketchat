@@ -1,6 +1,6 @@
 use std::io::Read;
 
-use iron::{Handler, status};
+use iron::{status, Handler};
 use iron::prelude::*;
 use iron::request::Body;
 use serde_json;
@@ -49,9 +49,8 @@ impl Handler for Transactions {
 
         let connection = ConnectionPool::from_request(request)?;
 
-        if let Err(err) = EventDispatcher::new(&self.config, &connection, &logger, self.matrix_api.clone()).process(
-            events_batch.events,
-        )
+        if let Err(err) =
+            EventDispatcher::new(&self.config, &connection, &logger, self.matrix_api.clone()).process(events_batch.events)
         {
             log::log_error(&logger, &err);
         }
@@ -67,7 +66,7 @@ fn deserialize_events(body: &mut Body) -> Result<Events> {
         .chain_err(|| {
             ErrorKind::InvalidJSON(format!(
                 "Could not deserialize events that were sent to the transactions endpoint: \
-                                            `{}`",
+                 `{}`",
                 payload
             ))
         })

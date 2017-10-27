@@ -1,11 +1,11 @@
-use iron::{Handler, status};
+use iron::{status, Handler};
 use iron::prelude::*;
 
 use api::MatrixApi;
 use api::rocketchat::Message;
 use config::Config;
 use db::{ConnectionPool, RocketchatServer};
-use handlers::rocketchat::Forwarder;
+use handlers::rocketchat::{Forwarder, VirtualUserHandler};
 use log::{self, IronLogger};
 use middleware::RocketchatToken;
 
@@ -38,17 +38,25 @@ impl Handler for Rocketchat {
         let connection = ConnectionPool::from_request(request)?;
 
         let message = request.extensions.get::<Message>().expect("Middleware ensures the presence of the Rocket.Chat message");
-        let rocketchat_server =
+        let server =
             request.extensions.get::<RocketchatServer>().expect("Middleware ensures the presence of the Rocket.Chat server");
+
+        let virtual_user_handler = VirtualUserHandler {
+            config: &self.config,
+            connection: &connection,
+            logger: &logger,
+            matrix_api: self.matrix_api.as_ref(),
+        };
 
         let forwarder = Forwarder {
             config: &self.config,
             connection: &connection,
             matrix_api: self.matrix_api.as_ref(),
             logger: &logger,
+            virtual_user_handler: &virtual_user_handler,
         };
 
-        if let Err(err) = forwarder.send(rocketchat_server, message) {
+        if let Err(err) = forwarder.send(server, message) {
             log::log_error(&logger, &err);
         }
 

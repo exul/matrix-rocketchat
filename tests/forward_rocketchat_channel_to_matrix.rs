@@ -14,11 +14,11 @@ use std::convert::TryFrom;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use iron::{Chain, status};
+use iron::{status, Chain};
 use matrix_rocketchat::api::{MatrixApi, RestApi};
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::db::Room;
-use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use reqwest::{Method, StatusCode};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
@@ -72,7 +72,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     // virtual user was registered
     let register_message = register_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(register_message.contains("\"username\":\"rocketchat_spec_user_id_rc_id\""));
+    assert!(register_message.contains("\"username\":\"rocketchat_spec_user_id_rcid\""));
 
     // discard admin room invite
     invite_receiver.recv_timeout(default_timeout()).unwrap();
@@ -80,9 +80,9 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_invite_message.contains("@spec_user:localhost"));
     let virtual_spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(virtual_spec_user_invite_message.contains("@rocketchat_spec_user_id_rc_id:localhost"));
+    assert!(virtual_spec_user_invite_message.contains("@rocketchat_spec_user_id_rcid:localhost"));
     let new_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(new_user_invite_message.contains("@rocketchat_new_user_id_rc_id:localhost"));
+    assert!(new_user_invite_message.contains("@rocketchat_new_user_id_rcid:localhost"));
 
     // receive the join message
     assert!(join_receiver.recv_timeout(default_timeout()).is_ok());
@@ -172,7 +172,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let spec_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(spec_user_invite_message.contains("@spec_user:localhost"));
     let virtual_user_invite_message = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(virtual_user_invite_message.contains("@rocketchat_spec_user_id_rc_id:localhost"));
+    assert!(virtual_user_invite_message.contains("@rocketchat_spec_user_id_rcid:localhost"));
 
     // discard admin room join
     join_receiver.recv_timeout(default_timeout()).unwrap();
@@ -209,7 +209,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     // the virtual user was create with the Rocket.Chat user ID because the exiting matrix user
     // cannot be used since the application service can only impersonate virtual users.
     let register_message = register_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(register_message.contains("\"username\":\"rocketchat_spec_user_id_rc_id\""));
+    assert!(register_message.contains("\"username\":\"rocketchat_spec_user_id_rcid\""));
 
     let second_message = Message {
         message_id: "spec_id_2".to_string(),
@@ -280,7 +280,7 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
     assert!(new_display_name_message.contains("other virtual user new"));
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let virtual_spec_user_id = UserId::try_from("@rocketchat_other_virtual_user_id_rc_id:localhost").unwrap();
+    let virtual_spec_user_id = UserId::try_from("@rocketchat_other_virtual_user_id_rcid:localhost").unwrap();
     let displayname = matrix_api.get_display_name(virtual_spec_user_id).unwrap().unwrap();
 
     assert_eq!(displayname, "other virtual user new".to_string());
@@ -293,8 +293,6 @@ fn message_is_forwarded_even_if_setting_the_display_name_failes() {
     let error_responder_active = Arc::new(AtomicBool::new(false));
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-
-
     let set_display_name = handlers::MatrixSetDisplayName {};
     let error_responder = handlers::MatrixActivatableErrorResponder {
         status: status::InternalServerError,
@@ -359,7 +357,9 @@ fn no_message_is_forwarded_when_inviting_the_user_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let invite_handler = handlers::MatrixInviteUser { as_url: test.config.as_url.clone() };
+    let invite_handler = handlers::MatrixInviteUser {
+        as_url: test.config.as_url.clone(),
+    };
     let conditional_error = handlers::MatrixConditionalErrorResponder {
         status: status::InternalServerError,
         message: "Could not invite user".to_string(),

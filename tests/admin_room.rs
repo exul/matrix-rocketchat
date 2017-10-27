@@ -17,8 +17,8 @@ use iron::status;
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::db::Room;
 use matrix_rocketchat::models::Events;
-use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, TEMP_DIR_NAME, Test, build_test_config, default_timeout,
-                             handlers, helpers};
+use matrix_rocketchat_test::{build_test_config, default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER,
+                             TEMP_DIR_NAME};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::membership::forget_room::Endpoint as ForgetRoomEndpoint;
 use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinEndpoint;
@@ -46,8 +46,8 @@ fn successfully_create_an_admin_room() {
     assert!(message_received_by_matrix.contains("Hi, I'm the Rocket.Chat application service"));
     assert!(message_received_by_matrix.contains(
         "You have to connect this room to a Rocket.Chat server. To do so you can \
-                                                either use an already connected server (if there is one) or connect to a \
-                                                new server.",
+         either use an already connected server (if there is one) or connect to a \
+         new server.",
     ));
     assert!(message_received_by_matrix.contains("No Rocket.Chat server is connected yet."));
 
@@ -90,7 +90,7 @@ fn attempt_to_create_an_admin_room_with_other_users_in_it() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains(
         "Admin rooms must only contain the user that invites the bot. \
-                                                Too many members in the room, leaving.",
+         Too many members in the room, leaving.",
     ));
 }
 
@@ -147,7 +147,9 @@ fn the_user_does_not_get_a_message_when_joining_the_room_failes_for_the_bot_user
         message: "Could not join room".to_string(),
     };
     matrix_router.post(JoinEndpoint::router_path(), error_responder, "join");
-    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
+    let admin_room_creator_handler = handlers::RoomStateCreate {
+        creator: UserId::try_from("@spec_user:localhost").unwrap(),
+    };
     matrix_router.get(GetStateEventsForEmptyKey::router_path(), admin_room_creator_handler, "get_room_creator_admin_room");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = test.with_matrix_routes(matrix_router).run();
@@ -171,7 +173,9 @@ fn the_bot_user_leaves_the_admin_room_when_getting_the_room_members_failes() {
         message: "Could not get room members".to_string(),
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), error_responder, "get_member_events");
-    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
+    let admin_room_creator_handler = handlers::RoomStateCreate {
+        creator: UserId::try_from("@spec_user:localhost").unwrap(),
+    };
     let (leave_room, leave_room_receiver) = handlers::MatrixLeaveRoom::with_forwarder(test.config.as_url.clone());
     matrix_router.post(LeaveRoomEndpoint::router_path(), leave_room, "leave_room");
     let (forget_forwarder, forget_receiver) = MessageForwarder::new();
@@ -207,7 +211,9 @@ fn the_bot_user_leaves_the_admin_room_when_the_room_members_cannot_be_deserializ
         handlers::InvalidJsonResponse { status: status::Ok },
         "get_member",
     );
-    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
+    let admin_room_creator_handler = handlers::RoomStateCreate {
+        creator: UserId::try_from("@spec_user:localhost").unwrap(),
+    };
     matrix_router.get(GetStateEventsForEmptyKey::router_path(), admin_room_creator_handler, "get_room_creator_admin_room");
     let (leave_room, leave_room_receiver) = handlers::MatrixLeaveRoom::with_forwarder(test.config.as_url.clone());
     matrix_router.post(LeaveRoomEndpoint::router_path(), leave_room, "leave_room");
@@ -245,7 +251,9 @@ fn the_bot_user_does_not_leave_the_admin_room_just_because_setting_the_room_disp
         message: "Could not set display name for room".to_string(),
     };
     matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(), error_responder, "send_state_event_for_empty_key");
-    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
+    let admin_room_creator_handler = handlers::RoomStateCreate {
+        creator: UserId::try_from("@spec_user:localhost").unwrap(),
+    };
     matrix_router.get(GetStateEventsForEmptyKey::router_path(), admin_room_creator_handler, "get_room_creator_admin_room");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = test.with_matrix_routes(matrix_router).run();
@@ -365,7 +373,7 @@ fn the_user_does_not_get_a_message_when_an_leaving_the_room_failes_for_the_bot_u
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains(
         "Admin rooms must only contain the user that invites the bot. \
-                                                        Too many members in the room, leaving.",
+         Too many members in the room, leaving.",
     ));
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
@@ -479,7 +487,9 @@ fn unkown_membership_states_are_skipped() {
         user_id: UserId::new("localhost").unwrap(),
     };
 
-    let events = Events { events: vec![Box::new(Event::RoomMember(unknown_event))] };
+    let events = Events {
+        events: vec![Box::new(Event::RoomMember(unknown_event))],
+    };
 
     let payload = to_string(&events).unwrap();
 
@@ -524,7 +534,9 @@ fn accept_invites_from_local_rooms_if_accept_remote_invites_is_set_to_false() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.get(
         GetStateEventsForEmptyKey::router_path(),
-        handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() },
+        handlers::RoomStateCreate {
+            creator: UserId::try_from("@spec_user:localhost").unwrap(),
+        },
         "get_state_events_for_empty_key",
     );
     let _test = test.with_admin_room().with_matrix_routes(matrix_router).run();
@@ -544,7 +556,9 @@ fn ignore_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.get(
         GetStateEventsForEmptyKey::router_path(),
-        handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() },
+        handlers::RoomStateCreate {
+            creator: UserId::try_from("@spec_user:localhost").unwrap(),
+        },
         "get_state_events_for_empty_key",
     );
     let user_ids = vec![
@@ -579,7 +593,9 @@ fn accept_invites_from_local_rooms_if_accept_remote_invites_is_set_to_true() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.get(
         GetStateEventsForEmptyKey::router_path(),
-        handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() },
+        handlers::RoomStateCreate {
+            creator: UserId::try_from("@spec_user:localhost").unwrap(),
+        },
         "get_state_events_for_empty_key",
     );
     let _test = test.with_admin_room().with_matrix_routes(matrix_router).run();
@@ -599,7 +615,9 @@ fn accept_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.get(
         GetStateEventsForEmptyKey::router_path(),
-        handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:other-homeserver.com").unwrap() },
+        handlers::RoomStateCreate {
+            creator: UserId::try_from("@spec_user:other-homeserver.com").unwrap(),
+        },
         "get_state_events_for_empty_key",
     );
     let user_ids = vec![
@@ -662,8 +680,8 @@ fn reject_invites_when_the_inviting_user_is_not_the_room_creator() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains(
         "Only the room creator can invite the Rocket.Chat bot user, \
-                                                please create a new room and invite the Rocket.Chat user to \
-                                                create an admin room.",
+         please create a new room and invite the Rocket.Chat user to \
+         create an admin room.",
     ));
 }
 
@@ -813,8 +831,8 @@ fn the_bot_user_leaves_the_admin_room_the_inviter_is_unknown() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains(
         "Could not determine if the admin room is valid, because the inviter is unknown. \
-        Possibly because the bot user was invited into an existing room. \
-        Please start a direct chat with the bot user @rocketchat:localhost",
+         Possibly because the bot user was invited into an existing room. \
+         Please start a direct chat with the bot user @rocketchat:localhost",
     ));
 
     assert!(leave_room_receiver.recv_timeout(default_timeout()).is_ok());

@@ -3,8 +3,10 @@ use std::convert::TryFrom;
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::member::MembershipState;
 use ruma_identifiers::{RoomAliasId, RoomId, UserId};
+use slog::Logger;
 
 use api::{MatrixApi, RocketchatApi};
+use db::UserOnRocketchatServer;
 use config::Config;
 use errors::*;
 use super::RocketchatServer;
@@ -116,29 +118,29 @@ impl Room {
     }
 
     /// Check if the room is a direct message room.
-    pub fn is_direct_message_room(matrix_api: &MatrixApi, room_id: RoomId) -> Result<bool> {
-        let alias = matrix_api.get_room_canonical_alias(room_id)?.map(|alias| alias.alias().to_string()).unwrap_or_default();
-        Ok(alias.ends_with("#dm"))
+    pub fn is_direct_message_room(config: &Config, matrix_api: &MatrixApi, room_id: RoomId) -> Result<bool> {
+        let room_creator_id = matrix_api.get_room_creator(room_id)?;
+        Ok(config.is_application_service_virtual_user(&room_creator_id))
     }
 
     /// Checks if a room is an admin room.
-    pub fn is_admin_room(matrix_api: &MatrixApi, config: &Config, matrix_room_id: RoomId) -> Result<bool> {
+    pub fn is_admin_room(config: &Config, matrix_api: &MatrixApi, matrix_room_id: RoomId) -> Result<bool> {
         // it cannot be an admin room if the bot user does not have access to it
         if !Room::is_accessible_by_bot(matrix_api, matrix_room_id.clone())? {
             return Ok(false);
         }
 
-        let virtual_user_prefix = format!("@{}", config.sender_localpart);
         let matrix_bot_user_id = config.matrix_bot_user_id()?;
         let matrix_user_ids = Room::user_ids(matrix_api, matrix_room_id.clone(), None)?;
         let bot_user_in_room = matrix_user_ids.iter().any(|id| id == &matrix_bot_user_id);
-        let room_creator = matrix_api.get_room_creator(matrix_room_id)?.to_string();
-        Ok(!room_creator.starts_with(&virtual_user_prefix) && bot_user_in_room)
+        let room_creator_id = matrix_api.get_room_creator(matrix_room_id)?;
+
+        Ok(!config.is_application_service_user(&room_creator_id) && bot_user_in_room)
     }
 
     /// Gets the Rocket.Chat channel id for a room that is bridged to Matrix.
     pub fn rocketchat_channel_id(matrix_api: &MatrixApi, matrix_room_id: RoomId) -> Result<Option<String>> {
-        let room_canonical_alias = match matrix_api.get_room_canonical_alias(matrix_room_id)? {
+        let room_canonical_alias = match matrix_api.get_room_canonical_alias(matrix_room_id.clone())? {
             Some(room_canonical_alias) => room_canonical_alias.alias().to_string(),
             None => return Ok(None),
         };
@@ -151,27 +153,26 @@ impl Room {
     pub fn is_connected(connection: &SqliteConnection, matrix_api: &MatrixApi, matrix_room_id: RoomId) -> Result<bool> {
         match matrix_api.get_room_topic(matrix_room_id)? {
             Some(rocketchat_server_url) => {
-                let rocketchat_server = RocketchatServer::find_by_url(connection, &rocketchat_server_url)?;
-                Ok(rocketchat_server.is_some())
+                let server = RocketchatServer::find_by_url(connection, &rocketchat_server_url)?;
+                Ok(server.is_some())
             }
             None => Ok(false),
         }
     }
 
     /// Find the Matrix user in a direct message room
-    pub fn direct_message_room_matrix_user(
+    pub fn direct_message_matrix_user(
         config: &Config,
         matrix_api: &MatrixApi,
         matrix_room_id: RoomId,
-        sender_id: Option<UserId>,
     ) -> Result<Option<UserId>> {
-        let user_ids = Room::user_ids(matrix_api, matrix_room_id.clone(), sender_id)?;
+        let room_creator_id = matrix_api.get_room_creator(matrix_room_id.clone())?;
+        let user_ids = Room::user_ids(matrix_api, matrix_room_id.clone(), Some(room_creator_id))?;
         if user_ids.len() > 2 {
             bail_error!(ErrorKind::GettingMatrixUserForDirectMessageRoomError);
         }
 
-        let prefix = format!("@{}", config.sender_localpart);
-        let matrix_user_id = user_ids.into_iter().find(|id| !id.to_string().starts_with(&prefix));
+        let matrix_user_id = user_ids.into_iter().find(|id| !config.is_application_service_virtual_user(id));
         Ok(matrix_user_id)
     }
 
@@ -196,5 +197,76 @@ impl Room {
         let room_alias =
             RoomAliasId::try_from(&room_alias_id).chain_err(|| ErrorKind::InvalidRoomAliasId(room_alias_id.clone()))?;
         Ok(room_alias)
+    }
+
+    /// Find the Rocket.Chat server and channel for a direct message room on Matrix.
+    /// It uses the virtual users ID for determine which server is used and queries the Rocket.Chat
+    /// server to find the matching direct message room.
+    /// This is done to avoid the usage of aliases in direct message rooms.
+    pub fn rocketchat_for_direct_room(
+        config: &Config,
+        conn: &SqliteConnection,
+        logger: &Logger,
+        matrix_api: &MatrixApi,
+        room_id: RoomId,
+    ) -> Result<Option<(RocketchatServer, String)>> {
+        if !Room::is_direct_message_room(config, matrix_api, room_id.clone())? {
+            return Ok(None);
+        }
+
+        let room_creator = matrix_api.get_room_creator(room_id.clone())?;
+        let user_ids = Room::user_ids(matrix_api, room_id, Some(room_creator))?;
+
+        let user_matrix_id = match user_ids.iter().find(|id| !config.is_application_service_virtual_user(id)) {
+            Some(user_id) => user_id,
+            None => return Ok(None),
+        };
+
+        let virtual_user_matrix_id = match user_ids.iter().find(|id| config.is_application_service_virtual_user(id)){
+            Some(user_id) => user_id,
+            None => return Ok(None),
+        };
+
+        //TODO: Move this into it's own fuction, to make sure the same logic is used everywhere
+        let virtual_user_local_part = virtual_user_matrix_id.localpart().to_owned();
+        let id_parts: Vec<&str> = virtual_user_local_part.splitn(2, '_').collect();
+        let server_and_user_id: Vec<&str> = id_parts.into_iter().nth(1).unwrap_or_default().rsplitn(2, '_').collect();
+        let server_id = server_and_user_id.clone().into_iter().nth(0).unwrap_or_default().to_string();
+        let virtual_user_id = server_and_user_id.clone().into_iter().nth(1).unwrap_or_default();
+
+        let server = match RocketchatServer::find_by_id(conn, &server_id)? {
+            Some(server) => server,
+            None => return Ok(None),
+        };
+
+        let user_on_rocketchat_server = match UserOnRocketchatServer::find_by_matrix_user_id(conn, user_matrix_id, server_id)?
+        {
+            Some(user_on_rocketchat_server) => user_on_rocketchat_server,
+            None => return Ok(None),
+        };
+
+        let rocketchat_user_id = user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default();
+        let rocketchat_auth_token = user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default();
+        let rocketchat_api = RocketchatApi::new(server.rocketchat_url.clone(), logger.clone())?
+            .with_credentials(rocketchat_user_id, rocketchat_auth_token);
+
+        // It is safe to check if a direct channel ID contains the virtual users ID, because a user
+        // can only have one direct message room with another user. Which means when the virtual user
+        // ID is part of the channel name, the direct message channel with that user is found.
+        let direct_message_channel_ids = rocketchat_api.direct_messages_list()?;
+        let channel_ids: Vec<String> = direct_message_channel_ids
+            .iter()
+            .filter_map(|c| if c.id.to_lowercase().contains(virtual_user_id) {
+                Some(c.id.clone())
+            } else {
+                None
+            })
+            .collect();
+
+        if let Some(channel_id) = channel_ids.into_iter().next() {
+            return Ok(Some((server, channel_id)));
+        }
+
+        Ok(None)
     }
 }

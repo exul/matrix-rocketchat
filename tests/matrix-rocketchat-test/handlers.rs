@@ -1,4 +1,4 @@
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryFrom;
@@ -9,7 +9,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use iron::prelude::*;
 use iron::url::Url;
 use iron::url::percent_encoding::percent_decode;
-use iron::{BeforeMiddleware, Chain, Handler, status};
+use iron::{status, BeforeMiddleware, Chain, Handler};
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
 use persistent::Write;
 use router::Router;
@@ -22,9 +22,9 @@ use ruma_client_api::r0::sync::get_member_events;
 use ruma_events::EventType;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
 use ruma_identifiers::{EventId, RoomAliasId, RoomId, UserId};
-use serde_json;
-use super::{DEFAULT_LOGGER, Message, MessageForwarder, PendingInvites, RoomAliasMap, RoomsStatesMap, TestError, UserList,
-            UsersInRooms, extract_payload, helpers};
+use serde_json::{self, Map, Value};
+use super::{extract_payload, helpers, Message, MessageForwarder, PendingInvites, RoomAliasMap, RoomsStatesMap, TestError,
+            UserList, UsersInRooms, DEFAULT_LOGGER};
 
 #[derive(Serialize)]
 pub struct RocketchatInfo {
@@ -37,8 +37,7 @@ impl Handler for RocketchatInfo {
 
         let payload = r#"{
             "version": "VERSION"
-        }"#
-            .replace("VERSION", self.version);
+        }"#.replace("VERSION", self.version);
 
         Ok(Response::with((status::Ok, payload)))
     }
@@ -65,20 +64,16 @@ impl Handler for RocketchatLogin {
                         "authToken": "spec_auth_token",
                         "userId": "USER_ID"
                     }
-                 }"#
-                        .replace("USER_ID", &user_id),
+                 }"#.replace("USER_ID", &user_id),
                 )
             }
-            false => {
-                (
-                    status::Unauthorized,
-                    r#"{
+            false => (
+                status::Unauthorized,
+                r#"{
                     "status": "error",
                     "message": "Unauthorized"
-                }"#
-                        .to_string(),
-                )
-            }
+                }"#.to_string(),
+            ),
         };
 
         Ok(Response::with((status, payload)))
@@ -95,8 +90,7 @@ impl Handler for RocketchatMe {
 
         let payload = r#"{
             "username": "USERNAME"
-        }"#
-            .replace("USERNAME", &self.username);
+        }"#.replace("USERNAME", &self.username);
 
         Ok(Response::with((status::Ok, payload)))
     }
@@ -130,8 +124,7 @@ impl Handler for RocketchatChannelsList {
                 "ro": false,
                 "sysMes": true,
                 "_updatedAt": "2017-02-12T13:20:22.092Z"
-            }"#
-                .replace("CHANNEL_NAME", channel_name)
+            }"#.replace("CHANNEL_NAME", channel_name)
                 .replace("CHANNEL_USERNAMES", &user_names.join("\",\""));
             channels.push(channel);
         }
@@ -163,8 +156,7 @@ impl Handler for RocketchatDirectMessagesList {
                 "username": "admin",
                 "usernames": [
                     "USER_NAMES"
-                ]}"#
-                .replace("DIRECT_MESSAGE_ID", id)
+                ]}"#.replace("DIRECT_MESSAGE_ID", id)
                 .replace("USER_NAMES", &user_names.join("\",\""));
             dms.push(dm);
         }
@@ -187,10 +179,9 @@ impl Handler for RocketchatUsersInfo {
         let mut query_pairs = url.query_pairs();
 
         let (status, payload) = match query_pairs.find(|&(ref key, _)| key == "username") {
-            Some((_, ref username)) => {
-                (
-                    status::Ok,
-                    r#"{
+            Some((_, ref username)) => (
+                status::Ok,
+                r#"{
                     "user": {
                         "name": "Name USERNAME",
                         "username": "USERNAME",
@@ -201,21 +192,16 @@ impl Handler for RocketchatUsersInfo {
                         "_id": "USERNAME_id"
                     },
                     "success": true
-                }"#
-                        .replace("USERNAME", username),
-                )
-            }
-            None => {
-                (
-                    status::BadRequest,
-                    r#"{
+                }"#.replace("USERNAME", username),
+            ),
+            None => (
+                status::BadRequest,
+                r#"{
                     "success": false,
                     "error": "The required \"userId\" or \"username\" param was not provided [error-user-param-not-provided]",
                     "errorType": "error-user-param-not-provided"
-                    }"#
-                        .to_string(),
-                )
-            }
+                    }"#.to_string(),
+            ),
         };
 
         Ok(Response::with((status, payload)))
@@ -251,6 +237,68 @@ impl Handler for MatrixVersion {
         debug!(DEFAULT_LOGGER, "Matrix mock server got version request");
 
         let payload = serde_json::to_string(self).unwrap();
+        Ok(Response::with((status::Ok, payload)))
+    }
+}
+
+pub struct MatrixSync {}
+
+impl Handler for MatrixSync {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        debug!(DEFAULT_LOGGER, "Matrix mock server got sync request");
+
+        let user_id = user_id_from_request(request);
+
+        let mutex = request.get::<Write<UserList>>().unwrap();
+        let user_list = mutex.lock().unwrap();
+
+        if !user_list.contains_key(&user_id) {
+            let payload = r#"{
+                    "errcode":"M_GUEST_ACCESS_FORBIDDEN",
+                    "error":"User is not in room"
+                }"#;
+            return Ok(Response::with((status::Forbidden, payload.to_string())));
+        }
+
+        let mut joined_rooms = Map::new();
+        let mut left_rooms = Map::new();
+        let mut invited_rooms = Map::new();
+
+        let mutex = request.get::<Write<UsersInRooms>>().unwrap();
+        let users_in_rooms = mutex.lock().unwrap();
+
+        let empty_object = Value::Object(Map::new());
+        for (room_id, users_with_room_states) in users_in_rooms.iter() {
+            match users_with_room_states.get(&user_id) {
+                Some(&(membership_state, _)) if membership_state == MembershipState::Join => {
+                    joined_rooms.insert(room_id.to_string(), empty_object.clone())
+                }
+                Some(&(membership_state, _)) if membership_state == MembershipState::Leave => {
+                    left_rooms.insert(room_id.to_string(), empty_object.clone())
+                }
+                _ => continue,
+            };
+        }
+
+        let mutex = request.get::<Write<PendingInvites>>().unwrap();
+        let pending_invites_for_rooms = mutex.lock().unwrap();
+
+        for (room_id, users) in pending_invites_for_rooms.iter() {
+            match users.get(&user_id) {
+                Some(_) => invited_rooms.insert(room_id.to_string(), empty_object.clone()),
+                None => continue,
+            };
+        }
+
+        let mut rooms = Map::new();
+        rooms.insert("join".to_string(), Value::Object(joined_rooms));
+        rooms.insert("leave".to_string(), Value::Object(left_rooms));
+        rooms.insert("invite".to_string(), Value::Object(invited_rooms));
+
+        let mut sync_response = Map::new();
+        sync_response.insert("rooms".to_string(), Value::Object(rooms));
+
+        let payload = serde_json::to_string(&sync_response).unwrap();
         Ok(Response::with((status::Ok, payload)))
     }
 }
@@ -353,7 +401,9 @@ impl Handler for MatrixGetDisplayName {
         }
 
         let displayname = user_list.get(&user_id).unwrap();
-        let get_display_name_response = get_display_name::Response { displayname: displayname.to_owned() };
+        let get_display_name_response = get_display_name::Response {
+            displayname: displayname.to_owned(),
+        };
 
         let payload = serde_json::to_string(&get_display_name_response).unwrap();
         Ok(Response::with((status::Ok, payload.to_string())))
@@ -407,8 +457,7 @@ impl Handler for MatrixCreateRoom {
             let payload = r#"{
                     "errcode":"M_UNKNOWN",
                     "error":"ERR_MSG"
-                }"#
-                .replace("ERR_MSG", err);
+                }"#.replace("ERR_MSG", err);
             return Ok(Response::with((status::Conflict, payload.to_string())));
         }
 
@@ -417,8 +466,7 @@ impl Handler for MatrixCreateRoom {
             let payload = r#"{
                     "errcode":"M_FORBIDDEN",
                     "error":"ERR_MSG"
-                }"#
-                .replace("ERR_MSG", err);
+                }"#.replace("ERR_MSG", err);
             return Ok(Response::with((status::Forbidden, payload.to_string())));
         }
 
@@ -434,20 +482,14 @@ impl Handler for MatrixCreateRoom {
                 return Ok(Response::with((status::Conflict, payload.to_string())));
             }
 
-            if let Err(err) = add_state_to_room(
-                request,
-                &user_id,
-                room_id.clone(),
-                "alias".to_string(),
-                room_alias_id.to_string(),
-            )
+            if let Err(err) =
+                add_state_to_room(request, &user_id, room_id.clone(), "alias".to_string(), room_alias_id.to_string())
             {
                 debug!(DEFAULT_LOGGER, "{}", err);
                 let payload = r#"{
                     "errcode":"M_FORBIDDEN",
                     "error":"ERR_MSG"
-                }"#
-                    .replace("ERR_MSG", err);
+                }"#.replace("ERR_MSG", err);
                 return Ok(Response::with((status::Forbidden, payload.to_string())));
             }
         }
@@ -485,20 +527,17 @@ impl Handler for SendRoomState {
         let room_states_payload: serde_json::Value = serde_json::from_str(&request_payload).unwrap();
 
         match room_states_payload {
-            serde_json::Value::Object(room_states) => {
-                for (k, v) in room_states {
-                    let value = v.to_string().trim_matches('"').to_string();
-                    if let Err(err) = add_state_to_room(request, &user_id, room_id.clone(), k, value) {
-                        debug!(DEFAULT_LOGGER, "{}", err);
-                        let payload = r#"{
+            serde_json::Value::Object(room_states) => for (k, v) in room_states {
+                let value = v.to_string().trim_matches('"').to_string();
+                if let Err(err) = add_state_to_room(request, &user_id, room_id.clone(), k, value) {
+                    debug!(DEFAULT_LOGGER, "{}", err);
+                    let payload = r#"{
                           "errcode":"M_FORBIDDEN",
                           "error":"ERR_MSG"
-                        }"#
-                            .replace("ERR_MSG", err);
-                        return Ok(Response::with((status::Forbidden, payload.to_string())));
-                    }
+                        }"#.replace("ERR_MSG", err);
+                    return Ok(Response::with((status::Forbidden, payload.to_string())));
                 }
-            }
+            },
             _ => panic!("JSON type not covered"),
         }
 
@@ -524,10 +563,9 @@ impl Handler for RoomMembers {
 
         let url: Url = request.url.clone().into();
         let mut query_pairs = url.query_pairs();
-        let (_, user_id_param) = query_pairs.find(|&(ref key, _)| key == "user_id").unwrap_or((
-            Cow::from("user_id"),
-            Cow::from("@rocketchat:localhost"),
-        ));
+        let (_, user_id_param) = query_pairs
+            .find(|&(ref key, _)| key == "user_id")
+            .unwrap_or((Cow::from("user_id"), Cow::from("@rocketchat:localhost")));
         let user_id = UserId::try_from(user_id_param.as_ref()).unwrap();
 
         let mutex = request.get::<Write<UsersInRooms>>().unwrap();
@@ -549,7 +587,9 @@ impl Handler for RoomMembers {
 
         let member_events = build_member_events_from_user_ids(&users_in_room_for_user, room_id);
 
-        let response = get_member_events::Response { chunk: member_events };
+        let response = get_member_events::Response {
+            chunk: member_events,
+        };
         let payload = serde_json::to_string(&response).unwrap();
         Ok(Response::with((status::Ok, payload)))
     }
@@ -569,7 +609,9 @@ impl Handler for StaticRoomMembers {
 
         let member_events = build_member_events_from_user_ids(&self.user_ids, room_id);
 
-        let response = get_member_events::Response { chunk: member_events };
+        let response = get_member_events::Response {
+            chunk: member_events,
+        };
         let payload = serde_json::to_string(&response).unwrap();
         Ok(Response::with((status::Ok, payload)))
     }
@@ -689,8 +731,7 @@ impl Handler for GetRoomState {
                 let payload = r#"{
                     "errcode":"M_GUEST_ACCESS_FORBIDDEN",
                     "error":"ERR_MSG"
-                }"#
-                    .replace("ERR_MSG", err);
+                }"#.replace("ERR_MSG", err);
                 return Ok(Response::with((status::Forbidden, payload.to_string())));
             }
         };
@@ -756,10 +797,9 @@ impl Handler for MatrixJoinRoom {
 
         let url: Url = request.url.clone().into();
         let mut query_pairs = url.query_pairs();
-        let (_, user_id_param) = query_pairs.find(|&(ref key, _)| key == "user_id").unwrap_or((
-            Cow::from("user_id"),
-            Cow::from("@rocketchat:localhost"),
-        ));
+        let (_, user_id_param) = query_pairs
+            .find(|&(ref key, _)| key == "user_id")
+            .unwrap_or((Cow::from("user_id"), Cow::from("@rocketchat:localhost")));
         let user_id = UserId::try_from(user_id_param.as_ref()).unwrap();
 
         let inviter_id;
@@ -793,8 +833,7 @@ impl Handler for MatrixJoinRoom {
             let payload = r#"{
                     "errcode":"M_UNKNOWN",
                     "error":"ERR_MSG"
-                }"#
-                .replace("ERR_MSG", err);
+                }"#.replace("ERR_MSG", err);
             return Ok(Response::with((status::Conflict, payload.to_string())));
         }
 
@@ -832,10 +871,9 @@ impl Handler for MatrixInviteUser {
 
         let url: Url = request.url.clone().into();
         let mut query_pairs = url.query_pairs();
-        let (_, user_id_param) = query_pairs.find(|&(ref key, _)| key == "user_id").unwrap_or((
-            Cow::from("user_id"),
-            Cow::from("@rocketchat:localhost"),
-        ));
+        let (_, user_id_param) = query_pairs
+            .find(|&(ref key, _)| key == "user_id")
+            .unwrap_or((Cow::from("user_id"), Cow::from("@rocketchat:localhost")));
         let inviter_id = UserId::try_from(user_id_param.as_ref()).unwrap();
 
         let request_payload = extract_payload(request);
@@ -879,10 +917,9 @@ impl Handler for MatrixLeaveRoom {
 
         let url: Url = request.url.clone().into();
         let mut query_pairs = url.query_pairs();
-        let (_, user_id_param) = query_pairs.find(|&(ref key, _)| key == "user_id").unwrap_or((
-            Cow::from("user_id"),
-            Cow::from("@rocketchat:localhost"),
-        ));
+        let (_, user_id_param) = query_pairs
+            .find(|&(ref key, _)| key == "user_id")
+            .unwrap_or((Cow::from("user_id"), Cow::from("@rocketchat:localhost")));
         let user_id = UserId::try_from(user_id_param.as_ref()).unwrap();
 
         if let Err(err) = add_membership_event_to_room(request, user_id.clone(), room_id.clone(), MembershipState::Leave) {
@@ -890,8 +927,7 @@ impl Handler for MatrixLeaveRoom {
             let payload = r#"{
                     "errcode":"M_UNKNOWN",
                     "error":"ERR_MSG"
-                }"#
-                .replace("ERR_MSG", err);
+                }"#.replace("ERR_MSG", err);
             return Ok(Response::with((status::Conflict, payload.to_string())));
         }
 
@@ -948,7 +984,9 @@ impl BeforeMiddleware for MatrixActivatableErrorResponder {
             return Err(err.into());
         }
 
-        let message = Message { payload: request_payload };
+        let message = Message {
+            payload: request_payload,
+        };
         request.extensions.insert::<Message>(message);
 
         Ok(())
@@ -991,7 +1029,9 @@ impl BeforeMiddleware for MatrixConditionalErrorResponder {
             return Err(err.into());
         }
 
-        let message = Message { payload: request_payload };
+        let message = Message {
+            payload: request_payload,
+        };
         request.extensions.insert::<Message>(message);
 
         Ok(())
@@ -1031,7 +1071,9 @@ impl BeforeMiddleware for ConditionalInvalidJsonResponse {
             return Err(err.into());
         }
 
-        let message = Message { payload: request_payload };
+        let message = Message {
+            payload: request_payload,
+        };
         request.extensions.insert::<Message>(message);
 
         Ok(())
@@ -1286,10 +1328,9 @@ fn room_id_from_alias_map(
 fn user_id_from_request(request: &mut Request) -> UserId {
     let url: Url = request.url.clone().into();
     let mut query_pairs = url.query_pairs();
-    let (_, user_id_param) = query_pairs.find(|&(ref key, _)| key == "user_id").unwrap_or((
-        Cow::from("user_id"),
-        Cow::from("@rocketchat:localhost"),
-    ));
+    let (_, user_id_param) = query_pairs
+        .find(|&(ref key, _)| key == "user_id")
+        .unwrap_or((Cow::from("user_id"), Cow::from("@rocketchat:localhost")));
     UserId::try_from(user_id_param.as_ref()).unwrap()
 }
 

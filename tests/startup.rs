@@ -13,10 +13,10 @@ extern crate tempdir;
 use std::sync::mpsc::channel;
 use std::thread;
 
-use iron::{Iron, Listening, status};
+use iron::{status, Iron, Listening};
 use matrix_rocketchat::Server;
 use matrix_rocketchat::errors::*;
-use matrix_rocketchat_test::{DEFAULT_LOGGER, IRON_THREADS, TEMP_DIR_NAME, default_matrix_api_versions, handlers};
+use matrix_rocketchat_test::{default_matrix_api_versions, handlers, DEFAULT_LOGGER, IRON_THREADS, TEMP_DIR_NAME};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
@@ -36,7 +36,9 @@ fn starup_fails_when_server_cannot_bind_to_address() {
         let mut router = Router::new();
         router.get(
             "/_matrix/client/versions",
-            handlers::MatrixVersion { versions: default_matrix_api_versions() },
+            handlers::MatrixVersion {
+                versions: default_matrix_api_versions(),
+            },
             "get_versions",
         );
         router.post("*", handlers::EmptyJson {}, "default_post");
@@ -89,7 +91,9 @@ fn startup_fails_when_querying_the_api_version_is_not_successful_and_returns_an_
     let mut router = Router::new();
     router.get(
         "/_matrix/client/versions",
-        handlers::InvalidJsonResponse { status: status::InternalServerError },
+        handlers::InvalidJsonResponse {
+            status: status::InternalServerError,
+        },
         "get_versions",
     );
 
@@ -115,7 +119,13 @@ fn startup_fails_when_the_server_can_query_the_matrix_api_version_but_gets_an_in
 #[test]
 fn startup_failes_when_the_server_cannot_find_a_compatible_matrix_api_version() {
     let mut router = Router::new();
-    router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: vec!["9999"] }, "get_versions");
+    router.get(
+        "/_matrix/client/versions",
+        handlers::MatrixVersion {
+            versions: vec!["9999"],
+        },
+        "get_versions",
+    );
 
     let server_result = start_servers(router);
 
@@ -127,7 +137,13 @@ fn startup_failes_when_the_server_cannot_find_a_compatible_matrix_api_version() 
 #[test]
 fn startup_failes_when_the_bot_user_registration_failes() {
     let mut router = Router::new();
-    router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "get_versions");
+    router.get(
+        "/_matrix/client/versions",
+        handlers::MatrixVersion {
+            versions: default_matrix_api_versions(),
+        },
+        "get_versions",
+    );
     let error_responder = handlers::MatrixErrorResponder {
         status: status::InternalServerError,
         message: "Could not register user".to_string(),
@@ -144,10 +160,18 @@ fn startup_failes_when_the_bot_user_registration_failes() {
 #[test]
 fn startup_failes_when_the_bot_user_registration_returns_invalid_json() {
     let mut router = Router::new();
-    router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "get_versions");
+    router.get(
+        "/_matrix/client/versions",
+        handlers::MatrixVersion {
+            versions: default_matrix_api_versions(),
+        },
+        "get_versions",
+    );
     router.post(
         RegisterEndpoint::router_path(),
-        handlers::InvalidJsonResponse { status: status::InternalServerError },
+        handlers::InvalidJsonResponse {
+            status: status::InternalServerError,
+        },
         "register",
     );
 
@@ -173,9 +197,7 @@ fn start_servers(matrix_router: Router) -> Result<Listening> {
     thread::spawn(move || {
         let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
         let mut config = matrix_rocketchat_test::build_test_config(&temp_dir);
-        config.hs_url = format!("http://{}:{}",
-                            homeserver_mock_socket_addr.ip(),
-                            homeserver_mock_socket_addr.port());
+        config.hs_url = format!("http://{}:{}", homeserver_mock_socket_addr.ip(), homeserver_mock_socket_addr.port());
         let log = DEFAULT_LOGGER.clone();
         let server_result = Server::new(&config, log).run(IRON_THREADS);
         server_tx.send(server_result).unwrap();

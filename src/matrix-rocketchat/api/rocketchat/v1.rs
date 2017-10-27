@@ -81,9 +81,8 @@ impl<'a> Endpoint for LoginEndpoint<'a> {
     }
 
     fn payload(&self) -> Result<String> {
-        let payload = serde_json::to_string(&self.payload).chain_err(|| {
-            ErrorKind::InvalidJSON("Could not serialize login payload".to_string())
-        })?;
+        let payload = serde_json::to_string(&self.payload)
+            .chain_err(|| ErrorKind::InvalidJSON("Could not serialize login payload".to_string()))?;
         Ok(payload)
     }
 
@@ -103,8 +102,7 @@ pub struct PostChatMessageEndpoint<'a> {
 /// Payload of the post chat message endpoint
 #[derive(Serialize)]
 pub struct PostChatMessagePayload<'a> {
-    #[serde(rename = "roomId")]
-    room_id: &'a str,
+    #[serde(rename = "roomId")] room_id: &'a str,
     text: Option<&'a str>,
 }
 
@@ -118,9 +116,8 @@ impl<'a> Endpoint for PostChatMessageEndpoint<'a> {
     }
 
     fn payload(&self) -> Result<String> {
-        let payload = serde_json::to_string(&self.payload).chain_err(|| {
-            ErrorKind::InvalidJSON("Could not serialize post chat message payload".to_string())
-        })?;
+        let payload = serde_json::to_string(&self.payload)
+            .chain_err(|| ErrorKind::InvalidJSON("Could not serialize post chat message payload".to_string()))?;
         Ok(payload)
     }
 
@@ -226,7 +223,7 @@ impl super::RocketchatApi for RocketchatApi {
         let channels_list_response: ChannelsListResponse = serde_json::from_str(&body).chain_err(|| {
             ErrorKind::InvalidJSON(format!(
                 "Could not deserialize response from Rocket.Chat channels.list API \
-                                                endpoint: `{}`",
+                 endpoint: `{}`",
                 body
             ))
         })?;
@@ -250,9 +247,9 @@ impl super::RocketchatApi for RocketchatApi {
             return Err(build_error(&me_endpoint.url(), &body, &status_code));
         }
 
-        let me_response: MeResponse = serde_json::from_str(&body).chain_err(|| {
-            ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat me API endpoint: `{}`", body))
-        })?;
+        let me_response: MeResponse = serde_json::from_str(&body).chain_err(
+            || ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat me API endpoint: `{}`", body)),
+        )?;
 
         Ok(me_response.username)
     }
@@ -276,7 +273,7 @@ impl super::RocketchatApi for RocketchatApi {
         let direct_messages_list_response: DirectMessagesListResponse = serde_json::from_str(&body).chain_err(|| {
             ErrorKind::InvalidJSON(format!(
                 "Could not deserialize response from Rocket.Chat dm.list API \
-                                                endpoint: `{}`",
+                 endpoint: `{}`",
                 body
             ))
         })?;

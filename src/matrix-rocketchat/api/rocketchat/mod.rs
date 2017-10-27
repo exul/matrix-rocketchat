@@ -144,10 +144,10 @@ impl RocketchatApi {
         let min_version = "0.49".to_string();
         Err(Error {
             error_chain: ErrorKind::UnsupportedRocketchatApiVersion(min_version.clone(), version.clone()).into(),
-            user_message: Some(t!(["errors", "unsupported_rocketchat_api_version"]).with_vars(vec![
-                ("min_version", min_version),
-                ("version", version),
-            ])),
+            user_message: Some(
+                t!(["errors", "unsupported_rocketchat_api_version"])
+                    .with_vars(vec![("min_version", min_version), ("version", version)]),
+            ),
         })
     }
 }

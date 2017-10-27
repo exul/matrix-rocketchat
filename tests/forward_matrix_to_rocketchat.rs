@@ -15,7 +15,7 @@ use iron::status;
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::v1::POST_CHAT_MESSAGE_PATH;
 use matrix_rocketchat::api::rocketchat::Message;
-use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, RS_TOKEN, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -291,10 +291,6 @@ fn the_user_gets_a_message_when_when_getting_the_canonical_room_alias_failes() {
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
-    // discard first error message, because the bot doesn't
-    // know if it's a direct message room since getting the
-    // canonical room name fails
-    receiver.recv_timeout(default_timeout()).unwrap();
     // discard room bridged message
     receiver.recv_timeout(default_timeout()).unwrap();
 
@@ -333,10 +329,6 @@ fn the_user_gets_a_message_when_when_getting_the_canonical_room_alias_response_c
     // discard login message
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard connect message
-    receiver.recv_timeout(default_timeout()).unwrap();
-    // discard first error message, because the bot doesn't
-    // know if it's a direct message room since getting the
-    // canonical room name fails
     receiver.recv_timeout(default_timeout()).unwrap();
     // discard room bridged message
     receiver.recv_timeout(default_timeout()).unwrap();

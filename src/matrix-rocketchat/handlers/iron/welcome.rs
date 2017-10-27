@@ -1,4 +1,4 @@
-use iron::{Handler, status};
+use iron::{status, Handler};
 use iron::prelude::*;
 
 use i18n::*;

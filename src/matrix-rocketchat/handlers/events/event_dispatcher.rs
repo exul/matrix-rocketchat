@@ -39,20 +39,17 @@ impl<'a> EventDispatcher<'a> {
     pub fn process(&self, events: Vec<Box<Event>>) -> Result<()> {
         for event in events {
             match *event {
-                Event::RoomMember(member_event) => {
-                    if let Err(err) = RoomHandler::new(self.config, self.connection, self.logger, self.matrix_api.as_ref())
-                        .process(&member_event)
-                    {
-                        return self.handle_error(err, member_event.room_id);
-                    }
-                }
-                Event::RoomMessage(message_event) => {
-                    if let Err(err) = MessageHandler::new(self.config, self.connection, self.logger, self.matrix_api.clone())
+                Event::RoomMember(member_event) => if let Err(err) =
+                    RoomHandler::new(self.config, self.connection, self.logger, self.matrix_api.as_ref()).process(&member_event)
+                {
+                    return self.handle_error(err, member_event.room_id);
+                },
+                Event::RoomMessage(message_event) => if let Err(err) =
+                    MessageHandler::new(self.config, self.connection, self.logger, self.matrix_api.clone())
                         .process(&message_event)
-                    {
-                        return self.handle_error(err, message_event.room_id);
-                    }
-                }
+                {
+                    return self.handle_error(err, message_event.room_id);
+                },
                 _ => debug!(self.logger, "Skipping event, because the event type is not known"),
             }
         }

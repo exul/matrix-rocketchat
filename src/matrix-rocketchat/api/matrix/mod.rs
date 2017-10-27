@@ -25,6 +25,8 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn forget_room(&self, matrix_room_id: RoomId) -> Result<()>;
     /// Get the display name for a Matrix user ID. Returns `None` if the user doesn't exist.
     fn get_display_name(&self, matrix_user_id: UserId) -> Result<Option<String>>;
+    /// Get all rooms a user joined.
+    fn get_joined_rooms(&self, matrix_user_id: UserId) -> Result<Vec<RoomId>>;
     /// Get the room id based on the room alias.
     fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<Option<RoomId>>;
     /// Get a rooms canonical alias.
@@ -95,7 +97,7 @@ impl MatrixApi {
             let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
                 ErrorKind::InvalidJSON(format!(
                     "Could not deserialize error response from Matrix supported versions \
-                                                    API endpoint: `{}` ",
+                     API endpoint: `{}` ",
                     body
                 ))
             })?;
@@ -105,7 +107,7 @@ impl MatrixApi {
         let supported_versions: GetSupportedVersionsResponse = serde_json::from_str(&body).chain_err(|| {
             ErrorKind::InvalidJSON(format!(
                 "Could not deserialize response from Matrix supported versions API \
-                                                endpoint: `{}`",
+                 endpoint: `{}`",
                 body
             ))
         })?;

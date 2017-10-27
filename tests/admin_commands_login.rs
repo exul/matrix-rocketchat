@@ -17,7 +17,7 @@ use matrix_rocketchat::api::{MatrixApi, RestApi};
 use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH};
 use matrix_rocketchat::db::{RocketchatServer, UserOnRocketchatServer};
 use matrix_rocketchat::handlers::rocketchat::Credentials;
-use matrix_rocketchat_test::{DEFAULT_LOGGER, MessageForwarder, Test, default_timeout, handlers, helpers};
+use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER};
 use reqwest::Method;
 use router::Router;
 use ruma_client_api::Endpoint;
@@ -40,7 +40,13 @@ fn sucessfully_login_via_chat_mesage() {
         },
         "login",
     );
-    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "Spec user".to_string() }, "me");
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatMe {
+            username: "Spec user".to_string(),
+        },
+        "me",
+    );
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
@@ -122,7 +128,13 @@ fn login_multiple_times_via_chat_message() {
         },
         "login",
     );
-    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "Spec user".to_string() }, "me");
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatMe {
+            username: "Spec user".to_string(),
+        },
+        "me",
+    );
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
@@ -158,7 +170,13 @@ fn sucessfully_login_via_rest_api() {
         },
         "login",
     );
-    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "Spec user".to_string() }, "me");
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatMe {
+            username: "Spec user".to_string(),
+        },
+        "me",
+    );
     let test =
         Test::new().with_rocketchat_mock().with_custom_rocketchat_routes(rocketchat_router).with_connected_admin_room().run();
 
@@ -178,7 +196,8 @@ fn sucessfully_login_via_rest_api() {
     ).unwrap();
 
     assert!(response.contains(
-        "You are logged in. Return to your Matrix client and enter help in the admin room for more instructions.",
+        "You are logged in. Return to your Matrix client and \
+         enter help in the admin room for more instructions.",
     ));
     assert!(status_code.is_success());
 
@@ -237,7 +256,13 @@ fn login_multiple_times_via_rest_message() {
         },
         "login",
     );
-    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "Spec user".to_string() }, "me");
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatMe {
+            username: "Spec user".to_string(),
+        },
+        "me",
+    );
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
@@ -265,9 +290,11 @@ fn login_multiple_times_via_rest_message() {
             &HashMap::new(),
             None,
         ).unwrap();
-        assert!(response.contains(
-            "You are logged in. Return to your Matrix client and enter help in the admin room for more instructions.",
-        ));
+        assert!(
+            response.contains(
+                "You are logged in. Return to your Matrix client and enter help in the admin room for more instructions.",
+            )
+        );
         assert!(status_code.is_success());
     }
 }
@@ -284,7 +311,13 @@ fn login_via_rest_api_with_invalid_payload() {
         },
         "login",
     );
-    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: "Spec user".to_string() }, "me");
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatMe {
+            username: "Spec user".to_string(),
+        },
+        "me",
+    );
     let test = test.with_rocketchat_mock().with_custom_rocketchat_routes(rocketchat_router).with_connected_admin_room().run();
 
     let (response, status_code) = RestApi::call(

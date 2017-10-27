@@ -293,8 +293,6 @@ fn message_is_forwarded_even_if_setting_the_display_name_failes() {
     let error_responder_active = Arc::new(AtomicBool::new(false));
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-
-
     let set_display_name = handlers::MatrixSetDisplayName {};
     let error_responder = handlers::MatrixActivatableErrorResponder {
         status: status::InternalServerError,

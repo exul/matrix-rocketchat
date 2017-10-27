@@ -11,8 +11,10 @@ extern crate serde_json;
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
-use iron::status;
+use iron::{status, Chain};
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::api::rocketchat::v1::DIRECT_MESSAGES_LIST_PATH;
@@ -24,6 +26,7 @@ use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
 use ruma_client_api::r0::membership::forget_room::Endpoint as ForgetRoomEndpoint;
 use ruma_client_api::r0::membership::invite_user::Endpoint as InviteEndpoint;
 use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
+use ruma_client_api::r0::profile::get_display_name::{self, Endpoint as GetDisplaynameEndpoint};
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::sync::sync_events::Endpoint as SyncEventsEndpoint;
@@ -562,6 +565,59 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_failes() {
 }
 
 #[test]
+fn no_room_is_created_when_getting_the_displayname_failes() {
+    let test = Test::new();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
+    let get_display_name = handlers::MatrixGetDisplayName {};
+    let error_responder_active = Arc::new(AtomicBool::new(false));
+    let error_responder = handlers::MatrixActivatableErrorResponder {
+        status: status::InternalServerError,
+        message: "Could get display name".to_string(),
+        active: Arc::clone(&error_responder_active),
+    };
+    let mut get_display_name_with_error = Chain::new(get_display_name);
+    get_display_name_with_error.link_before(error_responder);
+    matrix_router.get(GetDisplaynameEndpoint::router_path(), get_display_name_with_error, "get_displayname");
+    let mut rocketchat_router = Router::new();
+    let mut direct_messages = HashMap::new();
+    direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
+    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
+        direct_messages: direct_messages,
+        status: status::Ok,
+    };
+    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .run();
+
+    error_responder_active.store(true, Ordering::Relaxed);
+
+    let direct_message = Message {
+        message_id: "spec_id_1".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_user_id_other_user_id".to_string(),
+        channel_name: None,
+        user_id: "other_user_id".to_string(),
+        user_name: "other_user".to_string(),
+        text: "Hey there".to_string(),
+    };
+    let direct_message_payload = to_string(&direct_message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &direct_message_payload);
+
+    // discard admin room creation
+    create_room_receiver.recv_timeout(default_timeout()).unwrap();
+    // no room is created on the Matrix server
+    assert!(create_room_receiver.recv_timeout(default_timeout()).is_err());
+}
+
+#[test]
 fn no_room_is_created_when_the_direct_message_list_response_cannot_be_deserialized() {
     let test = Test::new();
     let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
@@ -657,5 +713,52 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_response_cannot_b
     create_room_receiver.recv_timeout(default_timeout()).unwrap();
 
     // no additional room is created on the Matrix server
+    assert!(create_room_receiver.recv_timeout(default_timeout()).is_err());
+}
+
+#[test]
+fn no_room_is_created_when_getting_the_displayname_respones_cannot_be_deserialized() {
+    let test = Test::new();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
+    let get_display_name_params = get_display_name::PathParams {
+        user_id: UserId::try_from("@rocketchat_other_user_id_rcid:localhost").unwrap(),
+    };
+    let get_display_name_path = GetDisplaynameEndpoint::request_path(get_display_name_params);
+    let invalid_json_responder = handlers::InvalidJsonResponse { status: status::Ok };
+    matrix_router.get(get_display_name_path, invalid_json_responder, "get_displayname_invalid_json");
+    let mut rocketchat_router = Router::new();
+    let mut direct_messages = HashMap::new();
+    direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
+    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
+        direct_messages: direct_messages,
+        status: status::Ok,
+    };
+    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .run();
+
+    let direct_message = Message {
+        message_id: "spec_id_1".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_user_id_other_user_id".to_string(),
+        channel_name: None,
+        user_id: "other_user_id".to_string(),
+        user_name: "other_user".to_string(),
+        text: "Hey there".to_string(),
+    };
+    let direct_message_payload = to_string(&direct_message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &direct_message_payload);
+
+    // discard admin room creation
+    create_room_receiver.recv_timeout(default_timeout()).unwrap();
+    // no room is created on the Matrix server
     assert!(create_room_receiver.recv_timeout(default_timeout()).is_err());
 }

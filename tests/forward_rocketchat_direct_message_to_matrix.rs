@@ -94,7 +94,7 @@ fn successfully_forwards_a_direct_message_to_matrix() {
     register_receiver.recv_timeout(default_timeout()).unwrap();
 
     let register_message = register_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(register_message.contains("\"username\":\"rocketchat_other_user_id_rcid\""));
+    assert!(register_message.contains("\"username\":\"rocketchat_rcid_other_user_id\""));
 
     // discard admin room invite
     invite_receiver.recv_timeout(default_timeout()).unwrap();
@@ -106,7 +106,7 @@ fn successfully_forwards_a_direct_message_to_matrix() {
     assert!(first_message_received_by_matrix.contains("Hey there"));
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let other_user_id = UserId::try_from("@rocketchat_other_user_id_rcid:localhost").unwrap();
+    let other_user_id = UserId::try_from("@rocketchat_rcid_other_user_id:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
     let user_ids = Room::user_ids(
         &(*matrix_api),
@@ -196,7 +196,7 @@ fn the_bot_user_stays_in_the_direct_message_room_if_the_user_leaves() {
     assert!(forget_receiver.recv_timeout(default_timeout()).is_err());
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let other_user_id = UserId::try_from("@rocketchat_other_user_id_rcid:localhost").unwrap();
+    let other_user_id = UserId::try_from("@rocketchat_rcid_other_user_id:localhost").unwrap();
     let user_ids = Room::user_ids(
         &(*matrix_api),
         RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
@@ -723,7 +723,7 @@ fn no_room_is_created_when_getting_the_displayname_respones_cannot_be_deserializ
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
     let get_display_name_params = get_display_name::PathParams {
-        user_id: UserId::try_from("@rocketchat_other_user_id_rcid:localhost").unwrap(),
+        user_id: UserId::try_from("@rocketchat_rcid_other_user_id:localhost").unwrap(),
     };
     let get_display_name_path = GetDisplaynameEndpoint::request_path(get_display_name_params);
     let invalid_json_responder = handlers::InvalidJsonResponse { status: status::Ok };

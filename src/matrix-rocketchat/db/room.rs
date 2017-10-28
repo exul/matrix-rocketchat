@@ -211,6 +211,7 @@ impl Room {
         room_id: RoomId,
     ) -> Result<Option<(RocketchatServer, String)>> {
         if !Room::is_direct_message_room(config, matrix_api, room_id.clone())? {
+            debug!(logger, "Room is not a direct message room, will not continue to find a matching DM user.");
             return Ok(None);
         }
 
@@ -219,29 +220,41 @@ impl Room {
 
         let user_matrix_id = match user_ids.iter().find(|id| !config.is_application_service_virtual_user(id)) {
             Some(user_id) => user_id,
-            None => return Ok(None),
+            None => {
+                debug!(logger, "No Matrix user found for the receiver of this direct message");
+                return Ok(None);
+            }
         };
 
         let virtual_user_matrix_id = match user_ids.iter().find(|id| config.is_application_service_virtual_user(id)) {
             Some(user_id) => user_id,
-            None => return Ok(None),
+            None => {
+                debug!(logger, "No existing virtual user found for this direct message");
+                return Ok(None);
+            }
         };
 
         //TODO: Move this into it's own fuction, to make sure the same logic is used everywhere
         let virtual_user_local_part = virtual_user_matrix_id.localpart().to_owned();
         let id_parts: Vec<&str> = virtual_user_local_part.splitn(2, '_').collect();
-        let server_and_user_id: Vec<&str> = id_parts.into_iter().nth(1).unwrap_or_default().rsplitn(2, '_').collect();
+        let server_and_user_id: Vec<&str> = id_parts.into_iter().nth(1).unwrap_or_default().splitn(2, '_').collect();
         let server_id = server_and_user_id.clone().into_iter().nth(0).unwrap_or_default().to_string();
         let virtual_user_id = server_and_user_id.clone().into_iter().nth(1).unwrap_or_default();
 
         let server = match RocketchatServer::find_by_id(conn, &server_id)? {
             Some(server) => server,
-            None => return Ok(None),
+            None => {
+                debug!(logger, "No connected Rocket.Chat server with ID {} found for this direct message", &server_id);
+                return Ok(None);
+            }
         };
 
         let user_on_rocketchat_server = match UserOnRocketchatServer::find_by_matrix_user_id(conn, user_matrix_id, server_id)? {
             Some(user_on_rocketchat_server) => user_on_rocketchat_server,
-            None => return Ok(None),
+            None => {
+                debug!(logger, "Matrix user {} is not logged into the Rocket.Chat server {}", user_matrix_id, server.id);
+                return Ok(None);
+            }
         };
 
         let rocketchat_user_id = user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default();
@@ -266,6 +279,12 @@ impl Room {
             return Ok(Some((server, channel_id)));
         }
 
+        debug!(
+            logger,
+            "No direct message channel for the user {} found on the Rocket.Chat server {}",
+            virtual_user_id,
+            server.id
+        );
         Ok(None)
     }
 }

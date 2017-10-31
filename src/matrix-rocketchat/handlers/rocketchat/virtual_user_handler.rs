@@ -90,4 +90,15 @@ impl<'a> VirtualUserHandler<'a> {
         let user_id = format!("@{}:{}", user_id_local_part, self.config.hs_domain);
         Ok(UserId::try_from(&user_id).chain_err(|| ErrorKind::InvalidUserId(user_id))?)
     }
+
+    /// Extracts the Rocket.Chat server and the users Rocket.Chat user ID from the Matrix User ID.
+    pub fn rocketchat_server_and_user_id_from_matrix_id(user_id: &UserId) -> (String, String) {
+        let user_local_part = user_id.localpart().to_owned();
+        let id_parts: Vec<&str> = user_local_part.splitn(2, '_').collect();
+        let server_and_user_id: Vec<&str> = id_parts.into_iter().nth(1).unwrap_or_default().splitn(2, '_').collect();
+        let server_id = server_and_user_id.clone().into_iter().nth(0).unwrap_or_default().to_string();
+        let rocketchat_user_id = server_and_user_id.clone().into_iter().nth(1).unwrap_or_default();
+
+        (server_id, rocketchat_user_id.to_owned())
+    }
 }

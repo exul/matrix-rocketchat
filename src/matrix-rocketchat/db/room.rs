@@ -9,6 +9,7 @@ use api::{MatrixApi, RocketchatApi};
 use db::UserOnRocketchatServer;
 use config::Config;
 use errors::*;
+use handlers::rocketchat::VirtualUserHandler;
 use super::RocketchatServer;
 
 /// A room that is managed by the application service. This can be either a bridged room or an
@@ -226,7 +227,7 @@ impl Room {
             }
         };
 
-        let virtual_user_matrix_id = match user_ids.iter().find(|id| config.is_application_service_virtual_user(id)) {
+        let virtual_user_id = match user_ids.iter().find(|id| config.is_application_service_virtual_user(id)) {
             Some(user_id) => user_id,
             None => {
                 debug!(logger, "No existing virtual user found for this direct message");
@@ -234,13 +235,7 @@ impl Room {
             }
         };
 
-        //TODO: Move this into it's own fuction, to make sure the same logic is used everywhere
-        let virtual_user_local_part = virtual_user_matrix_id.localpart().to_owned();
-        let id_parts: Vec<&str> = virtual_user_local_part.splitn(2, '_').collect();
-        let server_and_user_id: Vec<&str> = id_parts.into_iter().nth(1).unwrap_or_default().splitn(2, '_').collect();
-        let server_id = server_and_user_id.clone().into_iter().nth(0).unwrap_or_default().to_string();
-        let virtual_user_id = server_and_user_id.clone().into_iter().nth(1).unwrap_or_default();
-
+        let (server_id, virtual_user_id) = VirtualUserHandler::rocketchat_server_and_user_id_from_matrix_id(virtual_user_id);
         let server = match RocketchatServer::find_by_id(conn, &server_id)? {
             Some(server) => server,
             None => {
@@ -268,7 +263,7 @@ impl Room {
         let direct_message_channel_ids = rocketchat_api.direct_messages_list()?;
         let channel_ids: Vec<String> = direct_message_channel_ids
             .iter()
-            .filter_map(|c| if c.id.to_lowercase().contains(virtual_user_id) {
+            .filter_map(|c| if c.id.to_lowercase().contains(&virtual_user_id) {
                 Some(c.id.clone())
             } else {
                 None

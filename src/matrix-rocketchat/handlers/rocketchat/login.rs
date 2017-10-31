@@ -20,12 +20,12 @@ pub struct Login<'a> {
     pub matrix_api: &'a MatrixApi,
 }
 
-/// Credentials to perform a login on the Rocket.Chat server. The `matrix_user_id` is used to find
+/// Credentials to perform a login on the Rocket.Chat server. The `user_id` is used to find
 /// the corresponding matrix user.
 #[derive(Serialize, Deserialize)]
 pub struct Credentials {
     /// The users unique id on the Matrix homeserver
-    pub matrix_user_id: UserId,
+    pub user_id: UserId,
     /// The username on the Rocket.Chat server
     pub rocketchat_username: String,
     /// The password on the Rocket.Chat server
@@ -40,7 +40,7 @@ impl<'a> Login<'a> {
     /// Returns an error if the login fails.
     pub fn call(&self, credentials: &Credentials, server: &RocketchatServer, admin_room_id: Option<RoomId>) -> Result<()> {
         let mut user_on_rocketchat_server =
-            UserOnRocketchatServer::find(self.connection, &credentials.matrix_user_id, server.id.clone())?;
+            UserOnRocketchatServer::find(self.connection, &credentials.user_id, server.id.clone())?;
         let rocketchat_api = RocketchatApi::new(server.rocketchat_url.clone(), self.logger.clone())?;
 
         let (rocketchat_user_id, rocketchat_auth_token) =
@@ -51,16 +51,16 @@ impl<'a> Login<'a> {
             Some(rocketchat_auth_token.clone()),
         )?;
 
-        if let Some(matrix_room_id) = admin_room_id {
-            let bot_matrix_user_id = self.config.matrix_bot_user_id()?;
+        if let Some(room_id) = admin_room_id {
+            let bot_user_id = self.config.matrix_bot_user_id()?;
             let message = CommandHandler::build_help_message(
                 self.connection,
                 self.matrix_api,
                 self.config.as_url.clone(),
-                matrix_room_id.clone(),
-                &credentials.matrix_user_id,
+                room_id.clone(),
+                &credentials.user_id,
             )?;
-            self.matrix_api.send_text_message_event(matrix_room_id, bot_matrix_user_id, message)?;
+            self.matrix_api.send_text_message_event(room_id, bot_user_id, message)?;
         }
 
         Ok(info!(

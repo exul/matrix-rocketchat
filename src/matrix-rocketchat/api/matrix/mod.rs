@@ -22,44 +22,44 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     /// Delete a room alias.
     fn delete_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<()>;
     /// Forget a room.
-    fn forget_room(&self, matrix_room_id: RoomId) -> Result<()>;
+    fn forget_room(&self, room_id: RoomId) -> Result<()>;
     /// Get the display name for a Matrix user ID. Returns `None` if the user doesn't exist.
-    fn get_display_name(&self, matrix_user_id: UserId) -> Result<Option<String>>;
+    fn get_display_name(&self, user_id: UserId) -> Result<Option<String>>;
     /// Get all rooms a user joined.
-    fn get_joined_rooms(&self, matrix_user_id: UserId) -> Result<Vec<RoomId>>;
+    fn get_joined_rooms(&self, user_id: UserId) -> Result<Vec<RoomId>>;
     /// Get the room id based on the room alias.
     fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<Option<RoomId>>;
     /// Get a rooms canonical alias.
-    fn get_room_canonical_alias(&self, matrix_room_id: RoomId) -> Result<Option<RoomAliasId>>;
+    fn get_room_canonical_alias(&self, room_id: RoomId) -> Result<Option<RoomAliasId>>;
     /// Get the `user_id` of the user that created the room.
-    fn get_room_creator(&self, matrix_room_id: RoomId) -> Result<UserId>;
+    fn get_room_creator(&self, room_id: RoomId) -> Result<UserId>;
     /// Get the list of members for this room.
-    fn get_room_members(&self, matrix_room_id: RoomId, sender_id: Option<UserId>) -> Result<Vec<MemberEvent>>;
+    fn get_room_members(&self, room_id: RoomId, sender_id: Option<UserId>) -> Result<Vec<MemberEvent>>;
     /// Get the topic for a room.
-    fn get_room_topic(&self, matrix_room_id: RoomId) -> Result<Option<String>>;
+    fn get_room_topic(&self, room_id: RoomId) -> Result<Option<String>>;
     /// Invite a user to a room.
-    fn invite(&self, matrix_room_id: RoomId, receiver_matrix_user_id: UserId, sender_matrix_user_id: UserId) -> Result<()>;
+    fn invite(&self, room_id: RoomId, receiver_user_id: UserId, sender_user_id: UserId) -> Result<()>;
     /// Determine if the bot user has access to a room.
-    fn is_room_accessible_by_bot(&self, matrix_room_id: RoomId) -> Result<bool>;
+    fn is_room_accessible_by_bot(&self, room_id: RoomId) -> Result<bool>;
     /// Join a room with a user.
-    fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
+    fn join(&self, room_id: RoomId, user_id: UserId) -> Result<()>;
     /// Leave a room.
-    fn leave_room(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()>;
+    fn leave_room(&self, room_id: RoomId, user_id: UserId) -> Result<()>;
     /// Set the canonical alias for a room.
-    fn put_canonical_room_alias(&self, matrix_room_id: RoomId, matrix_room_alias_id: Option<RoomAliasId>) -> Result<()>;
+    fn put_canonical_room_alias(&self, room_id: RoomId, matrix_room_alias_id: Option<RoomAliasId>) -> Result<()>;
     /// Register a user.
     fn register(&self, user_id_local_part: String) -> Result<()>;
     /// Send a text message to a room.
-    fn send_text_message_event(&self, matrix_room_id: RoomId, matrix_user_id: UserId, body: String) -> Result<()>;
+    fn send_text_message_event(&self, room_id: RoomId, user_id: UserId, body: String) -> Result<()>;
     /// Set the default power levels for a room. Only the bot will be able to control the room.
     /// The power levels for invite, kick, ban, and redact are all set to 50.
-    fn set_default_powerlevels(&self, matrix_room_id: RoomId, room_creator_matrix_user_id: UserId) -> Result<()>;
+    fn set_default_powerlevels(&self, room_id: RoomId, room_creator_user_id: UserId) -> Result<()>;
     /// Set the display name for a user
-    fn set_display_name(&self, matrix_user_id: UserId, name: String) -> Result<()>;
+    fn set_display_name(&self, user_id: UserId, name: String) -> Result<()>;
     /// Set the name for a room
-    fn set_room_name(&self, matrix_room_id: RoomId, name: String) -> Result<()>;
+    fn set_room_name(&self, room_id: RoomId, name: String) -> Result<()>;
     /// Set the topic for a room.
-    fn set_room_topic(&self, matrix_room_id: RoomId, topic: String) -> Result<()>;
+    fn set_room_topic(&self, room_id: RoomId, topic: String) -> Result<()>;
 }
 
 /// Helper trait because Clone cannot be part of the `MatrixApi` trait since that would cause the

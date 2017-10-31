@@ -194,14 +194,14 @@ error_chain!{
             display("Reading file from {} failed", path)
         }
 
-        RoomNotConnected(matrix_room_id: String) {
+        RoomNotConnected(room_id: String) {
             description("The room is not connected, but has to be for the command the user submitted")
-            display("Room {} is not connected to a Rocket.Chat server, cannot execute command", matrix_room_id)
+            display("Room {} is not connected to a Rocket.Chat server, cannot execute command", room_id)
         }
 
-        RoomAlreadyConnected(matrix_room_id: String) {
+        RoomAlreadyConnected(room_id: String) {
             description("The Room is already connected to a Rocket.Chat server")
-            display("Room {} is already connected", matrix_room_id)
+            display("Room {} is already connected", room_id)
         }
 
         AdminRoomForRocketchatServerNotFound(rocketchat_url: String) {

@@ -12,7 +12,7 @@ use ruma_events::collections::all::Event;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
 use ruma_events::room::message::{MessageEvent, MessageEventContent, MessageType, TextMessageEventContent};
 use ruma_identifiers::{EventId, RoomId, UserId};
-use serde_json::{Map, Value, to_string};
+use serde_json::{to_string, Map, Value};
 use super::{DEFAULT_LOGGER, HS_TOKEN};
 
 pub fn invite(config: &Config, room_id: RoomId, user_id: UserId, sender_id: UserId) {
@@ -51,7 +51,9 @@ pub fn send_invite_event_from_matrix(as_url: &str, room_id: RoomId, user_id: Use
         user_id: inviter_id,
     };
 
-    let events = Events { events: vec![Box::new(Event::RoomMember(invite_event))] };
+    let events = Events {
+        events: vec![Box::new(Event::RoomMember(invite_event))],
+    };
 
     let invite_payload = to_string(&events).unwrap();
 
@@ -84,7 +86,9 @@ pub fn send_join_event_from_matrix(as_url: &str, room_id: RoomId, user_id: UserI
         user_id: user_id,
     };
 
-    let events = Events { events: vec![Box::new(Event::RoomMember(join_event))] };
+    let events = Events {
+        events: vec![Box::new(Event::RoomMember(join_event))],
+    };
     let join_payload = to_string(&events).unwrap();
     simulate_message_from_matrix(&as_url, &join_payload);
 }
@@ -112,7 +116,9 @@ pub fn send_leave_event_from_matrix(as_url: &str, room_id: RoomId, user_id: User
         user_id: user_id,
     };
 
-    let events = Events { events: vec![Box::new(Event::RoomMember(leave_event))] };
+    let events = Events {
+        events: vec![Box::new(Event::RoomMember(leave_event))],
+    };
     let leave_payload = to_string(&events).unwrap();
     simulate_message_from_matrix(as_url, &leave_payload);
 }
@@ -130,7 +136,9 @@ pub fn send_room_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Use
         user_id: user_id,
     };
 
-    let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
+    let events = Events {
+        events: vec![Box::new(Event::RoomMessage(message_event))],
+    };
     let payload = to_string(&events).unwrap();
 
     simulate_message_from_matrix(as_url, &payload);
@@ -149,7 +157,9 @@ pub fn send_emote_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Us
         user_id: user_id,
     };
 
-    let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
+    let events = Events {
+        events: vec![Box::new(Event::RoomMessage(message_event))],
+    };
     let payload = to_string(&events).unwrap();
 
     simulate_message_from_matrix(as_url, &payload);
@@ -171,10 +181,9 @@ pub fn simulate_message_from_rocketchat(as_url: &str, payload: &str) -> (String,
 pub fn logout_user_from_rocketchat_server_on_bridge(
     connection: &SqliteConnection,
     rocketchat_server_id: String,
-    matrix_user_id: &UserId,
+    user_id: &UserId,
 ) {
-    let mut user_on_rocketchat_server = UserOnRocketchatServer::find(connection, &matrix_user_id, rocketchat_server_id)
-        .unwrap();
+    let mut user_on_rocketchat_server = UserOnRocketchatServer::find(connection, &user_id, rocketchat_server_id).unwrap();
     let rocketchat_user_id = user_on_rocketchat_server.rocketchat_user_id.clone();
     user_on_rocketchat_server.set_credentials(connection, rocketchat_user_id, None).unwrap();
 }

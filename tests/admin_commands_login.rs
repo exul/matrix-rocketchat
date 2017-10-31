@@ -181,7 +181,7 @@ fn sucessfully_login_via_rest_api() {
         Test::new().with_rocketchat_mock().with_custom_rocketchat_routes(rocketchat_router).with_connected_admin_room().run();
 
     let login_request = Credentials {
-        matrix_user_id: UserId::try_from("@spec_user:localhost").unwrap(),
+        user_id: UserId::try_from("@spec_user:localhost").unwrap(),
         rocketchat_username: "spec_user".to_string(),
         password: "secret".to_string(),
         rocketchat_url: test.rocketchat_mock_url.clone().unwrap(),
@@ -224,7 +224,7 @@ fn wrong_password_when_logging_in_via_rest_api() {
         Test::new().with_rocketchat_mock().with_custom_rocketchat_routes(rocketchat_router).with_connected_admin_room().run();
 
     let login_request = Credentials {
-        matrix_user_id: UserId::try_from("@spec_user:localhost").unwrap(),
+        user_id: UserId::try_from("@spec_user:localhost").unwrap(),
         rocketchat_username: "spec_user".to_string(),
         password: "wrong_password".to_string(),
         rocketchat_url: test.rocketchat_mock_url.clone().unwrap(),
@@ -275,7 +275,7 @@ fn login_multiple_times_via_rest_message() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let login_request = Credentials {
-        matrix_user_id: UserId::try_from("@spec_user:localhost").unwrap(),
+        user_id: UserId::try_from("@spec_user:localhost").unwrap(),
         rocketchat_username: "spec_user".to_string(),
         password: "secret".to_string(),
         rocketchat_url: test.rocketchat_mock_url.clone().unwrap(),
@@ -336,7 +336,7 @@ fn login_via_rest_api_with_a_non_existing_rocketchat_server() {
     let test = Test::new().run();
 
     let login_request = Credentials {
-        matrix_user_id: UserId::try_from("@spec_user:localhost").unwrap(),
+        user_id: UserId::try_from("@spec_user:localhost").unwrap(),
         rocketchat_username: "spec_user".to_string(),
         password: "secret".to_string(),
         rocketchat_url: "http://nonexisting.foo".to_string(),

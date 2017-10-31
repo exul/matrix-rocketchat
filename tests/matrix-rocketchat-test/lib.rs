@@ -392,8 +392,8 @@ impl Test {
         };
 
         if let Some(bridged_room) = self.bridged_room {
-            let (room_name, matrix_user_id) = bridged_room;
-            channels.insert(room_name, vec![matrix_user_id]);
+            let (room_name, user_id) = bridged_room;
+            channels.insert(room_name, vec![user_id]);
         }
 
         if channels.len() > 0 {

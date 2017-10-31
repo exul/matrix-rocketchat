@@ -23,13 +23,13 @@ impl Room {
         matrix_api: &MatrixApi,
         rocketchat_server_id: &str,
         rocketchat_channel_id: &str,
-        matrix_user_id: &UserId,
+        user_id: &UserId,
     ) -> Result<bool> {
         let room_alias_id = Room::build_room_alias_id(config, rocketchat_server_id, rocketchat_channel_id)?;
 
         match matrix_api.get_room_alias(room_alias_id)? {
-            Some(matrix_room_id) => {
-                let is_user_in_room = Room::user_ids(matrix_api, matrix_room_id, None)?.iter().any(|id| id == matrix_user_id);
+            Some(room_id) => {
+                let is_user_in_room = Room::user_ids(matrix_api, room_id, None)?.iter().any(|id| id == user_id);
                 Ok(is_user_in_room)
             }
             None => Ok(false),
@@ -40,9 +40,9 @@ impl Room {
     pub fn rocketchat_server(
         connection: &SqliteConnection,
         matrix_api: &MatrixApi,
-        matrix_room_id: RoomId,
+        room_id: RoomId,
     ) -> Result<Option<RocketchatServer>> {
-        let alias = matrix_api.get_room_canonical_alias(matrix_room_id)?.map(|alias| alias.to_string()).unwrap_or_default();
+        let alias = matrix_api.get_room_canonical_alias(room_id)?.map(|alias| alias.to_string()).unwrap_or_default();
         let rocketchat_server_id = alias.split('#').nth(2).unwrap_or_default();
         RocketchatServer::find_by_id(connection, rocketchat_server_id)
     }
@@ -51,9 +51,9 @@ impl Room {
     pub fn rocketchat_server_for_admin_room(
         connection: &SqliteConnection,
         matrix_api: &MatrixApi,
-        matrix_room_id: RoomId,
+        room_id: RoomId,
     ) -> Result<Option<RocketchatServer>> {
-        let rocketchat_server_url = matrix_api.get_room_topic(matrix_room_id)?;
+        let rocketchat_server_url = matrix_api.get_room_topic(room_id)?;
         match rocketchat_server_url {
             Some(rocketchat_server_url) => RocketchatServer::find_by_url(connection, &rocketchat_server_url),
             None => Ok(None),
@@ -61,8 +61,8 @@ impl Room {
     }
 
     /// Users that are currently in the room.
-    pub fn user_ids(matrix_api: &MatrixApi, matrix_room_id: RoomId, sender_id: Option<UserId>) -> Result<Vec<UserId>> {
-        let member_events = matrix_api.get_room_members(matrix_room_id.clone(), sender_id)?;
+    pub fn user_ids(matrix_api: &MatrixApi, room_id: RoomId, sender_id: Option<UserId>) -> Result<Vec<UserId>> {
+        let member_events = matrix_api.get_room_members(room_id.clone(), sender_id)?;
 
         let mut user_ids = Vec::new();
         for member_event in member_events {
@@ -125,23 +125,23 @@ impl Room {
     }
 
     /// Checks if a room is an admin room.
-    pub fn is_admin_room(config: &Config, matrix_api: &MatrixApi, matrix_room_id: RoomId) -> Result<bool> {
+    pub fn is_admin_room(config: &Config, matrix_api: &MatrixApi, room_id: RoomId) -> Result<bool> {
         // it cannot be an admin room if the bot user does not have access to it
-        if !Room::is_accessible_by_bot(matrix_api, matrix_room_id.clone())? {
+        if !Room::is_accessible_by_bot(matrix_api, room_id.clone())? {
             return Ok(false);
         }
 
         let matrix_bot_user_id = config.matrix_bot_user_id()?;
-        let matrix_user_ids = Room::user_ids(matrix_api, matrix_room_id.clone(), None)?;
-        let bot_user_in_room = matrix_user_ids.iter().any(|id| id == &matrix_bot_user_id);
-        let room_creator_id = matrix_api.get_room_creator(matrix_room_id)?;
+        let user_ids = Room::user_ids(matrix_api, room_id.clone(), None)?;
+        let bot_user_in_room = user_ids.iter().any(|id| id == &matrix_bot_user_id);
+        let room_creator_id = matrix_api.get_room_creator(room_id)?;
 
         Ok(!config.is_application_service_user(&room_creator_id) && bot_user_in_room)
     }
 
     /// Gets the Rocket.Chat channel id for a room that is bridged to Matrix.
-    pub fn rocketchat_channel_id(matrix_api: &MatrixApi, matrix_room_id: RoomId) -> Result<Option<String>> {
-        let room_canonical_alias = match matrix_api.get_room_canonical_alias(matrix_room_id.clone())? {
+    pub fn rocketchat_channel_id(matrix_api: &MatrixApi, room_id: RoomId) -> Result<Option<String>> {
+        let room_canonical_alias = match matrix_api.get_room_canonical_alias(room_id.clone())? {
             Some(room_canonical_alias) => room_canonical_alias.alias().to_string(),
             None => return Ok(None),
         };
@@ -151,8 +151,8 @@ impl Room {
     }
 
     /// Checks if an admin room is connected to a Rocket.Chat server.
-    pub fn is_connected(connection: &SqliteConnection, matrix_api: &MatrixApi, matrix_room_id: RoomId) -> Result<bool> {
-        match matrix_api.get_room_topic(matrix_room_id)? {
+    pub fn is_connected(connection: &SqliteConnection, matrix_api: &MatrixApi, room_id: RoomId) -> Result<bool> {
+        match matrix_api.get_room_topic(room_id)? {
             Some(rocketchat_server_url) => {
                 let server = RocketchatServer::find_by_url(connection, &rocketchat_server_url)?;
                 Ok(server.is_some())
@@ -162,24 +162,20 @@ impl Room {
     }
 
     /// Find the Matrix user in a direct message room
-    pub fn direct_message_matrix_user(
-        config: &Config,
-        matrix_api: &MatrixApi,
-        matrix_room_id: RoomId,
-    ) -> Result<Option<UserId>> {
-        let room_creator_id = matrix_api.get_room_creator(matrix_room_id.clone())?;
-        let user_ids = Room::user_ids(matrix_api, matrix_room_id.clone(), Some(room_creator_id))?;
+    pub fn direct_message_matrix_user(config: &Config, matrix_api: &MatrixApi, room_id: RoomId) -> Result<Option<UserId>> {
+        let room_creator_id = matrix_api.get_room_creator(room_id.clone())?;
+        let user_ids = Room::user_ids(matrix_api, room_id.clone(), Some(room_creator_id))?;
         if user_ids.len() > 2 {
             bail_error!(ErrorKind::GettingMatrixUserForDirectMessageRoomError);
         }
 
-        let matrix_user_id = user_ids.into_iter().find(|id| !config.is_application_service_virtual_user(id));
-        Ok(matrix_user_id)
+        let user_id = user_ids.into_iter().find(|id| !config.is_application_service_virtual_user(id));
+        Ok(user_id)
     }
 
     /// Determine if the bot user has access to a room.
-    pub fn is_accessible_by_bot(matrix_api: &MatrixApi, matrix_room_id: RoomId) -> Result<bool> {
-        matrix_api.is_room_accessible_by_bot(matrix_room_id)
+    pub fn is_accessible_by_bot(matrix_api: &MatrixApi, room_id: RoomId) -> Result<bool> {
+        matrix_api.is_room_accessible_by_bot(room_id)
     }
 
     /// Build the room alias local part for a room that is bridged to a Rocket.Chat server.

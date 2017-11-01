@@ -73,19 +73,19 @@ use slog::{Drain, FnValue, Level, LevelFilter, Record};
 use tempdir::TempDir;
 
 /// Name of the temporary directory that is used for each test
-pub const TEMP_DIR_NAME: &'static str = "matrix_rocketchat_test";
+pub const TEMP_DIR_NAME: &str = "matrix_rocketchat_test";
 /// Name of the database file
-pub const DATABASE_NAME: &'static str = "test.db";
+pub const DATABASE_NAME: &str = "test.db";
 /// Application service token used in the tests
-const AS_TOKEN: &'static str = "at";
+const AS_TOKEN: &str = "at";
 /// Homeserver token used in the tests
-pub const HS_TOKEN: &'static str = "ht";
+pub const HS_TOKEN: &str = "ht";
 /// Rocket.Chat token used in the tests
-pub const RS_TOKEN: &'static str = "rt";
+pub const RS_TOKEN: &str = "rt";
 /// Number of threads that iron uses when running tests
 pub const IRON_THREADS: usize = 4;
 /// The version the mock Rocket.Chat server announces
-pub const DEFAULT_ROCKETCHAT_VERSION: &'static str = "0.49.0";
+pub const DEFAULT_ROCKETCHAT_VERSION: &str = "0.49.0";
 
 lazy_static! {
     /// Default logger

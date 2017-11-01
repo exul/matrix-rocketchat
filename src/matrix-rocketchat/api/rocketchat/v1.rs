@@ -11,17 +11,17 @@ use i18n::*;
 use super::{Channel, Endpoint, User};
 
 /// Login endpoint path
-pub const LOGIN_PATH: &'static str = "/api/v1/login";
+pub const LOGIN_PATH: &str = "/api/v1/login";
 /// Me endpoint path
-pub const ME_PATH: &'static str = "/api/v1/me";
+pub const ME_PATH: &str = "/api/v1/me";
 /// Users list endpoint path
-pub const USERS_INFO_PATH: &'static str = "/api/v1/users.info";
+pub const USERS_INFO_PATH: &str = "/api/v1/users.info";
 /// Channels list endpoint path
-pub const CHANNELS_LIST_PATH: &'static str = "/api/v1/channels.list";
+pub const CHANNELS_LIST_PATH: &str = "/api/v1/channels.list";
 /// Direct messages list endpoint path
-pub const DIRECT_MESSAGES_LIST_PATH: &'static str = "/api/v1/dm.list";
+pub const DIRECT_MESSAGES_LIST_PATH: &str = "/api/v1/dm.list";
 /// Post chat message endpoint path
-pub const POST_CHAT_MESSAGE_PATH: &'static str = "/api/v1/chat.postMessage";
+pub const POST_CHAT_MESSAGE_PATH: &str = "/api/v1/chat.postMessage";
 
 /// V1 get endpoints that require authentication
 pub struct GetWithAuthEndpoint<'a> {

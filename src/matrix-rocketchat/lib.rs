@@ -50,8 +50,6 @@ pub mod errors;
 pub mod api;
 /// Helpers to interact with the application service configuration.
 pub mod config;
-/// Helpers to interact with the database.
-pub mod db;
 /// Iron handlers
 pub mod handlers;
 /// Logging helpers

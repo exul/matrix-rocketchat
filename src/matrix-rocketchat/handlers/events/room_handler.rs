@@ -7,18 +7,18 @@ use iron::url::Host;
 use ruma_events::room::member::{MemberEvent, MembershipState};
 use ruma_identifiers::{RoomId, UserId};
 use slog::Logger;
+use serde_json::{self, Value};
 
 use api::{MatrixApi, RocketchatApi};
 use api::rocketchat::Channel;
 use config::Config;
-use db::{RocketchatServer, Room};
 use errors::*;
 use handlers::ErrorNotifier;
 use handlers::events::CommandHandler;
 use handlers::rocketchat::VirtualUserHandler;
 use i18n::*;
 use log;
-use serde_json::{self, Value};
+use models::{RocketchatServer, Room};
 
 /// Handles room events
 pub struct RoomHandler<'a> {

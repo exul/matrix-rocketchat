@@ -5,9 +5,9 @@ use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
-use db::{RocketchatServer, Room};
 use errors::*;
 use handlers::events::{CommandHandler, Forwarder};
+use models::{RocketchatServer, Room};
 
 /// Handles message events
 pub struct MessageHandler<'a> {

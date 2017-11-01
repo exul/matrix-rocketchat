@@ -15,8 +15,7 @@ use std::convert::TryFrom;
 
 use iron::status;
 use matrix_rocketchat::api::MatrixApi;
-use matrix_rocketchat::db::Room;
-use matrix_rocketchat::models::Events;
+use matrix_rocketchat::models::{Room, Events};
 use matrix_rocketchat_test::{build_test_config, default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER,
                              TEMP_DIR_NAME};
 use ruma_client_api::Endpoint;

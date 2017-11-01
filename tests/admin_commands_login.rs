@@ -15,7 +15,7 @@ use std::convert::TryFrom;
 use iron::status;
 use matrix_rocketchat::api::{MatrixApi, RestApi};
 use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH};
-use matrix_rocketchat::db::{RocketchatServer, UserOnRocketchatServer};
+use matrix_rocketchat::models::{RocketchatServer, UserOnRocketchatServer};
 use matrix_rocketchat::handlers::rocketchat::Credentials;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER};
 use reqwest::Method;

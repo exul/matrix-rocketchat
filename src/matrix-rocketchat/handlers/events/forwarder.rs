@@ -3,8 +3,8 @@ use ruma_events::room::message::{MessageEvent, MessageEventContent};
 use slog::Logger;
 
 use api::RocketchatApi;
-use db::{RocketchatServer, UserOnRocketchatServer};
 use errors::*;
+use models::{UserOnRocketchatServer, RocketchatServer};
 
 /// Forwards messages
 pub struct Forwarder<'a> {

@@ -7,12 +7,11 @@ use serde_json;
 
 use api::MatrixApi;
 use config::Config;
-use db::ConnectionPool;
 use errors::*;
 use handlers::events::EventDispatcher;
 use log::{self, IronLogger};
 use middleware::AccessToken;
-use models::Events;
+use models::{ConnectionPool, Events};
 
 /// Transactions is an endpoint of the application service API which is called by the homeserver
 /// to push new events.

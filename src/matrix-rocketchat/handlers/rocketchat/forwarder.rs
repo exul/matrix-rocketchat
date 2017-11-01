@@ -8,11 +8,11 @@ use i18n::*;
 use api::{MatrixApi, RocketchatApi};
 use api::rocketchat::Message;
 use config::Config;
-use db::{RocketchatServer, Room, UserOnRocketchatServer};
 use errors::*;
 use handlers::events::RoomHandler;
 use handlers::rocketchat::VirtualUserHandler;
 use log;
+use models::{RocketchatServer, Room, UserOnRocketchatServer};
 
 const RESEND_THRESHOLD_IN_SECONDS: i64 = 3;
 

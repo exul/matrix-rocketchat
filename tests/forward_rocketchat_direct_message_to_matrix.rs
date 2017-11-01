@@ -18,7 +18,7 @@ use iron::{status, Chain};
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::api::rocketchat::v1::DIRECT_MESSAGES_LIST_PATH;
-use matrix_rocketchat::db::{Room, UserOnRocketchatServer};
+use matrix_rocketchat::models::{Room, UserOnRocketchatServer};
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use router::Router;
 use ruma_client_api::Endpoint;

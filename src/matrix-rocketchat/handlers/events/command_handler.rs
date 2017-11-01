@@ -8,11 +8,11 @@ use slog::Logger;
 use MAX_ROCKETCHAT_SERVER_ID_LENGTH;
 use api::{MatrixApi, RocketchatApi};
 use config::Config;
-use db::{NewRocketchatServer, NewUserOnRocketchatServer, RocketchatServer, Room, UserOnRocketchatServer};
 use errors::*;
 use handlers::rocketchat::{Credentials, Login};
 use handlers::events::RoomHandler;
 use i18n::*;
+use models::{NewRocketchatServer, NewUserOnRocketchatServer, RocketchatServer, Room, UserOnRocketchatServer};
 
 /// Handles command messages from the admin room
 pub struct CommandHandler<'a> {

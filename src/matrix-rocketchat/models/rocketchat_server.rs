@@ -4,8 +4,8 @@ use diesel::sqlite::SqliteConnection;
 use iron::typemap::Key;
 
 use errors::*;
-use db::schema::{rocketchat_servers, users_on_rocketchat_servers};
-use db::UserOnRocketchatServer;
+use models::schema::{rocketchat_servers, users_on_rocketchat_servers};
+use models::UserOnRocketchatServer;
 
 /// A Rocket.Chat server.
 #[derive(Associations, Debug, Identifiable, Queryable)]

@@ -8,10 +8,10 @@ use serde_json;
 use i18n::*;
 use api::MatrixApi;
 use config::Config;
-use db::{ConnectionPool, RocketchatServer};
 use errors::*;
 use handlers::rocketchat::{Credentials, Login};
 use log::IronLogger;
+use models::{ConnectionPool, RocketchatServer};
 
 /// `RocketchatLogin` is an endpoint that allows a user to login to Rocket.Chat via REST API.
 pub struct RocketchatLogin {

@@ -6,7 +6,7 @@ use diesel::sqlite::SqliteConnection;
 use ruma_identifiers::UserId;
 
 use errors::*;
-use db::schema::users_on_rocketchat_servers;
+use models::schema::users_on_rocketchat_servers;
 
 /// A user on a Rocket.Chat server.
 #[derive(Associations, Debug, Identifiable, Queryable)]

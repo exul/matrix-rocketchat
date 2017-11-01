@@ -4,10 +4,10 @@ use iron::prelude::*;
 use api::MatrixApi;
 use api::rocketchat::Message;
 use config::Config;
-use db::{ConnectionPool, RocketchatServer};
 use handlers::rocketchat::{Forwarder, VirtualUserHandler};
 use log::{self, IronLogger};
 use middleware::RocketchatToken;
+use models::{ConnectionPool, RocketchatServer};
 
 /// Rocket.Chat is an endpoint of the application service API which is called by the Rocket.Chat
 /// server to push new messages.

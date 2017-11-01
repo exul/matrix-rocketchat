@@ -16,7 +16,7 @@ use iron::status;
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH};
-use matrix_rocketchat::db::Room;
+use matrix_rocketchat::models::Room;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;

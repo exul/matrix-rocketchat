@@ -48,7 +48,7 @@ use iron::typemap::Key;
 use matrix_rocketchat::{Config, Server};
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, LOGIN_PATH, ME_PATH, USERS_INFO_PATH};
-use matrix_rocketchat::db::ConnectionPool;
+use matrix_rocketchat::models::ConnectionPool;
 use persistent::Write;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;

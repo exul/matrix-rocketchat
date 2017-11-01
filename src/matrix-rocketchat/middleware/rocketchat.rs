@@ -4,9 +4,9 @@ use iron::{BeforeMiddleware, IronResult, Request};
 use serde_json;
 
 use api::rocketchat::Message;
-use db::{ConnectionPool, RocketchatServer};
 use errors::*;
 use log::*;
+use models::{ConnectionPool, RocketchatServer};
 
 /// Compares the supplied access token to the one that is in the config
 pub struct RocketchatToken {}

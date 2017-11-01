@@ -6,10 +6,10 @@ use ruma_identifiers::{RoomAliasId, RoomId, UserId};
 use slog::Logger;
 
 use api::{MatrixApi, RocketchatApi};
-use db::{RocketchatServer, UserOnRocketchatServer};
 use config::Config;
 use errors::*;
 use handlers::rocketchat::VirtualUserHandler;
+use models::{RocketchatServer, UserOnRocketchatServer};
 
 /// A room that is managed by the application service. This can be either a bridged room or an
 /// admin room.

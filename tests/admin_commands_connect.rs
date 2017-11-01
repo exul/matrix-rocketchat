@@ -14,7 +14,7 @@ use std::thread;
 
 use iron::{status, Iron, Listening};
 use matrix_rocketchat::api::MatrixApi;
-use matrix_rocketchat::db::{RocketchatServer, UserOnRocketchatServer};
+use matrix_rocketchat::models::{RocketchatServer, UserOnRocketchatServer};
 use matrix_rocketchat_test::{default_timeout, get_free_socket_addr, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER,
                              DEFAULT_ROCKETCHAT_VERSION, IRON_THREADS, RS_TOKEN};
 use router::Router;

@@ -17,7 +17,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use iron::{status, Chain};
 use matrix_rocketchat::api::{MatrixApi, RestApi};
 use matrix_rocketchat::api::rocketchat::Message;
-use matrix_rocketchat::db::Room;
+use matrix_rocketchat::models::Room;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use reqwest::{Method, StatusCode};
 use ruma_client_api::Endpoint;

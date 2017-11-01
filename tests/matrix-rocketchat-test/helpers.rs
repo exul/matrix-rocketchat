@@ -5,7 +5,7 @@ use diesel::sqlite::SqliteConnection;
 use matrix_rocketchat::Config;
 use matrix_rocketchat::api::{MatrixApi, RestApi};
 use matrix_rocketchat::models::Events;
-use matrix_rocketchat::db::UserOnRocketchatServer;
+use matrix_rocketchat::models::UserOnRocketchatServer;
 use reqwest::{Method, StatusCode};
 use ruma_events::EventType;
 use ruma_events::collections::all::Event;

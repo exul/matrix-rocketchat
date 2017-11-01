@@ -4,9 +4,9 @@ use slog::Logger;
 
 use api::{MatrixApi, RocketchatApi};
 use config::Config;
-use db::{RocketchatServer, UserOnRocketchatServer};
 use errors::*;
 use handlers::events::CommandHandler;
+use models::{RocketchatServer, UserOnRocketchatServer};
 
 /// Provides helper method to login a user on the Rocket.Chat server.
 pub struct Login<'a> {

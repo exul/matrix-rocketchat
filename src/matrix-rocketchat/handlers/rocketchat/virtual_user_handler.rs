@@ -6,8 +6,8 @@ use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
-use db::Room;
 use errors::*;
+use models::Room;
 
 /// Provides helper methods to manage virtual users.
 pub struct VirtualUserHandler<'a> {

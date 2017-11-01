@@ -31,8 +31,15 @@ use serde_json::to_string;
 fn successfully_unbridge_a_rocketchat_room() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
+    let (put_room_canonical_room_alias_forwarder, put_room_canonical_room_alias_receiver) =
+        handlers::SendRoomState::with_forwarder();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.put(
+        "/_matrix/client/r0/rooms/:room_id/state/m.room.canonical_alias",
+        put_room_canonical_room_alias_forwarder,
+        "put_room_canonical_room_alias",
+    );
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -82,8 +89,13 @@ fn successfully_unbridge_a_rocketchat_room() {
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("bridged_channel is now unbridged."));
 
+    let canonical_room_alias_message = put_room_canonical_room_alias_receiver.recv_timeout(default_timeout());
+    assert!(canonical_room_alias_message.is_ok());
+
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!bridged_channel_id:localhost").unwrap(), None).unwrap();
+    let room_id = RoomId::try_from("!bridged_channel_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let user_ids = room.user_ids(None).unwrap();
     let rocketchat_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
     let new_user_id = UserId::try_from("@rocketchat_rcid_new_user_id:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();

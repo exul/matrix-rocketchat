@@ -2,14 +2,13 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use diesel::sqlite::SqliteConnection;
 use slog::Logger;
-use ruma_identifiers::RoomId;
 
 use i18n::*;
 use api::{MatrixApi, RocketchatApi};
 use api::rocketchat::Message;
 use config::Config;
 use errors::*;
-use handlers::events::RoomHandler;
+use handlers::events::RoomCreator;
 use handlers::rocketchat::VirtualUserHandler;
 use log;
 use models::{RocketchatServer, Room, UserOnRocketchatServer};
@@ -41,8 +40,8 @@ impl<'a> Forwarder<'a> {
             return Ok(());
         }
 
-        let room_id = match self.prepare_room(server, message)? {
-            Some(room_id) => room_id,
+        let room = match self.prepare_room(server, message)? {
+            Some(room) => room,
             None => {
                 debug!(
                     self.logger,
@@ -63,7 +62,7 @@ impl<'a> Forwarder<'a> {
             }
         }
 
-        self.matrix_api.send_text_message_event(room_id, sender_id, message.text.clone())
+        self.matrix_api.send_text_message_event(room.id.clone(), sender_id, message.text.clone())
     }
 
     fn is_sendable_message(&self, rocketchat_user_id: String, server_id: String) -> Result<bool> {
@@ -79,7 +78,7 @@ impl<'a> Forwarder<'a> {
         }
     }
 
-    fn prepare_room(&self, server: &RocketchatServer, message: &Message) -> Result<Option<RoomId>> {
+    fn prepare_room(&self, server: &RocketchatServer, message: &Message) -> Result<Option<Room>> {
         let is_direct_message_room = message.channel_id.contains(&message.user_id);
         if is_direct_message_room {
             self.prepare_dm_room(server, message)
@@ -88,7 +87,7 @@ impl<'a> Forwarder<'a> {
         }
     }
 
-    fn prepare_dm_room(&self, server: &RocketchatServer, message: &Message) -> Result<Option<RoomId>> {
+    fn prepare_dm_room(&self, server: &RocketchatServer, message: &Message) -> Result<Option<Room>> {
         let receiver = match self.find_matching_user_for_direct_message(server, message)? {
             Some(receiver) => receiver,
             None => {
@@ -97,12 +96,12 @@ impl<'a> Forwarder<'a> {
             }
         };
 
-        let room_id = match self.try_to_find_or_create_direct_message_room(server, &receiver, message)? {
-            Some(room_id) => room_id,
+        let room = match self.try_to_find_or_create_direct_message_room(server, &receiver, message)? {
+            Some(room) => room,
             None => return Ok(None),
         };
 
-        Ok(Some(room_id))
+        Ok(Some(room))
     }
 
     fn try_to_find_or_create_direct_message_room(
@@ -110,10 +109,10 @@ impl<'a> Forwarder<'a> {
         server: &RocketchatServer,
         receiver: &UserOnRocketchatServer,
         message: &Message,
-    ) -> Result<Option<RoomId>> {
-        if let Some(room_id) = self.lookup_existing_direct_message_room(server, receiver, message)? {
-            self.invite_user_into_direct_message_room(room_id.clone(), receiver)?;
-            return Ok(Some(room_id));
+    ) -> Result<Option<Room>> {
+        if let Some(room) = self.lookup_existing_direct_message_room(server, receiver, message)? {
+            self.invite_user_into_direct_message_room(&room, receiver)?;
+            return Ok(Some(room));
         }
 
         self.auto_bridge_direct_message_channel(server, receiver, message)
@@ -124,7 +123,7 @@ impl<'a> Forwarder<'a> {
         server: &RocketchatServer,
         receiver: &UserOnRocketchatServer,
         message: &Message,
-    ) -> Result<Option<RoomId>> {
+    ) -> Result<Option<Room>> {
         let sender_id = self.virtual_user_handler.build_user_id(&message.user_id, &server.id)?;
 
         // If the user does not exist yet, there is no existing direct message room
@@ -132,28 +131,30 @@ impl<'a> Forwarder<'a> {
             return Ok(None);
         }
 
+
         //TODO: This is highly inefficient and needs some kind of caching, but no persistent storage or alias is needed
         for room_id in self.matrix_api.get_joined_rooms(sender_id.clone())? {
-            let user_ids = Room::user_ids(self.matrix_api, room_id.clone(), Some(sender_id.clone()))?;
+            let room = Room::new(self.config, self.logger, self.matrix_api, room_id);
+            let user_ids = room.user_ids(Some(sender_id.clone()))?;
             if user_ids.iter().all(|id| id == &sender_id || id == &receiver.matrix_user_id) {
-                return Ok(Some(room_id));
+                return Ok(Some(room));
             }
         }
 
         Ok(None)
     }
 
-    fn invite_user_into_direct_message_room(&self, room_id: RoomId, receiver: &UserOnRocketchatServer) -> Result<()> {
-        let direct_message_recepient = Room::direct_message_matrix_user(self.config, self.matrix_api, room_id.clone())?;
+    fn invite_user_into_direct_message_room(&self, room: &Room, receiver: &UserOnRocketchatServer) -> Result<()> {
+        let direct_message_recepient = room.direct_message_matrix_user()?;
         if direct_message_recepient.is_none() {
-            let inviting_user_id = self.matrix_api.get_room_creator(room_id.clone())?;
-            self.virtual_user_handler.add_to_room(receiver.matrix_user_id.clone(), inviting_user_id, room_id)?;
+            let inviting_user_id = self.matrix_api.get_room_creator(room.id.clone())?;
+            self.virtual_user_handler.add_to_room(receiver.matrix_user_id.clone(), inviting_user_id, room)?;
         }
 
         Ok(())
     }
 
-    fn prepare_room_for_channel(&self, server: &RocketchatServer, message: &Message) -> Result<Option<RoomId>> {
+    fn prepare_room_for_channel(&self, server: &RocketchatServer, message: &Message) -> Result<Option<Room>> {
         let room_id =
             match Room::matrix_id_from_rocketchat_channel_id(self.config, self.matrix_api, &server.id, &message.channel_id)? {
                 Some(room_id) => room_id,
@@ -161,11 +162,13 @@ impl<'a> Forwarder<'a> {
             };
 
         let inviting_user_id = self.config.matrix_bot_user_id()?;
-        let sender_id =
-            self.virtual_user_handler.find_or_register(server.id.clone(), message.user_id.clone(), message.user_name.clone())?;
-        self.virtual_user_handler.add_to_room(sender_id, inviting_user_id, room_id.clone())?;
+        let user_id = message.user_id.clone();
+        let user_name = message.user_name.clone();
+        let sender_id = self.virtual_user_handler.find_or_register(server.id.clone(), user_id, user_name)?;
+        let room = Room::new(self.config, self.logger, self.matrix_api, room_id);
+        self.virtual_user_handler.add_to_room(sender_id, inviting_user_id, &room)?;
 
-        Ok(Some(room_id))
+        Ok(Some(room))
     }
 
     fn auto_bridge_direct_message_channel(
@@ -173,7 +176,7 @@ impl<'a> Forwarder<'a> {
         server: &RocketchatServer,
         receiver: &UserOnRocketchatServer,
         message: &Message,
-    ) -> Result<Option<RoomId>> {
+    ) -> Result<Option<Room>> {
         debug!(
             self.logger,
             "Got a message for a room that is not bridged yet (channel_id `{}`), checking if it's a direct message",
@@ -191,25 +194,28 @@ impl<'a> Forwarder<'a> {
                 message.user_id.clone(),
                 message.user_name.clone(),
             )?;
-            let room_handler = RoomHandler::new(self.config, self.connection, self.logger, self.matrix_api);
 
             let room_display_name_suffix = t!(["defaults", "direct_message_room_display_name_suffix"]).l(DEFAULT_LANGUAGE);
             let room_display_name = format!("{} {}", message.user_name, room_display_name_suffix);
 
-            let room_id = room_handler.create_room(
-                direct_message_sender_id.clone(),
-                receiver.matrix_user_id.clone(),
-                None,
-                Some(room_display_name),
-            )?;
+            let room_creator = RoomCreator::new(
+                self.config,
+                self.connection,
+                self.logger,
+                self.matrix_api,
+                &direct_message_sender_id,
+                &receiver.matrix_user_id,
+            );
+            let room_id = room_creator.create_room(None, Some(room_display_name))?;
 
             // invite the bot user into the direct message room to be able to read the room state
             // the bot will leave as soon as the AS gets the join event
             let invitee_id = self.config.matrix_bot_user_id()?;
-            self.matrix_api.invite(room_id.clone(), invitee_id.clone(), direct_message_sender_id)?;
+            self.matrix_api.invite(room_id.clone(), invitee_id.clone(), direct_message_sender_id.clone())?;
             debug!(self.logger, "Direct message room {} successfully created", &room_id);
 
-            Ok(Some(room_id))
+            let room = Room::new(self.config, self.logger, self.matrix_api, room_id);
+            Ok(Some(room))
         } else {
             debug!(
                 self.logger,

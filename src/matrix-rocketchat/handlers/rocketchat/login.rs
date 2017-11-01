@@ -6,7 +6,7 @@ use api::{MatrixApi, RocketchatApi};
 use config::Config;
 use errors::*;
 use handlers::events::CommandHandler;
-use models::{RocketchatServer, UserOnRocketchatServer};
+use models::{RocketchatServer, Room, UserOnRocketchatServer};
 
 /// Provides helper method to login a user on the Rocket.Chat server.
 pub struct Login<'a> {
@@ -43,23 +43,14 @@ impl<'a> Login<'a> {
             UserOnRocketchatServer::find(self.connection, &credentials.user_id, server.id.clone())?;
         let rocketchat_api = RocketchatApi::new(server.rocketchat_url.clone(), self.logger.clone())?;
 
-        let (rocketchat_user_id, rocketchat_auth_token) =
-            rocketchat_api.login(&credentials.rocketchat_username, &credentials.password)?;
-        user_on_rocketchat_server.set_credentials(
-            self.connection,
-            Some(rocketchat_user_id.clone()),
-            Some(rocketchat_auth_token.clone()),
-        )?;
+        let (user_id, auth_token) = rocketchat_api.login(&credentials.rocketchat_username, &credentials.password)?;
+        user_on_rocketchat_server.set_credentials(self.connection, Some(user_id.clone()), Some(auth_token.clone()))?;
 
         if let Some(room_id) = admin_room_id {
+            let room = Room::new(self.config, self.logger, self.matrix_api, room_id.clone());
             let bot_user_id = self.config.matrix_bot_user_id()?;
-            let message = CommandHandler::build_help_message(
-                self.connection,
-                self.matrix_api,
-                self.config.as_url.clone(),
-                room_id.clone(),
-                &credentials.user_id,
-            )?;
+            let as_url = self.config.as_url.clone();
+            let message = CommandHandler::build_help_message(self.connection, &room, as_url, &credentials.user_id)?;
             self.matrix_api.send_text_message_event(room_id, bot_user_id, message)?;
         }
 

@@ -107,7 +107,9 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     // the bot, the user who bridged the channel and two virtual user are in the channel
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!spec_channel_id:localhost").unwrap(), None).unwrap();
+    let room_id = RoomId::try_from("!spec_channel_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let user_ids = room.user_ids(None).unwrap();
 
     assert_eq!(user_ids.len(), 4);
 
@@ -197,7 +199,9 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     // the bot, the user who bridged the channel and the virtual user are in the channel
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!spec_channel_id:localhost").unwrap(), None).unwrap();
+    let room_id = RoomId::try_from("!spec_channel_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let user_ids = room.user_ids(None).unwrap();
     assert_eq!(user_ids.len(), 3);
 
     // discard bot registration

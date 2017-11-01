@@ -1,7 +1,7 @@
 use std::convert::TryFrom;
 
 use diesel::sqlite::SqliteConnection;
-use ruma_identifiers::{RoomId, UserId};
+use ruma_identifiers::UserId;
 use slog::Logger;
 
 use api::MatrixApi;
@@ -23,17 +23,14 @@ pub struct VirtualUserHandler<'a> {
 
 impl<'a> VirtualUserHandler<'a> {
     /// Add a virtual user to a Matrix room
-    pub fn add_to_room(&self, receiver_user_id: UserId, sender_user_id: UserId, room_id: RoomId) -> Result<()> {
-        let user_joined_already = Room::user_ids(self.matrix_api, room_id.clone(), Some(sender_user_id.clone()))?
-            .iter()
-            .any(|id| id == &receiver_user_id);
-
+    pub fn add_to_room(&self, receiver_user_id: UserId, sender_user_id: UserId, room: &Room) -> Result<()> {
+        let user_joined_already = room.user_ids(Some(sender_user_id.clone()))?.iter().any(|id| id == &receiver_user_id);
         if !user_joined_already {
-            info!(self.logger, "Adding virtual user {} to room {}", receiver_user_id, room_id);
-            self.matrix_api.invite(room_id.clone(), receiver_user_id.clone(), sender_user_id)?;
+            info!(self.logger, "Adding virtual user {} to room {}", receiver_user_id, room.id);
+            self.matrix_api.invite(room.id.clone(), receiver_user_id.clone(), sender_user_id)?;
 
             if receiver_user_id.to_string().starts_with(&format!("@{}", self.config.sender_localpart)) {
-                self.matrix_api.join(room_id, receiver_user_id)?;
+                self.matrix_api.join(room.id.clone(), receiver_user_id)?;
             }
         }
 

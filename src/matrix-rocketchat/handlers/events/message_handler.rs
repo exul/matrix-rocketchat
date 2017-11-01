@@ -1,6 +1,5 @@
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::message::MessageEvent;
-use ruma_identifiers::RoomId;
 use slog::Logger;
 
 use api::MatrixApi;
@@ -40,30 +39,27 @@ impl<'a> MessageHandler<'a> {
             return Ok(());
         }
 
-        let room_id = event.room_id.clone();
         let matrix_api = self.matrix_api.as_ref();
-        if Room::is_admin_room(self.config, self.matrix_api.as_ref(), room_id.clone())? {
-            CommandHandler::new(self.config, self.connection, self.logger, matrix_api).process(event, room_id)?;
-        } else if let Some((server, channel_id)) = self.get_rocketchat_server_with_room(room_id.clone())? {
+        let room = Room::new(self.config, self.logger, self.matrix_api.as_ref(), event.room_id.clone());
+        if room.is_admin_room()? {
+            CommandHandler::new(self.config, self.connection, self.logger, matrix_api, &room).process(event)?;
+        } else if let Some((server, channel_id)) = self.get_rocketchat_server_with_room(&room)? {
             Forwarder::new(self.connection, self.logger).process(event, server, channel_id)?;
         } else {
-            debug!(self.logger, "Skipping event, because the room {} is not bridged", room_id);
+            debug!(self.logger, "Skipping event, because the room {} is not bridged", &event.room_id);
         }
 
         Ok(())
     }
 
-    fn get_rocketchat_server_with_room(&self, room_id: RoomId) -> Result<Option<(RocketchatServer, String)>> {
-        let matrix_api = self.matrix_api.as_ref();
-
+    fn get_rocketchat_server_with_room(&self, room: &Room) -> Result<Option<(RocketchatServer, String)>> {
         // if it's a normal room, this will match
-        if let Some(channel_id) = Room::rocketchat_channel_id(matrix_api, room_id.clone())? {
-            if let Some(server) = Room::rocketchat_server(self.connection, matrix_api, room_id.clone())? {
+        if let Some(channel_id) = room.rocketchat_channel_id()? {
+            if let Some(server) = room.rocketchat_server(self.connection)? {
                 return Ok(Some((server, channel_id)));
             }
         }
 
-
-        Room::rocketchat_for_direct_room(self.config, self.connection, self.logger, matrix_api, room_id)
+        room.rocketchat_for_direct_room(self.connection)
     }
 }

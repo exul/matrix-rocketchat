@@ -4,7 +4,7 @@ use slog::Logger;
 
 use api::RocketchatApi;
 use errors::*;
-use models::{UserOnRocketchatServer, RocketchatServer};
+use models::{RocketchatServer, UserOnRocketchatServer};
 
 /// Forwards messages
 pub struct Forwarder<'a> {

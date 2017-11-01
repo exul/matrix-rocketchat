@@ -108,11 +108,9 @@ fn successfully_forwards_a_direct_message_to_matrix() {
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     let other_user_id = UserId::try_from("@rocketchat_rcid_other_user_id:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
-    let user_ids = Room::user_ids(
-        &(*matrix_api),
-        RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
-        Some(other_user_id.clone()),
-    ).unwrap();
+    let room_id = RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let user_ids = room.user_ids(Some(other_user_id.clone())).unwrap();
     assert_eq!(user_ids.len(), 2);
     assert!(user_ids.iter().any(|id| id == &other_user_id));
     assert!(user_ids.iter().any(|id| id == &spec_user_id));
@@ -197,11 +195,9 @@ fn the_bot_user_stays_in_the_direct_message_room_if_the_user_leaves() {
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     let other_user_id = UserId::try_from("@rocketchat_rcid_other_user_id:localhost").unwrap();
-    let user_ids = Room::user_ids(
-        &(*matrix_api),
-        RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
-        Some(other_user_id.clone()),
-    ).unwrap();
+    let room_id = RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let user_ids = room.user_ids(Some(other_user_id.clone())).unwrap();
     assert_eq!(user_ids.len(), 1);
     assert!(user_ids.iter().any(|id| id == &other_user_id));
 }

@@ -6,9 +6,9 @@ use serde_json;
 use slog::Logger;
 
 use api::RestApi;
+use api::rocketchat::{Channel, Endpoint, User};
 use errors::*;
 use i18n::*;
-use super::{Channel, Endpoint, User};
 
 /// Login endpoint path
 pub const LOGIN_PATH: &str = "/api/v1/login";

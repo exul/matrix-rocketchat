@@ -7,7 +7,7 @@ use api::MatrixApi;
 use config::Config;
 use db::{RocketchatServer, Room};
 use errors::*;
-use super::{CommandHandler, Forwarder};
+use handlers::events::{CommandHandler, Forwarder};
 
 /// Handles message events
 pub struct MessageHandler<'a> {

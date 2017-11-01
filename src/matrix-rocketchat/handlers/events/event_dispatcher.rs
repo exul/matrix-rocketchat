@@ -7,8 +7,8 @@ use api::MatrixApi;
 use config::Config;
 use errors::*;
 use handlers::ErrorNotifier;
+use handlers::events::{MessageHandler, RoomHandler};
 use log;
-use super::{MessageHandler, RoomHandler};
 
 /// Dispatches events to the corresponding handler.
 pub struct EventDispatcher<'a> {

@@ -14,11 +14,11 @@ use config::Config;
 use db::{RocketchatServer, Room};
 use errors::*;
 use handlers::ErrorNotifier;
+use handlers::events::CommandHandler;
 use handlers::rocketchat::VirtualUserHandler;
 use i18n::*;
 use log;
 use serde_json::{self, Value};
-use super::CommandHandler;
 
 /// Handles room events
 pub struct RoomHandler<'a> {

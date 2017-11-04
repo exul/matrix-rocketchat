@@ -274,7 +274,7 @@ impl<'a> CommandHandler<'a> {
         let room_id = match Room::matrix_id_from_rocketchat_channel_id(self.config, self.matrix_api, &server.id, &channel.id)? {
             Some(room_id) => {
                 let room = Room::new(self.config, self.logger, self.matrix_api, room_id.clone());
-                room_handler.bridge_existing_room(room, event.user_id.clone(), channel_name.to_string())?;
+                room.bridge(event.user_id.clone(), channel_name.to_string())?;
                 room_id
             }
             None => room_handler.bridge_new_room(rocketchat_api, server, channel)?,

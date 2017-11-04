@@ -8,7 +8,6 @@ use api::{MatrixApi, RocketchatApi};
 use api::rocketchat::Message;
 use config::Config;
 use errors::*;
-use handlers::events::RoomHandler;
 use handlers::rocketchat::VirtualUserHandler;
 use log;
 use models::{RocketchatServer, Room, UserOnRocketchatServer};
@@ -189,7 +188,7 @@ impl<'a> Forwarder<'a> {
         );
 
         if rocketchat_api.direct_messages_list()?.iter().any(|dm| dm.id == message.channel_id) {
-            let direct_message_sender_id = self.virtual_user_handler.find_or_register(
+            let sender_id = self.virtual_user_handler.find_or_register(
                 server.id.clone(),
                 message.user_id.clone(),
                 message.user_name.clone(),
@@ -198,20 +197,13 @@ impl<'a> Forwarder<'a> {
             let room_display_name_suffix = t!(["defaults", "direct_message_room_display_name_suffix"]).l(DEFAULT_LANGUAGE);
             let room_display_name = format!("{} {}", message.user_name, room_display_name_suffix);
 
-            let room_handler = RoomHandler::new(
-                self.config,
-                self.connection,
-                self.logger,
-                self.matrix_api,
-                &direct_message_sender_id,
-                &receiver.matrix_user_id,
-            );
-            let room_id = room_handler.create_room(None, Some(room_display_name))?;
+            let display_name = Some(room_display_name);
+            let room_id = Room::create(self.matrix_api, None, display_name, &sender_id, &receiver.matrix_user_id)?;
 
             // invite the bot user into the direct message room to be able to read the room state
             // the bot will leave as soon as the AS gets the join event
             let invitee_id = self.config.matrix_bot_user_id()?;
-            self.matrix_api.invite(room_id.clone(), invitee_id.clone(), direct_message_sender_id.clone())?;
+            self.matrix_api.invite(room_id.clone(), invitee_id.clone(), sender_id.clone())?;
             debug!(self.logger, "Direct message room {} successfully created", &room_id);
 
             let room = Room::new(self.config, self.logger, self.matrix_api, room_id);

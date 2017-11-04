@@ -9,6 +9,7 @@ use api::{MatrixApi, RocketchatApi};
 use config::Config;
 use errors::*;
 use handlers::rocketchat::VirtualUserHandler;
+use i18n::*;
 use models::{RocketchatServer, UserOnRocketchatServer};
 
 /// A room that is managed by the application service. This can be either a bridged room or an
@@ -33,6 +34,21 @@ impl<'a> Room<'a> {
             matrix_api: matrix_api,
             id: id,
         }
+    }
+
+    /// Create a room on the Matrix homeserver with the power levels for a bridged room.
+    pub fn create(
+        matrix_api: &MatrixApi,
+        alias: Option<String>,
+        display_name: Option<String>,
+        creator_id: &UserId,
+        invited_user_id: &UserId,
+    ) -> Result<RoomId> {
+        let room_id = matrix_api.create_room(display_name.clone(), alias, creator_id)?;
+        matrix_api.set_default_powerlevels(room_id.clone(), creator_id.clone())?;
+        matrix_api.invite(room_id.clone(), invited_user_id.clone(), creator_id.clone())?;
+
+        Ok(room_id)
     }
 
     /// Indicates if the room is bridged for a given user.
@@ -111,6 +127,21 @@ impl<'a> Room<'a> {
     ) -> Result<Option<RoomId>> {
         let room_alias_id = Room::build_room_alias_id(config, rocketchat_server_id, rocketchat_channel_id)?;
         matrix_api.get_room_alias(room_alias_id)
+    }
+
+    /// Bridges a room that is already bridged (for other users) for a new user.
+    pub fn bridge(&self, user_id: UserId, rocketchat_channel_name: String) -> Result<()> {
+        debug!(self.logger, "Briding existing room, Rocket.Chat channel: {}", rocketchat_channel_name);
+
+        if self.user_ids(None)?.iter().any(|id| id == &user_id) {
+            bail_error!(
+                ErrorKind::RocketchatChannelAlreadyBridged(rocketchat_channel_name.clone()),
+                t!(["errors", "rocketchat_channel_already_bridged"]).with_vars(vec![("channel_name", rocketchat_channel_name)])
+            );
+        }
+
+        let bot_user_id = self.config.matrix_bot_user_id()?;
+        self.matrix_api.invite(self.id.clone(), user_id, bot_user_id)
     }
 
     /// Get the Rocket.Chat server this room is connected to, if any.

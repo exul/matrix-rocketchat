@@ -2,7 +2,7 @@ use std::convert::TryFrom;
 
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::member::MembershipState;
-use ruma_identifiers::{RoomAliasId, RoomId, UserId};
+use ruma_identifiers::{RoomId, UserId};
 use slog::Logger;
 
 use api::{MatrixApi, RocketchatApi};
@@ -51,86 +51,8 @@ impl<'a> Room<'a> {
         Ok(room_id)
     }
 
-    /// Indicates if the room is bridged for a given user.
-    pub fn is_bridged_for_user(
-        config: &Config,
-        logger: &Logger,
-        matrix_api: &MatrixApi,
-        rocketchat_server_id: &str,
-        rocketchat_channel_id: &str,
-        user_id: &UserId,
-    ) -> Result<bool> {
-        let room_alias_id = Room::build_room_alias_id(config, rocketchat_server_id, rocketchat_channel_id)?;
-
-        match matrix_api.get_room_alias(room_alias_id)? {
-            Some(room_id) => {
-                let room = Room::new(config, logger, matrix_api, room_id);
-                let is_user_in_room = room.user_ids(None)?.iter().any(|id| id == user_id);
-                Ok(is_user_in_room)
-            }
-            None => Ok(false),
-        }
-    }
-
-    /// Build the room alias id for a room that is bridged to a Rocket.Chat server.
-    pub fn build_room_alias_id(
-        config: &Config,
-        rocketchat_server_id: &str,
-        rocketchat_channel_id: &str,
-    ) -> Result<RoomAliasId> {
-        let room_alias_name = Room::build_room_alias_name(config, rocketchat_server_id, rocketchat_channel_id);
-        let room_alias_id = format!("#{}:{}", room_alias_name, config.hs_domain);
-        let room_alias =
-            RoomAliasId::try_from(&room_alias_id).chain_err(|| ErrorKind::InvalidRoomAliasId(room_alias_id.clone()))?;
-        Ok(room_alias)
-    }
-
-    /// Build the room alias local part for a room that is bridged to a Rocket.Chat server.
-    pub fn build_room_alias_name(config: &Config, rocketchat_server_id: &str, rocketchat_channel_id: &str) -> String {
-        format!("{}#{}#{}", config.sender_localpart, rocketchat_server_id, rocketchat_channel_id)
-    }
-
-    /// Gets the matrix room ID for a Rocket.Chat channel name and a Rocket.Chat server.
-    pub fn matrix_id_from_rocketchat_channel_name(
-        config: &Config,
-        matrix_api: &MatrixApi,
-        rocketchat_api: &RocketchatApi,
-        rocketchat_server_id: &str,
-        rocketchat_channel_name: String,
-    ) -> Result<Option<RoomId>> {
-        let channel_id = rocketchat_api
-            .channels_list()?
-            .iter()
-            .filter_map(|channel| {
-                if channel.name == Some(rocketchat_channel_name.clone()) {
-                    return Some(channel.id.clone());
-                }
-
-                None
-            })
-            .next();
-
-        match channel_id {
-            Some(channel_id) => {
-                Room::matrix_id_from_rocketchat_channel_id(config, matrix_api, rocketchat_server_id, &channel_id)
-            }
-            None => Ok(None),
-        }
-    }
-
-    /// Gets the matrix room ID for a Rocket.Chat channel ID and a Rocket.Chat server.
-    pub fn matrix_id_from_rocketchat_channel_id(
-        config: &Config,
-        matrix_api: &MatrixApi,
-        rocketchat_server_id: &str,
-        rocketchat_channel_id: &str,
-    ) -> Result<Option<RoomId>> {
-        let room_alias_id = Room::build_room_alias_id(config, rocketchat_server_id, rocketchat_channel_id)?;
-        matrix_api.get_room_alias(room_alias_id)
-    }
-
     /// Bridges a room that is already bridged (for other users) for a new user.
-    pub fn bridge(&self, user_id: UserId, rocketchat_channel_name: String) -> Result<()> {
+    pub fn bridge_for_user(&self, user_id: UserId, rocketchat_channel_name: String) -> Result<()> {
         debug!(self.logger, "Briding existing room, Rocket.Chat channel: {}", rocketchat_channel_name);
 
         if self.user_ids(None)?.iter().any(|id| id == &user_id) {

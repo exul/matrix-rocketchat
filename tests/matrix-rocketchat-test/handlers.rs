@@ -1214,8 +1214,9 @@ fn add_membership_event_to_room(
         }
     }
 
-    //TODO: This is way to complicated, but we have to track the state events for the rooms for
-    //joined users and users that left the room differently. Needs refactoring.
+    // State events have to be tracked differently for users that are currently in the room and
+    // for users that left the room. Only users that are in the room get state updates. So the
+    // state events are manages separately for each user.
     let mut existing_users = Vec::new();
     let mut existing_user_in_room = None;
     for (id, membership_with_users) in users_in_room_for_users.iter() {

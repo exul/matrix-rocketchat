@@ -1,6 +1,5 @@
 use std::convert::TryFrom;
 
-use diesel::sqlite::SqliteConnection;
 use ruma_identifiers::UserId;
 use slog::Logger;
 
@@ -13,8 +12,6 @@ use models::Room;
 pub struct VirtualUserHandler<'a> {
     /// Application service configuration
     pub config: &'a Config,
-    /// SQL database connection
-    pub connection: &'a SqliteConnection,
     /// Logger context
     pub logger: &'a Logger,
     /// Matrix REST API

@@ -43,7 +43,6 @@ impl Handler for Rocketchat {
 
         let virtual_user_handler = VirtualUserHandler {
             config: &self.config,
-            connection: &connection,
             logger: &logger,
             matrix_api: self.matrix_api.as_ref(),
         };

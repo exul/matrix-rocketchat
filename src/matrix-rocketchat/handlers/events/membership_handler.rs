@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use diesel::sqlite::SqliteConnection;
-use diesel::Connection;
 use iron::url::Host;
 use ruma_events::room::member::{MemberEvent, MembershipState};
 use ruma_identifiers::UserId;
@@ -10,7 +9,6 @@ use slog::Logger;
 use serde_json::{self, Value};
 
 use api::{MatrixApi, RocketchatApi};
-use api::rocketchat::Channel;
 use config::Config;
 use errors::*;
 use handlers::ErrorNotifier;
@@ -23,7 +21,7 @@ use models::Room;
 /// Handles membership events for a specific room
 pub struct MembershipHandler<'a> {
     config: &'a Config,
-    connection: &'a SqliteConnection,
+    conn: &'a SqliteConnection,
     logger: &'a Logger,
     matrix_api: &'a MatrixApi,
     room: &'a Room<'a>,
@@ -33,14 +31,14 @@ impl<'a> MembershipHandler<'a> {
     /// Create a new `MembershipHandler`.
     pub fn new(
         config: &'a Config,
-        connection: &'a SqliteConnection,
+        conn: &'a SqliteConnection,
         logger: &'a Logger,
         matrix_api: &'a MatrixApi,
         room: &'a Room<'a>,
     ) -> MembershipHandler<'a> {
         MembershipHandler {
             config: config,
-            connection: connection,
+            conn: conn,
             logger: logger,
             matrix_api: matrix_api,
             room: room,
@@ -163,23 +161,21 @@ impl<'a> MembershipHandler<'a> {
             return Ok(());
         }
 
-        self.connection.transaction(|| {
-            match CommandHandler::build_help_message(self.connection, self.room, self.config.as_url.clone(), &inviter_id) {
-                Ok(body) => {
-                    self.matrix_api.send_text_message_event(self.room.id.clone(), matrix_bot_user_id, body)?;
-                }
-                Err(err) => {
-                    log::log_info(self.logger, &err);
-                }
+        match CommandHandler::build_help_message(self.conn, self.room, self.config.as_url.clone(), &inviter_id) {
+            Ok(body) => {
+                self.matrix_api.send_text_message_event(self.room.id.clone(), matrix_bot_user_id, body)?;
             }
-
-            let room_name = t!(["defaults", "admin_room_display_name"]).l(DEFAULT_LANGUAGE);
-            if let Err(err) = self.matrix_api.set_room_name(self.room.id.clone(), room_name) {
+            Err(err) => {
                 log::log_info(self.logger, &err);
             }
+        }
 
-            Ok(())
-        })
+        let room_name = t!(["defaults", "admin_room_display_name"]).l(DEFAULT_LANGUAGE);
+        if let Err(err) = self.matrix_api.set_room_name(self.room.id.clone(), room_name) {
+            log::log_info(self.logger, &err);
+        }
+
+        Ok(())
     }
 
     fn handle_user_join(&self) -> Result<()> {
@@ -236,15 +232,14 @@ impl<'a> MembershipHandler<'a> {
     /// TODO: This feels like it's in the wrong place, where to move it?
     pub fn add_virtual_users_to_room(
         &self,
-        rocketchat_api: Box<RocketchatApi>,
-        channel: &Channel,
+        rocketchat_api: &RocketchatApi,
+        usernames: &[String],
         rocketchat_server_id: String,
     ) -> Result<()> {
         debug!(self.logger, "Starting to add virtual users to room {}", self.room.id);
 
         let virtual_user_handler = VirtualUserHandler {
             config: self.config,
-            connection: self.connection,
             logger: self.logger,
             matrix_api: self.matrix_api,
         };
@@ -252,14 +247,14 @@ impl<'a> MembershipHandler<'a> {
         //TODO: Check if a max number of users per channel has to be defined to avoid problems when
         //there are several thousand users in a channel.
         let bot_user_id = self.config.matrix_bot_user_id()?;
-        for username in &channel.usernames {
+        for username in usernames.iter() {
             let rocketchat_user = rocketchat_api.users_info(username)?;
             let user_id =
                 virtual_user_handler.find_or_register(rocketchat_server_id.clone(), rocketchat_user.id, username.to_string())?;
             virtual_user_handler.add_to_room(user_id, bot_user_id.clone(), self.room)?;
         }
 
-        debug!(self.logger, "Successfully added {} virtual users to room {}", channel.usernames.len(), self.room.id);
+        debug!(self.logger, "Successfully added {} virtual users to room {}", usernames.len(), self.room.id);
 
         Ok(())
     }
@@ -267,7 +262,7 @@ impl<'a> MembershipHandler<'a> {
     fn handle_admin_room_setup_error(&self, err: &Error, matrix_bot_user_id: UserId) {
         let error_notifier = ErrorNotifier {
             config: self.config,
-            connection: self.connection,
+            connection: self.conn,
             logger: self.logger,
             matrix_api: self.matrix_api,
         };

@@ -10,7 +10,7 @@ use config::Config;
 use errors::*;
 use handlers::rocketchat::VirtualUserHandler;
 use log;
-use models::{RocketchatServer, Room, UserOnRocketchatServer};
+use models::{Channel, RocketchatServer, Room, UserOnRocketchatServer};
 
 const RESEND_THRESHOLD_IN_SECONDS: i64 = 3;
 
@@ -154,11 +154,11 @@ impl<'a> Forwarder<'a> {
     }
 
     fn prepare_room_for_channel(&self, server: &RocketchatServer, message: &Message) -> Result<Option<Room>> {
-        let room_id =
-            match Room::matrix_id_from_rocketchat_channel_id(self.config, self.matrix_api, &server.id, &message.channel_id)? {
-                Some(room_id) => room_id,
-                None => return Ok(None),
-            };
+        let channel = Channel::new(self.config, self.logger, self.matrix_api, message.channel_id.clone(), &server.id);
+        let room_id = match channel.matrix_id()? {
+            Some(room_id) => room_id,
+            None => return Ok(None),
+        };
 
         let inviting_user_id = self.config.matrix_bot_user_id()?;
         let user_id = message.user_id.clone();

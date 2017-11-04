@@ -10,12 +10,9 @@ pub mod forwarder;
 pub mod membership_handler;
 /// Handles message events
 pub mod message_handler;
-/// Creates and bridge rooms
-pub mod room_handler;
 
 pub use self::command_handler::CommandHandler;
 pub use self::dispatcher::Dispatcher;
 pub use self::forwarder::Forwarder;
 pub use self::message_handler::MessageHandler;
 pub use self::membership_handler::MembershipHandler;
-pub use self::room_handler::RoomHandler;

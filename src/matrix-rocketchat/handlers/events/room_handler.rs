@@ -10,8 +10,8 @@ use handlers::events::MembershipHandler;
 use i18n::*;
 use models::{RocketchatServer, Room};
 
-/// The `RoomCreator` creates new rooms and bridges them
-pub struct RoomCreator<'a> {
+/// The `RoomHandler` creates new rooms and bridges them
+pub struct RoomHandler<'a> {
     config: &'a Config,
     connection: &'a SqliteConnection,
     logger: &'a Logger,
@@ -20,7 +20,7 @@ pub struct RoomCreator<'a> {
     invited_user_id: &'a UserId,
 }
 
-impl<'a> RoomCreator<'a> {
+impl<'a> RoomHandler<'a> {
     /// Create a new `MembershipHandler`.
     pub fn new(
         config: &'a Config,
@@ -29,8 +29,8 @@ impl<'a> RoomCreator<'a> {
         matrix_api: &'a MatrixApi,
         creator_id: &'a UserId,
         invited_user_id: &'a UserId,
-    ) -> RoomCreator<'a> {
-        RoomCreator {
+    ) -> RoomHandler<'a> {
+        RoomHandler {
             config: config,
             connection: connection,
             logger: logger,

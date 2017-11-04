@@ -10,7 +10,7 @@ use api::{MatrixApi, RocketchatApi};
 use config::Config;
 use errors::*;
 use handlers::rocketchat::{Credentials, Login};
-use handlers::events::RoomCreator;
+use handlers::events::RoomHandler;
 use i18n::*;
 use models::{NewRocketchatServer, NewUserOnRocketchatServer, RocketchatServer, Room, UserOnRocketchatServer};
 
@@ -269,15 +269,15 @@ impl<'a> CommandHandler<'a> {
             );
         }
 
-        let room_creator =
-            RoomCreator::new(self.config, self.connection, self.logger, self.matrix_api, &bot_user_id, &event.user_id);
+        let room_handler =
+            RoomHandler::new(self.config, self.connection, self.logger, self.matrix_api, &bot_user_id, &event.user_id);
         let room_id = match Room::matrix_id_from_rocketchat_channel_id(self.config, self.matrix_api, &server.id, &channel.id)? {
             Some(room_id) => {
                 let room = Room::new(self.config, self.logger, self.matrix_api, room_id.clone());
-                room_creator.bridge_existing_room(room, event.user_id.clone(), channel_name.to_string())?;
+                room_handler.bridge_existing_room(room, event.user_id.clone(), channel_name.to_string())?;
                 room_id
             }
-            None => room_creator.bridge_new_room(rocketchat_api, server, channel)?,
+            None => room_handler.bridge_new_room(rocketchat_api, server, channel)?,
         };
 
         let matrix_room_alias_id = Room::build_room_alias_id(self.config, &server.id, &channel.id)?;

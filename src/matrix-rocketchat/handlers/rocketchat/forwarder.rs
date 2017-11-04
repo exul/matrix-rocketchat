@@ -8,7 +8,7 @@ use api::{MatrixApi, RocketchatApi};
 use api::rocketchat::Message;
 use config::Config;
 use errors::*;
-use handlers::events::RoomCreator;
+use handlers::events::RoomHandler;
 use handlers::rocketchat::VirtualUserHandler;
 use log;
 use models::{RocketchatServer, Room, UserOnRocketchatServer};
@@ -198,7 +198,7 @@ impl<'a> Forwarder<'a> {
             let room_display_name_suffix = t!(["defaults", "direct_message_room_display_name_suffix"]).l(DEFAULT_LANGUAGE);
             let room_display_name = format!("{} {}", message.user_name, room_display_name_suffix);
 
-            let room_creator = RoomCreator::new(
+            let room_handler = RoomHandler::new(
                 self.config,
                 self.connection,
                 self.logger,
@@ -206,7 +206,7 @@ impl<'a> Forwarder<'a> {
                 &direct_message_sender_id,
                 &receiver.matrix_user_id,
             );
-            let room_id = room_creator.create_room(None, Some(room_display_name))?;
+            let room_id = room_handler.create_room(None, Some(room_display_name))?;
 
             // invite the bot user into the direct message room to be able to read the room state
             // the bot will leave as soon as the AS gets the join event

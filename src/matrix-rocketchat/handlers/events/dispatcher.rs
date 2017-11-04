@@ -12,22 +12,22 @@ use log;
 use models::Room;
 
 /// Dispatches events to the corresponding handler.
-pub struct EventDispatcher<'a> {
+pub struct Dispatcher<'a> {
     config: &'a Config,
     connection: &'a SqliteConnection,
     logger: &'a Logger,
     matrix_api: Box<MatrixApi>,
 }
 
-impl<'a> EventDispatcher<'a> {
-    /// Create a new `EventDispatcher` with an SQLite connection
+impl<'a> Dispatcher<'a> {
+    /// Create a new `Dispatcher` with an SQLite connection
     pub fn new(
         config: &'a Config,
         connection: &'a SqliteConnection,
         logger: &'a Logger,
         matrix_api: Box<MatrixApi>,
-    ) -> EventDispatcher<'a> {
-        EventDispatcher {
+    ) -> Dispatcher<'a> {
+        Dispatcher {
             config: config,
             connection: connection,
             logger: logger,

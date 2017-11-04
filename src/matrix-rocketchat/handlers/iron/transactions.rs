@@ -8,7 +8,7 @@ use serde_json;
 use api::MatrixApi;
 use config::Config;
 use errors::*;
-use handlers::events::EventDispatcher;
+use handlers::events::Dispatcher;
 use log::{self, IronLogger};
 use middleware::AccessToken;
 use models::{ConnectionPool, Events};
@@ -49,7 +49,7 @@ impl Handler for Transactions {
         let connection = ConnectionPool::from_request(request)?;
 
         if let Err(err) =
-            EventDispatcher::new(&self.config, &connection, &logger, self.matrix_api.clone()).process(events_batch.events)
+            Dispatcher::new(&self.config, &connection, &logger, self.matrix_api.clone()).process(events_batch.events)
         {
             log::log_error(&logger, &err);
         }

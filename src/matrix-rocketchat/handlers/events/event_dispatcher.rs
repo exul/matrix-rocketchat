@@ -7,7 +7,7 @@ use api::MatrixApi;
 use config::Config;
 use errors::*;
 use handlers::ErrorNotifier;
-use handlers::events::{MessageHandler, RoomHandler};
+use handlers::events::{MembershipHandler, MessageHandler};
 use log;
 use models::Room;
 
@@ -42,7 +42,8 @@ impl<'a> EventDispatcher<'a> {
             match *event {
                 Event::RoomMember(member_event) => {
                     let room = Room::new(self.config, self.logger, self.matrix_api.as_ref(), member_event.room_id.clone());
-                    let handler = RoomHandler::new(self.config, self.connection, self.logger, self.matrix_api.as_ref(), &room);
+                    let handler =
+                        MembershipHandler::new(self.config, self.connection, self.logger, self.matrix_api.as_ref(), &room);
                     if let Err(err) = handler.process(&member_event) {
                         return self.handle_error(err, member_event.room_id);
                     }

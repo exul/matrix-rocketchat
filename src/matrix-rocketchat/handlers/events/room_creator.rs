@@ -6,7 +6,7 @@ use api::{MatrixApi, RocketchatApi};
 use api::rocketchat::Channel;
 use config::Config;
 use errors::*;
-use handlers::events::RoomHandler;
+use handlers::events::MembershipHandler;
 use i18n::*;
 use models::{RocketchatServer, Room};
 
@@ -21,7 +21,7 @@ pub struct RoomCreator<'a> {
 }
 
 impl<'a> RoomCreator<'a> {
-    /// Create a new `RoomHandler`.
+    /// Create a new `MembershipHandler`.
     pub fn new(
         config: &'a Config,
         connection: &'a SqliteConnection,
@@ -56,8 +56,8 @@ impl<'a> RoomCreator<'a> {
         self.matrix_api.put_canonical_room_alias(room_id.clone(), Some(matrix_room_alias_id))?;
 
         let room = Room::new(self.config, self.logger, self.matrix_api, room_id.clone());
-        let room_handler = RoomHandler::new(self.config, self.connection, self.logger, self.matrix_api, &room);
-        room_handler.add_virtual_users_to_room(rocketchat_api, channel, server.id.clone())?;
+        let membership_handler = MembershipHandler::new(self.config, self.connection, self.logger, self.matrix_api, &room);
+        membership_handler.add_virtual_users_to_room(rocketchat_api, channel, server.id.clone())?;
 
         Ok(room_id)
     }
@@ -75,7 +75,6 @@ impl<'a> RoomCreator<'a> {
 
         Ok(room_id)
     }
-
 
     /// Bridges a room that is already bridged (for other users) for a new user.
     pub fn bridge_existing_room(&self, room: Room, user_id: UserId, rocketchat_channel_name: String) -> Result<()> {

@@ -20,8 +20,8 @@ use i18n::*;
 use log;
 use models::Room;
 
-/// Handles room events
-pub struct RoomHandler<'a> {
+/// Handles membership events for a specific room
+pub struct MembershipHandler<'a> {
     config: &'a Config,
     connection: &'a SqliteConnection,
     logger: &'a Logger,
@@ -29,16 +29,16 @@ pub struct RoomHandler<'a> {
     room: &'a Room<'a>,
 }
 
-impl<'a> RoomHandler<'a> {
-    /// Create a new `RoomHandler`.
+impl<'a> MembershipHandler<'a> {
+    /// Create a new `MembershipHandler`.
     pub fn new(
         config: &'a Config,
         connection: &'a SqliteConnection,
         logger: &'a Logger,
         matrix_api: &'a MatrixApi,
         room: &'a Room<'a>,
-    ) -> RoomHandler<'a> {
-        RoomHandler {
+    ) -> MembershipHandler<'a> {
+        MembershipHandler {
             config: config,
             connection: connection,
             logger: logger,

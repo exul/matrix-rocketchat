@@ -2,10 +2,15 @@ use diesel;
 use diesel::prelude::*;
 use diesel::sqlite::SqliteConnection;
 use iron::typemap::Key;
+use ruma_identifiers::{RoomId, UserId};
+use slog::Logger;
 
+use api::{MatrixApi, RocketchatApi};
+use config::Config;
 use errors::*;
+use handlers::matrix::CommandHandler;
 use models::schema::{rocketchat_servers, users_on_rocketchat_servers};
-use models::UserOnRocketchatServer;
+use models::{Room, UserOnRocketchatServer};
 
 /// A Rocket.Chat server.
 #[derive(Associations, Debug, Identifiable, Queryable)]
@@ -33,6 +38,20 @@ pub struct NewRocketchatServer<'a> {
     pub rocketchat_url: &'a str,
     /// The token to identify reuqests from the Rocket.Chat server
     pub rocketchat_token: Option<&'a str>,
+}
+
+/// Credentials to perform a login on the Rocket.Chat server. The `user_id` is used to find
+/// the corresponding matrix user.
+#[derive(Serialize, Deserialize)]
+pub struct Credentials {
+    /// The users unique id on the Matrix homeserver
+    pub user_id: UserId,
+    /// The username on the Rocket.Chat server
+    pub rocketchat_username: String,
+    /// The password on the Rocket.Chat server
+    pub password: String,
+    /// The URL of the Rocket.Chat server on which the user wants to login
+    pub rocketchat_url: String,
 }
 
 impl RocketchatServer {
@@ -91,6 +110,39 @@ impl RocketchatServer {
             .load::<RocketchatServer>(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(rocketchat_servers)
+    }
+
+    /// Perform a login request on the Rocket.Chat server.
+    /// Stores the credentials if the login is successful and an error if it failes.
+    pub fn login(
+        &self,
+        config: &Config,
+        connection: &SqliteConnection,
+        logger: &Logger,
+        matrix_api: &MatrixApi,
+        credentials: &Credentials,
+        admin_room_id: Option<RoomId>,
+    ) -> Result<()> {
+        let mut user_on_rocketchat_server = UserOnRocketchatServer::find(connection, &credentials.user_id, self.id.clone())?;
+        let rocketchat_api = RocketchatApi::new(self.rocketchat_url.clone(), logger.clone())?;
+
+        let (user_id, auth_token) = rocketchat_api.login(&credentials.rocketchat_username, &credentials.password)?;
+        user_on_rocketchat_server.set_credentials(connection, Some(user_id.clone()), Some(auth_token.clone()))?;
+
+        if let Some(room_id) = admin_room_id {
+            let room = Room::new(config, logger, matrix_api, room_id.clone());
+            let bot_user_id = config.matrix_bot_user_id()?;
+            let as_url = config.as_url.clone();
+            let message = CommandHandler::build_help_message(connection, &room, as_url, &credentials.user_id)?;
+            matrix_api.send_text_message_event(room_id, bot_user_id, message)?;
+        }
+
+        Ok(info!(
+            logger,
+            "Successfully executed login command for user {} on Rocket.Chat server {}",
+            credentials.rocketchat_username,
+            self.rocketchat_url
+        ))
     }
 
     /// Get all users that are connected to this Rocket.Chat server.

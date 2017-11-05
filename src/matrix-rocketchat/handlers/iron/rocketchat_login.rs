@@ -9,9 +9,8 @@ use i18n::*;
 use api::MatrixApi;
 use config::Config;
 use errors::*;
-use handlers::rocketchat::{Credentials, Login};
 use log::IronLogger;
-use models::{ConnectionPool, RocketchatServer};
+use models::{ConnectionPool, Credentials, RocketchatServer};
 
 /// `RocketchatLogin` is an endpoint that allows a user to login to Rocket.Chat via REST API.
 pub struct RocketchatLogin {
@@ -28,7 +27,6 @@ impl Handler for RocketchatLogin {
 
         let connection = ConnectionPool::from_request(request)?;
         let credentials = deserialize_credentials(&mut request.body)?;
-        let login = Login::new(&self.config, &connection, &logger, self.matrix_api.as_ref());
         let server = match RocketchatServer::find_by_url(&connection, &credentials.rocketchat_url)? {
             Some(server) => server,
             None => {
@@ -40,7 +38,7 @@ impl Handler for RocketchatLogin {
             }
         };
 
-        if let Err(err) = login.call(&credentials, &server, None) {
+        if let Err(err) = server.login(&self.config, &connection, &logger, self.matrix_api.as_ref(), &credentials, None) {
             return Err(err)?;
         }
 

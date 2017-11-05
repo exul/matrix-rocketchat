@@ -9,9 +9,9 @@ use MAX_ROCKETCHAT_SERVER_ID_LENGTH;
 use api::{MatrixApi, RocketchatApi};
 use config::Config;
 use errors::*;
-use handlers::rocketchat::{Credentials, Login};
 use i18n::*;
-use models::{Channel, NewRocketchatServer, NewUserOnRocketchatServer, RocketchatServer, Room, UserOnRocketchatServer};
+use models::{Channel, Credentials, NewRocketchatServer, NewUserOnRocketchatServer, RocketchatServer, Room,
+             UserOnRocketchatServer};
 
 /// Handles command messages from the admin room
 pub struct CommandHandler<'a> {
@@ -214,8 +214,9 @@ impl<'a> CommandHandler<'a> {
             password: password.to_string(),
             rocketchat_url: server.rocketchat_url.clone(),
         };
-        let login = Login::new(self.config, self.connection, self.logger, self.matrix_api);
-        login.call(&credentials, server, Some(self.admin_room.id.clone()))
+
+        let admin_room_id = Some(self.admin_room.id.clone());
+        server.login(self.config, self.connection, self.logger, self.matrix_api, &credentials, admin_room_id)
     }
 
     fn list_channels(&self, event: &MessageEvent, server: &RocketchatServer) -> Result<()> {

@@ -20,7 +20,7 @@ mod virtual_user;
 pub use self::connection_pool::ConnectionPool;
 pub use self::channel::Channel;
 pub use self::events::Events;
-pub use self::rocketchat_server::{NewRocketchatServer, RocketchatServer};
+pub use self::rocketchat_server::{Credentials, NewRocketchatServer, RocketchatServer};
 pub use self::room::Room;
 pub use self::user_on_rocketchat_server::{NewUserOnRocketchatServer, UserOnRocketchatServer};
 pub use self::virtual_user::VirtualUser;

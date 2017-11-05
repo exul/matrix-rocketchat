@@ -8,21 +8,20 @@ use slog::Logger;
 use api::{MatrixApi, RocketchatApi};
 use config::Config;
 use errors::*;
-use handlers::rocketchat::VirtualUserHandler;
 use i18n::*;
-use models::{RocketchatServer, UserOnRocketchatServer};
+use models::{RocketchatServer, UserOnRocketchatServer, VirtualUser};
 
 /// A room that is managed by the application service. This can be either a bridged room or an
 /// admin room.
 pub struct Room<'a> {
+    /// The rooms Matrix ID
+    pub id: RoomId,
     /// The application service config
     config: &'a Config,
     /// Logger context
     logger: &'a Logger,
     /// API to call the Matrix homeserver
     matrix_api: &'a MatrixApi,
-    /// The rooms Matrix ID
-    pub id: RoomId,
 }
 
 impl<'a> Room<'a> {
@@ -190,7 +189,7 @@ impl<'a> Room<'a> {
             }
         };
 
-        let (server_id, virtual_user_id) = VirtualUserHandler::rocketchat_server_and_user_id_from_matrix_id(virtual_user_id);
+        let (server_id, virtual_user_id) = VirtualUser::rocketchat_server_and_user_id_from_matrix_id(virtual_user_id);
         let server = match RocketchatServer::find_by_id(conn, &server_id)? {
             Some(server) => server,
             None => {
@@ -262,7 +261,7 @@ impl<'a> Room<'a> {
     ) -> Result<()> {
         debug!(self.logger, "Starting to add virtual users to room {}", self.id);
 
-        let virtual_user_handler = VirtualUserHandler {
+        let virtual_user = VirtualUser {
             config: self.config,
             logger: self.logger,
             matrix_api: self.matrix_api,
@@ -274,7 +273,7 @@ impl<'a> Room<'a> {
         for username in usernames.iter() {
             let rocketchat_user = rocketchat_api.users_info(username)?;
             let user_id =
-                virtual_user_handler.find_or_register(rocketchat_server_id.clone(), rocketchat_user.id, username.to_string())?;
+                virtual_user.find_or_register(rocketchat_server_id.clone(), rocketchat_user.id, username.to_string())?;
             self.join_user(user_id, bot_user_id.clone())?;
         }
 

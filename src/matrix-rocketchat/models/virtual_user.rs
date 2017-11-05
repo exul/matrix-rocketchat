@@ -8,7 +8,7 @@ use config::Config;
 use errors::*;
 
 /// Provides helper methods to manage virtual users.
-pub struct VirtualUserHandler<'a> {
+pub struct VirtualUser<'a> {
     /// Application service configuration
     pub config: &'a Config,
     /// Logger context
@@ -17,7 +17,7 @@ pub struct VirtualUserHandler<'a> {
     pub matrix_api: &'a MatrixApi,
 }
 
-impl<'a> VirtualUserHandler<'a> {
+impl<'a> VirtualUser<'a> {
     /// Register a virtual user on the Matrix server and assign it to a Rocket.Chat server.
     pub fn find_or_register(
         &self,

@@ -8,9 +8,8 @@ use api::{MatrixApi, RocketchatApi};
 use api::rocketchat::Message;
 use config::Config;
 use errors::*;
-use handlers::rocketchat::VirtualUserHandler;
 use log;
-use models::{Channel, RocketchatServer, Room, UserOnRocketchatServer};
+use models::{Channel, RocketchatServer, Room, UserOnRocketchatServer, VirtualUser};
 
 const RESEND_THRESHOLD_IN_SECONDS: i64 = 3;
 
@@ -25,7 +24,7 @@ pub struct Forwarder<'a> {
     /// Matrix REST API
     pub matrix_api: &'a MatrixApi,
     /// Manages virtual users that the application service uses
-    pub virtual_user_handler: &'a VirtualUserHandler<'a>,
+    pub virtual_user: &'a VirtualUser<'a>,
 }
 
 impl<'a> Forwarder<'a> {
@@ -52,7 +51,7 @@ impl<'a> Forwarder<'a> {
         };
 
         let sender_id =
-            self.virtual_user_handler.find_or_register(server.id.clone(), message.user_id.clone(), message.user_name.clone())?;
+            self.virtual_user.find_or_register(server.id.clone(), message.user_id.clone(), message.user_name.clone())?;
         let current_displayname = self.matrix_api.get_display_name(sender_id.clone())?.unwrap_or_default();
         if message.user_name != current_displayname {
             debug!(self.logger, "Display name changed from `{}` to `{}`, will update", current_displayname, message.user_name);
@@ -123,7 +122,7 @@ impl<'a> Forwarder<'a> {
         receiver: &UserOnRocketchatServer,
         message: &Message,
     ) -> Result<Option<Room>> {
-        let sender_id = self.virtual_user_handler.build_user_id(&message.user_id, &server.id)?;
+        let sender_id = self.virtual_user.build_user_id(&message.user_id, &server.id)?;
 
         // If the user does not exist yet, there is no existing direct message room
         if self.matrix_api.get_display_name(sender_id.clone())?.is_none() {
@@ -163,7 +162,7 @@ impl<'a> Forwarder<'a> {
         let inviting_user_id = self.config.matrix_bot_user_id()?;
         let user_id = message.user_id.clone();
         let user_name = message.user_name.clone();
-        let sender_id = self.virtual_user_handler.find_or_register(server.id.clone(), user_id, user_name)?;
+        let sender_id = self.virtual_user.find_or_register(server.id.clone(), user_id, user_name)?;
         let room = Room::new(self.config, self.logger, self.matrix_api, room_id);
         room.join_user(sender_id, inviting_user_id)?;
 
@@ -188,11 +187,8 @@ impl<'a> Forwarder<'a> {
         );
 
         if rocketchat_api.direct_messages_list()?.iter().any(|dm| dm.id == message.channel_id) {
-            let sender_id = self.virtual_user_handler.find_or_register(
-                server.id.clone(),
-                message.user_id.clone(),
-                message.user_name.clone(),
-            )?;
+            let sender_id =
+                self.virtual_user.find_or_register(server.id.clone(), message.user_id.clone(), message.user_name.clone())?;
 
             let room_display_name_suffix = t!(["defaults", "direct_message_room_display_name_suffix"]).l(DEFAULT_LANGUAGE);
             let room_display_name = format!("{} {}", message.user_name, room_display_name_suffix);

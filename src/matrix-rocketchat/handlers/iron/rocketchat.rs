@@ -4,10 +4,10 @@ use iron::prelude::*;
 use api::MatrixApi;
 use api::rocketchat::Message;
 use config::Config;
-use handlers::rocketchat::{Forwarder, VirtualUserHandler};
+use handlers::rocketchat::Forwarder;
 use log::{self, IronLogger};
 use middleware::RocketchatToken;
-use models::{ConnectionPool, RocketchatServer};
+use models::{ConnectionPool, RocketchatServer, VirtualUser};
 
 /// Rocket.Chat is an endpoint of the application service API which is called by the Rocket.Chat
 /// server to push new messages.
@@ -41,7 +41,7 @@ impl Handler for Rocketchat {
         let server =
             request.extensions.get::<RocketchatServer>().expect("Middleware ensures the presence of the Rocket.Chat server");
 
-        let virtual_user_handler = VirtualUserHandler {
+        let virtual_user = VirtualUser {
             config: &self.config,
             logger: &logger,
             matrix_api: self.matrix_api.as_ref(),
@@ -52,7 +52,7 @@ impl Handler for Rocketchat {
             connection: &connection,
             matrix_api: self.matrix_api.as_ref(),
             logger: &logger,
-            virtual_user_handler: &virtual_user_handler,
+            virtual_user: &virtual_user,
         };
 
         if let Err(err) = forwarder.send(server, message) {

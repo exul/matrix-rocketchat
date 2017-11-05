@@ -1,15 +1,15 @@
 //! Event handlers
 
 /// Handles commands from the admin room
-pub mod command_handler;
+mod command_handler;
 /// Dispatches incomming events to the correct component
-pub mod dispatcher;
+mod dispatcher;
 /// Forwards messages to Rocket.Chat
-pub mod forwarder;
+mod forwarder;
 /// Handles membership changes in bridge rooms
-pub mod membership_handler;
+mod membership_handler;
 /// Handles message events
-pub mod message_handler;
+mod message_handler;
 
 pub use self::command_handler::CommandHandler;
 pub use self::dispatcher::Dispatcher;

@@ -69,7 +69,6 @@ impl<'a> Dispatcher<'a> {
 
         let error_notifier = ErrorNotifier {
             config: self.config,
-            connection: self.connection,
             logger: self.logger,
             matrix_api: self.matrix_api.as_ref(),
         };

@@ -230,7 +230,6 @@ impl<'a> MembershipHandler<'a> {
     fn handle_admin_room_setup_error(&self, err: &Error, matrix_bot_user_id: UserId) {
         let error_notifier = ErrorNotifier {
             config: self.config,
-            connection: self.conn,
             logger: self.logger,
             matrix_api: self.matrix_api,
         };

@@ -1,4 +1,3 @@
-use diesel::sqlite::SqliteConnection;
 use ruma_identifiers::RoomId;
 use slog::Logger;
 
@@ -11,8 +10,6 @@ use errors::*;
 pub struct ErrorNotifier<'a> {
     /// Application service configuration
     pub config: &'a Config,
-    /// SQL database connection
-    pub connection: &'a SqliteConnection,
     /// Logger context
     pub logger: &'a Logger,
     /// Matrix REST API

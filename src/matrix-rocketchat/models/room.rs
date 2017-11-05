@@ -261,11 +261,7 @@ impl<'a> Room<'a> {
     ) -> Result<()> {
         debug!(self.logger, "Starting to add virtual users to room {}", self.id);
 
-        let virtual_user = VirtualUser {
-            config: self.config,
-            logger: self.logger,
-            matrix_api: self.matrix_api,
-        };
+        let virtual_user = VirtualUser::new(self.config, self.logger, self.matrix_api);
 
         //TODO: Check if a max number of users per channel has to be defined to avoid problems when
         //there are several thousand users in a channel.

@@ -12,14 +12,14 @@ use models::Room;
 pub struct Channel<'a> {
     /// The channels ID
     pub id: String,
+    /// The ID of the channels Rocket.Chat server
+    pub server_id: &'a str,
     /// The application service config
     config: &'a Config,
     /// Logger context
     logger: &'a Logger,
     /// API to call the Matrix homeserver
     matrix_api: &'a MatrixApi,
-    /// The ID of the channels Rocket.Chat server
-    server_id: &'a str,
 }
 
 impl<'a> Channel<'a> {

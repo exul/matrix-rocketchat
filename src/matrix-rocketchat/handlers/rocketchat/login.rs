@@ -11,13 +11,13 @@ use models::{RocketchatServer, Room, UserOnRocketchatServer};
 /// Provides helper method to login a user on the Rocket.Chat server.
 pub struct Login<'a> {
     /// Application service configuration
-    pub config: &'a Config,
+    config: &'a Config,
     /// SQL database connection
-    pub connection: &'a SqliteConnection,
+    connection: &'a SqliteConnection,
     /// Logger context
-    pub logger: &'a Logger,
+    logger: &'a Logger,
     /// Matrix REST API
-    pub matrix_api: &'a MatrixApi,
+    matrix_api: &'a MatrixApi,
 }
 
 /// Credentials to perform a login on the Rocket.Chat server. The `user_id` is used to find
@@ -35,6 +35,21 @@ pub struct Credentials {
 }
 
 impl<'a> Login<'a> {
+    /// Create a new `Login`.
+    pub fn new(
+        config: &'a Config,
+        connection: &'a SqliteConnection,
+        logger: &'a Logger,
+        matrix_api: &'a MatrixApi,
+    ) -> Login<'a> {
+        Login {
+            config: config,
+            connection: connection,
+            logger: logger,
+            matrix_api: matrix_api,
+        }
+    }
+
     /// Perform a login request on the Rocket.Chat server.
     /// Stores the credentials if the login is successful.
     /// Returns an error if the login fails.

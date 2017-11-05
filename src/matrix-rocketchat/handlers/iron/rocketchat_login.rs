@@ -28,12 +28,7 @@ impl Handler for RocketchatLogin {
 
         let connection = ConnectionPool::from_request(request)?;
         let credentials = deserialize_credentials(&mut request.body)?;
-        let login = Login {
-            config: &self.config,
-            connection: &connection,
-            logger: &logger,
-            matrix_api: self.matrix_api.as_ref(),
-        };
+        let login = Login::new(&self.config, &connection, &logger, self.matrix_api.as_ref());
         let server = match RocketchatServer::find_by_url(&connection, &credentials.rocketchat_url)? {
             Some(server) => server,
             None => {
@@ -52,7 +47,6 @@ impl Handler for RocketchatLogin {
         Ok(Response::with((status::Ok, t!(["handlers", "rocketchat_login_successful"]).l(DEFAULT_LANGUAGE))))
     }
 }
-
 
 fn deserialize_credentials(body: &mut Body) -> Result<Credentials> {
     let mut payload = String::new();

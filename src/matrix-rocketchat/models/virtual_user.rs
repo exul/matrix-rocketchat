@@ -10,14 +10,23 @@ use errors::*;
 /// Provides helper methods to manage virtual users.
 pub struct VirtualUser<'a> {
     /// Application service configuration
-    pub config: &'a Config,
+    config: &'a Config,
     /// Logger context
-    pub logger: &'a Logger,
-    /// Matrix REST API
-    pub matrix_api: &'a MatrixApi,
+    logger: &'a Logger,
+    /// API to call the Matrix homeserver
+    matrix_api: &'a MatrixApi,
 }
 
 impl<'a> VirtualUser<'a> {
+    /// Create a new virtual users model, to interact with Matrix virtual users.
+    pub fn new(config: &'a Config, logger: &'a Logger, matrix_api: &'a MatrixApi) -> VirtualUser<'a> {
+        VirtualUser {
+            config: config,
+            logger: logger,
+            matrix_api: matrix_api,
+        }
+    }
+
     /// Register a virtual user on the Matrix server and assign it to a Rocket.Chat server.
     pub fn find_or_register(
         &self,

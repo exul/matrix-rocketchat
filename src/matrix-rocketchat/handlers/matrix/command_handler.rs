@@ -214,12 +214,7 @@ impl<'a> CommandHandler<'a> {
             password: password.to_string(),
             rocketchat_url: server.rocketchat_url.clone(),
         };
-        let login = Login {
-            config: self.config,
-            connection: self.connection,
-            logger: self.logger,
-            matrix_api: self.matrix_api,
-        };
+        let login = Login::new(self.config, self.connection, self.logger, self.matrix_api);
         login.call(&credentials, server, Some(self.admin_room.id.clone()))
     }
 

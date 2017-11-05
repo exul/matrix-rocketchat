@@ -16,18 +16,35 @@ const RESEND_THRESHOLD_IN_SECONDS: i64 = 3;
 /// Forwards messages from Rocket.Chat to Matrix
 pub struct Forwarder<'a> {
     /// Application service configuration
-    pub config: &'a Config,
+    config: &'a Config,
     /// SQL database connection
-    pub connection: &'a SqliteConnection,
+    connection: &'a SqliteConnection,
     /// Logger context
-    pub logger: &'a Logger,
+    logger: &'a Logger,
     /// Matrix REST API
-    pub matrix_api: &'a MatrixApi,
+    matrix_api: &'a MatrixApi,
     /// Manages virtual users that the application service uses
-    pub virtual_user: &'a VirtualUser<'a>,
+    virtual_user: &'a VirtualUser<'a>,
 }
 
 impl<'a> Forwarder<'a> {
+    /// Create a new `Forwarder`.
+    pub fn new(
+        config: &'a Config,
+        connection: &'a SqliteConnection,
+        logger: &'a Logger,
+        matrix_api: &'a MatrixApi,
+        virtual_user: &'a VirtualUser,
+    ) -> Forwarder<'a> {
+        Forwarder {
+            config: config,
+            connection: connection,
+            logger: logger,
+            matrix_api: matrix_api,
+            virtual_user: virtual_user,
+        }
+    }
+
     /// Send a message to the Matrix channel.
     pub fn send(&self, server: &RocketchatServer, message: &Message) -> Result<()> {
         if !self.is_sendable_message(message.user_id.clone(), server.id.clone())? {

@@ -6,7 +6,6 @@ use slog::Logger;
 use api::MatrixApi;
 use config::Config;
 use errors::*;
-use models::Room;
 
 /// Provides helper methods to manage virtual users.
 pub struct VirtualUserHandler<'a> {
@@ -19,21 +18,6 @@ pub struct VirtualUserHandler<'a> {
 }
 
 impl<'a> VirtualUserHandler<'a> {
-    /// Add a virtual user to a Matrix room
-    pub fn add_to_room(&self, receiver_user_id: UserId, sender_user_id: UserId, room: &Room) -> Result<()> {
-        let user_joined_already = room.user_ids(Some(sender_user_id.clone()))?.iter().any(|id| id == &receiver_user_id);
-        if !user_joined_already {
-            info!(self.logger, "Adding virtual user {} to room {}", receiver_user_id, room.id);
-            self.matrix_api.invite(room.id.clone(), receiver_user_id.clone(), sender_user_id)?;
-
-            if receiver_user_id.to_string().starts_with(&format!("@{}", self.config.sender_localpart)) {
-                self.matrix_api.join(room.id.clone(), receiver_user_id)?;
-            }
-        }
-
-        Ok(())
-    }
-
     /// Register a virtual user on the Matrix server and assign it to a Rocket.Chat server.
     pub fn find_or_register(
         &self,

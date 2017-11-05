@@ -1,13 +1,11 @@
 use std::convert::TryFrom;
 
-use diesel::sqlite::SqliteConnection;
 use ruma_identifiers::{RoomAliasId, RoomId, UserId};
 use slog::Logger;
 
 use api::{MatrixApi, RocketchatApi};
 use config::Config;
 use errors::*;
-use handlers::events::MembershipHandler;
 use models::Room;
 
 /// A channel on a Rocket.Chat server.
@@ -70,7 +68,6 @@ impl<'a> Channel<'a> {
     /// homeserver and manages the rooms virtual users.
     pub fn bridge(
         &self,
-        conn: &SqliteConnection,
         rocketchat_api: &RocketchatApi,
         name: Option<String>,
         userlist: &[String],
@@ -87,8 +84,7 @@ impl<'a> Channel<'a> {
         self.matrix_api.put_canonical_room_alias(room_id.clone(), alias_id)?;
 
         let room = Room::new(self.config, self.logger, self.matrix_api, room_id.clone());
-        let membership_handler = MembershipHandler::new(self.config, conn, self.logger, self.matrix_api, &room);
-        membership_handler.add_virtual_users_to_room(rocketchat_api, userlist, self.server_id.to_owned())?;
+        room.join_all_rocketchat_users(rocketchat_api, userlist, self.server_id.to_owned())?;
 
         Ok(room_id)
     }

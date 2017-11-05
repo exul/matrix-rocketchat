@@ -8,12 +8,11 @@ use ruma_identifiers::UserId;
 use slog::Logger;
 use serde_json::{self, Value};
 
-use api::{MatrixApi, RocketchatApi};
+use api::{MatrixApi};
 use config::Config;
 use errors::*;
 use handlers::ErrorNotifier;
 use handlers::events::CommandHandler;
-use handlers::rocketchat::VirtualUserHandler;
 use i18n::*;
 use log;
 use models::Room;
@@ -226,37 +225,6 @@ impl<'a> MembershipHandler<'a> {
 
     fn is_private_room(&self) -> Result<bool> {
         Ok(self.room.user_ids(None)?.len() <= 2)
-    }
-
-    /// Add all users that are in a Rocket.Chat room to the Matrix room.
-    /// TODO: This feels like it's in the wrong place, where to move it?
-    pub fn add_virtual_users_to_room(
-        &self,
-        rocketchat_api: &RocketchatApi,
-        usernames: &[String],
-        rocketchat_server_id: String,
-    ) -> Result<()> {
-        debug!(self.logger, "Starting to add virtual users to room {}", self.room.id);
-
-        let virtual_user_handler = VirtualUserHandler {
-            config: self.config,
-            logger: self.logger,
-            matrix_api: self.matrix_api,
-        };
-
-        //TODO: Check if a max number of users per channel has to be defined to avoid problems when
-        //there are several thousand users in a channel.
-        let bot_user_id = self.config.matrix_bot_user_id()?;
-        for username in usernames.iter() {
-            let rocketchat_user = rocketchat_api.users_info(username)?;
-            let user_id =
-                virtual_user_handler.find_or_register(rocketchat_server_id.clone(), rocketchat_user.id, username.to_string())?;
-            virtual_user_handler.add_to_room(user_id, bot_user_id.clone(), self.room)?;
-        }
-
-        debug!(self.logger, "Successfully added {} virtual users to room {}", usernames.len(), self.room.id);
-
-        Ok(())
     }
 
     fn handle_admin_room_setup_error(&self, err: &Error, matrix_bot_user_id: UserId) {

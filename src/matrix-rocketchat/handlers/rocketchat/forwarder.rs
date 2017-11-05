@@ -147,7 +147,7 @@ impl<'a> Forwarder<'a> {
         let direct_message_recepient = room.direct_message_matrix_user()?;
         if direct_message_recepient.is_none() {
             let inviting_user_id = self.matrix_api.get_room_creator(room.id.clone())?;
-            self.virtual_user_handler.add_to_room(receiver.matrix_user_id.clone(), inviting_user_id, room)?;
+            room.join_user(receiver.matrix_user_id.clone(), inviting_user_id)?;
         }
 
         Ok(())
@@ -165,7 +165,7 @@ impl<'a> Forwarder<'a> {
         let user_name = message.user_name.clone();
         let sender_id = self.virtual_user_handler.find_or_register(server.id.clone(), user_id, user_name)?;
         let room = Room::new(self.config, self.logger, self.matrix_api, room_id);
-        self.virtual_user_handler.add_to_room(sender_id, inviting_user_id, &room)?;
+        room.join_user(sender_id, inviting_user_id)?;
 
         Ok(Some(room))
     }

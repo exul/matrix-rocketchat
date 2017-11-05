@@ -237,4 +237,49 @@ impl<'a> Room<'a> {
         );
         Ok(None)
     }
+
+    /// Join a user into a room. The join will be skipped if the user is already in the room.
+    pub fn join_user(&self, user_id: UserId, inviting_user_id: UserId) -> Result<()> {
+        let user_joined_already = self.user_ids(Some(inviting_user_id.clone()))?.iter().any(|id| id == &user_id);
+        if !user_joined_already {
+            info!(self.logger, "Adding virtual user {} to room {}", user_id, self.id);
+            self.matrix_api.invite(self.id.clone(), user_id.clone(), inviting_user_id)?;
+
+            if user_id.to_string().starts_with(&format!("@{}", self.config.sender_localpart)) {
+                self.matrix_api.join(self.id.clone(), user_id)?;
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Join all users that are in a Rocket.Chat room to the Matrix room.
+    pub fn join_all_rocketchat_users(
+        &self,
+        rocketchat_api: &RocketchatApi,
+        usernames: &[String],
+        rocketchat_server_id: String,
+    ) -> Result<()> {
+        debug!(self.logger, "Starting to add virtual users to room {}", self.id);
+
+        let virtual_user_handler = VirtualUserHandler {
+            config: self.config,
+            logger: self.logger,
+            matrix_api: self.matrix_api,
+        };
+
+        //TODO: Check if a max number of users per channel has to be defined to avoid problems when
+        //there are several thousand users in a channel.
+        let bot_user_id = self.config.matrix_bot_user_id()?;
+        for username in usernames.iter() {
+            let rocketchat_user = rocketchat_api.users_info(username)?;
+            let user_id =
+                virtual_user_handler.find_or_register(rocketchat_server_id.clone(), rocketchat_user.id, username.to_string())?;
+            self.join_user(user_id, bot_user_id.clone())?;
+        }
+
+        debug!(self.logger, "Successfully added {} virtual users to room {}", usernames.len(), self.id);
+
+        Ok(())
+    }
 }

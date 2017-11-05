@@ -277,7 +277,6 @@ impl<'a> CommandHandler<'a> {
                 room_id
             }
             None => channel.bridge(
-                self.connection,
                 rocketchat_api.as_ref(),
                 Some(channel_name.to_string()),
                 &rocketchat_channel.usernames,

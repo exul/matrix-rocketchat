@@ -4,8 +4,8 @@
 pub mod iron;
 /// Notifies the user about errors that appear in one of the handlers.
 pub mod error_notifier;
-/// Event handlers
-pub mod events;
+/// Matrix handlers
+pub mod matrix;
 /// Rocket.Chat handlers
 pub mod rocketchat;
 

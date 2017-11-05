@@ -7,7 +7,7 @@ use api::MatrixApi;
 use config::Config;
 use errors::*;
 use handlers::ErrorNotifier;
-use handlers::events::{MembershipHandler, MessageHandler};
+use handlers::matrix::{MembershipHandler, MessageHandler};
 use log;
 use models::Room;
 

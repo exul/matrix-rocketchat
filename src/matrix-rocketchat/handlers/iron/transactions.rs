@@ -8,7 +8,7 @@ use serde_json;
 use api::MatrixApi;
 use config::Config;
 use errors::*;
-use handlers::events::Dispatcher;
+use handlers::matrix::Dispatcher;
 use log::{self, IronLogger};
 use middleware::AccessToken;
 use models::{ConnectionPool, Events};

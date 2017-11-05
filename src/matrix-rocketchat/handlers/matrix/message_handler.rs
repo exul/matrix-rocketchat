@@ -5,7 +5,7 @@ use slog::Logger;
 use api::MatrixApi;
 use config::Config;
 use errors::*;
-use handlers::events::{CommandHandler, Forwarder};
+use handlers::matrix::{CommandHandler, Forwarder};
 use models::{RocketchatServer, Room};
 
 /// Handles message events

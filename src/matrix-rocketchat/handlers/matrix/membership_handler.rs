@@ -8,11 +8,11 @@ use ruma_identifiers::UserId;
 use slog::Logger;
 use serde_json::{self, Value};
 
-use api::{MatrixApi};
+use api::MatrixApi;
 use config::Config;
 use errors::*;
 use handlers::ErrorNotifier;
-use handlers::events::CommandHandler;
+use handlers::matrix::CommandHandler;
 use i18n::*;
 use log;
 use models::Room;

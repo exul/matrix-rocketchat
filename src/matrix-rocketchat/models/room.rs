@@ -1,4 +1,6 @@
 use std::convert::TryFrom;
+use std::thread;
+use std::time::Duration;
 
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::member::MembershipState;
@@ -10,6 +12,9 @@ use config::Config;
 use errors::*;
 use i18n::*;
 use models::{RocketchatServer, UserOnRocketchatServer, VirtualUser};
+
+/// The delay in milliseconds between two API requests (to not DOS the server)
+pub const API_QUERY_DELAY: u64 = 500;
 
 /// A room that is managed by the application service. This can be either a bridged room or an
 /// admin room.
@@ -263,14 +268,13 @@ impl<'a> Room<'a> {
 
         let virtual_user = VirtualUser::new(self.config, self.logger, self.matrix_api);
 
-        //TODO: Check if a max number of users per channel has to be defined to avoid problems when
-        //there are several thousand users in a channel.
         let bot_user_id = self.config.matrix_bot_user_id()?;
         for username in usernames.iter() {
             let rocketchat_user = rocketchat_api.users_info(username)?;
             let user_id =
                 virtual_user.find_or_register(rocketchat_server_id.clone(), rocketchat_user.id, username.to_string())?;
             self.join_user(user_id, bot_user_id.clone())?;
+            thread::sleep(Duration::from_millis(API_QUERY_DELAY))
         }
 
         debug!(self.logger, "Successfully added {} virtual users to room {}", usernames.len(), self.id);

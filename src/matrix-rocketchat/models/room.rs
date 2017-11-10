@@ -203,14 +203,7 @@ impl<'a> Room<'a> {
             }
         };
 
-        let user_on_rocketchat_server = match UserOnRocketchatServer::find_by_matrix_user_id(conn, user_matrix_id, server_id)? {
-            Some(user_on_rocketchat_server) => user_on_rocketchat_server,
-            None => {
-                debug!(self.logger, "Matrix user {} is not logged into the Rocket.Chat server {}", user_matrix_id, server.id);
-                return Ok(None);
-            }
-        };
-
+        let user_on_rocketchat_server = UserOnRocketchatServer::find(conn, user_matrix_id, server_id)?;
         let rocketchat_user_id = user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default();
         let rocketchat_auth_token = user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default();
         let rocketchat_api = RocketchatApi::new(server.rocketchat_url.clone(), self.logger.clone())?
@@ -219,26 +212,14 @@ impl<'a> Room<'a> {
         // It is safe to check if a direct channel ID contains the virtual users ID, because a user
         // can only have one direct message room with another user. Which means when the virtual user
         // ID is part of the channel name, the direct message channel with that user is found.
-        let direct_message_channel_ids = rocketchat_api.direct_messages_list()?;
-        let channel_ids: Vec<String> = direct_message_channel_ids
-            .iter()
-            .filter_map(|c| if c.id.to_lowercase().contains(&virtual_user_id) {
-                Some(c.id.clone())
-            } else {
-                None
-            })
-            .collect();
-
-        if let Some(channel_id) = channel_ids.into_iter().next() {
-            return Ok(Some((server, channel_id)));
+        let direct_message_channels = rocketchat_api.direct_messages_list()?;
+        for direct_message_channel in direct_message_channels {
+            if direct_message_channel.id.to_lowercase().contains(&virtual_user_id) {
+                return Ok(Some((server, direct_message_channel.id.clone())));
+            }
         }
 
-        debug!(
-            self.logger,
-            "No direct message channel for the user {} found on the Rocket.Chat server {}",
-            virtual_user_id,
-            server.id
-        );
+        debug!(self.logger, "No direct message channel for user {} on Rocket.Chat {} found", virtual_user_id, server.id);
         Ok(None)
     }
 

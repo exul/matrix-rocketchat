@@ -1214,9 +1214,11 @@ fn add_membership_event_to_room(
         }
     }
 
-    // State events have to be tracked differently for users that are currently in the room and
+    // Membership events have to be tracked differently for users that are currently in the room and
     // for users that left the room. Only users that are in the room get state updates. So the
     // state events are manages separately for each user.
+    // In case new user joined the membership events of another user that is already in the room are
+    // copied.
     let mut existing_users = Vec::new();
     let mut existing_user_in_room = None;
     for (id, membership_with_users) in users_in_room_for_users.iter() {
@@ -1248,14 +1250,16 @@ fn add_membership_event_to_room(
         users_in_room_for_users.insert(user_id.clone(), (membership_state.clone(), existing_users));
     }
 
-    // update the users own membership state
+    // update the user's own membership state
     let users = users_in_room_for_users.get(&user_id).unwrap().1.clone();
     users_in_room_for_users.insert(user_id.clone(), (membership_state, users));
 
     // update the memberships state for all users that are currently in the room
-    for (_, membership_with_users) in users_in_room_for_users {
+    for (current_user_id, membership_with_users) in users_in_room_for_users {
         let &mut (ref mut membership, ref mut users) = membership_with_users;
-        if membership == &MembershipState::Join {
+        // the room state of the current user has to be updated as well, otherwise
+        // the leave event for that user will be missing.
+        if membership == &MembershipState::Join || current_user_id == &user_id {
             users.retain(|&(ref id, _)| id != &user_id);
             users.push((user_id.clone(), membership_state.clone()));
         }

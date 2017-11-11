@@ -14,7 +14,7 @@ use std::convert::TryFrom;
 use iron::{status, Chain};
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH, USERS_INFO_PATH};
-use matrix_rocketchat::db::Room;
+use matrix_rocketchat::models::Room;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER};
 use router::Router;
 use ruma_client_api::Endpoint;
@@ -76,13 +76,13 @@ fn successfully_bridge_a_rocketchat_room() {
     let invite_spec_user = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(invite_spec_user.contains("@spec_user:localhost"));
     let invite_virtual_spec_user = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(invite_virtual_spec_user.contains("rocketchat_spec_user_id_rcid:localhost"));
+    assert!(invite_virtual_spec_user.contains("rocketchat_rcid_spec_user_id:localhost"));
     let invite_user_1 = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(invite_user_1.contains("@rocketchat_user_1_id_rcid:localhost"));
+    assert!(invite_user_1.contains("@rocketchat_rcid_user_1_id:localhost"));
     let invite_user_2 = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(invite_user_2.contains("@rocketchat_user_2_id_rcid:localhost"));
+    assert!(invite_user_2.contains("@rocketchat_rcid_user_2_id:localhost"));
     let invite_user_3 = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(invite_user_3.contains("@rocketchat_user_3_id_rcid:localhost"));
+    assert!(invite_user_3.contains("@rocketchat_rcid_user_3_id:localhost"));
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("joined_channel is now bridged."));
@@ -109,13 +109,15 @@ fn successfully_bridge_a_rocketchat_room() {
     );
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap(), None).unwrap();
+    let room_id = RoomId::try_from("!joined_channel_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let user_ids = room.user_ids(None).unwrap();
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
-    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_spec_user_id_rcid:localhost").unwrap()));
-    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_user_1_id_rcid:localhost").unwrap()));
-    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_user_2_id_rcid:localhost").unwrap()));
-    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_user_3_id_rcid:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_rcid_spec_user_id:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_rcid_user_1_id:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_rcid_user_2_id:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_rcid_user_3_id:localhost").unwrap()));
 }
 
 #[test]
@@ -251,13 +253,15 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     assert!(spec_user_invite_received_by_matrix.contains("@spec_user:localhost"));
 
     let virtual_spec_user_invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(virtual_spec_user_invite_received_by_matrix.contains("@rocketchat_spec_user_id_rcid:localhost"));
+    assert!(virtual_spec_user_invite_received_by_matrix.contains("@rocketchat_rcid_spec_user_id:localhost"));
 
     let other_user_invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(other_user_invite_received_by_matrix.contains("@rocketchat_other_user_id_rcid:localhost"));
+    assert!(other_user_invite_received_by_matrix.contains("@rocketchat_rcid_other_user_id:localhost"));
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap(), None).unwrap();
+    let room_id = RoomId::try_from("!joined_channel_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let user_ids = room.user_ids(None).unwrap();
     assert!(user_ids.iter().any(|id| id == &bot_user_id));
     assert!(user_ids.iter().any(|id| id == &spec_user_id));
     assert!(user_ids.iter().any(|id| id == &other_user_id));
@@ -326,7 +330,9 @@ fn susccessfully_bridge_a_rocketchat_room_that_was_unbridged_before() {
     assert!(invite_received_by_matrix.contains("@spec_user:localhost"));
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!joined_channel_id:localhost").unwrap(), None).unwrap();
+    let room_id = RoomId::try_from("!joined_channel_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let user_ids = room.user_ids(None).unwrap();
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
 }
@@ -388,19 +394,22 @@ fn successfully_bridge_two_different_rocketchat_rooms() {
     );
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let first_user_ids =
-        Room::user_ids(&(*matrix_api), RoomId::try_from("!first_channel_id:localhost").unwrap(), None).unwrap();
+    let first_room_id = RoomId::try_from("!first_channel_id:localhost").unwrap();
+    let first_room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), first_room_id);
+    let first_user_ids = first_room.user_ids(None).unwrap();
     let rocketchat_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
-    let virtual_spec_user_id = UserId::try_from("@rocketchat_spec_user_id_rcid:localhost").unwrap();
-    let virtual_other_user_id = UserId::try_from("@rocketchat_other_user_id_rcid:localhost").unwrap();
+    let virtual_spec_user_id = UserId::try_from("@rocketchat_rcid_spec_user_id:localhost").unwrap();
+    let virtual_other_user_id = UserId::try_from("@rocketchat_rcid_other_user_id:localhost").unwrap();
 
     assert!(first_user_ids.iter().any(|id| id == &rocketchat_user_id));
     assert!(first_user_ids.iter().any(|id| id == &spec_user_id));
     assert!(first_user_ids.iter().any(|id| id == &virtual_spec_user_id));
     assert!(first_user_ids.iter().any(|id| id == &virtual_other_user_id));
 
-    let sec_users = Room::user_ids(&(*matrix_api), RoomId::try_from("!second_channel_id:localhost").unwrap(), None).unwrap();
+    let second_room_id = RoomId::try_from("!second_channel_id:localhost").unwrap();
+    let second_room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), second_room_id);
+    let sec_users = second_room.user_ids(None).unwrap();
     assert!(sec_users.iter().any(|id| id == &rocketchat_user_id));
     assert!(sec_users.iter().any(|id| id == &spec_user_id));
     assert!(sec_users.iter().any(|id| id == &virtual_spec_user_id));

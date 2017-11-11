@@ -56,14 +56,14 @@ impl Config {
     }
 
     /// Check if the user ID is part of the application service namespace
-    pub fn is_application_service_user(&self, matrix_user_id: &UserId) -> bool {
+    pub fn is_application_service_user(&self, user_id: &UserId) -> bool {
         let id_prefix = format!("@{}", self.sender_localpart);
-        matrix_user_id.to_string().starts_with(&id_prefix)
+        user_id.to_string().starts_with(&id_prefix)
     }
 
     /// Check if the user ID is part of the application service namespace, but not the bot user.
-    pub fn is_application_service_virtual_user(&self, matrix_user_id: &UserId) -> bool {
+    pub fn is_application_service_virtual_user(&self, user_id: &UserId) -> bool {
         let id_prefix = format!("@{}_", self.sender_localpart);
-        matrix_user_id.to_string().starts_with(&id_prefix)
+        user_id.to_string().starts_with(&id_prefix)
     }
 }

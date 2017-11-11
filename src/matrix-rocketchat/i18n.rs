@@ -96,5 +96,5 @@ macro_rules! i18n_languages {
 i18n_languages!(en);
 
 /// Language that is used if no language is specified
-pub const DEFAULT_LANGUAGE: &'static str = "en";
+pub const DEFAULT_LANGUAGE: &str = "en";
 // LCOV_EXCL_STOP

@@ -109,10 +109,8 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn forget_room(&self, matrix_room_id: RoomId) -> Result<()> {
-        let path_params = forget_room::PathParams {
-            room_id: matrix_room_id,
-        };
+    fn forget_room(&self, room_id: RoomId) -> Result<()> {
+        let path_params = forget_room::PathParams { room_id: room_id };
         let endpoint = self.base_url.clone() + &ForgetRoomEndpoint::request_path(path_params);
         let params = self.params_hash();
 
@@ -123,9 +121,9 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn get_joined_rooms(&self, matrix_user_id: UserId) -> Result<Vec<RoomId>> {
+    fn get_joined_rooms(&self, user_id: UserId) -> Result<Vec<RoomId>> {
         let endpoint = self.base_url.clone() + &SyncEventsEndpoint::request_path(());
-        let user_id = matrix_user_id.to_string();
+        let user_id = user_id.to_string();
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
 
@@ -145,10 +143,8 @@ impl super::MatrixApi for MatrixApi {
         Ok(rooms.keys().map(|k| k.to_owned()).collect())
     }
 
-    fn get_display_name(&self, matrix_user_id: UserId) -> Result<Option<String>> {
-        let path_params = get_display_name::PathParams {
-            user_id: matrix_user_id,
-        };
+    fn get_display_name(&self, user_id: UserId) -> Result<Option<String>> {
+        let path_params = get_display_name::PathParams { user_id: user_id };
         let endpoint = self.base_url.clone() + &GetDisplayNameEndpoint::request_path(path_params);
         let params = self.params_hash();
 
@@ -193,9 +189,9 @@ impl super::MatrixApi for MatrixApi {
         Ok(Some(get_alias_response.room_id.clone()))
     }
 
-    fn get_room_canonical_alias(&self, matrix_room_id: RoomId) -> Result<Option<RoomAliasId>> {
+    fn get_room_canonical_alias(&self, room_id: RoomId) -> Result<Option<RoomAliasId>> {
         let path_params = get_state_events_for_empty_key::PathParams {
-            room_id: matrix_room_id,
+            room_id: room_id,
             event_type: EventType::RoomCanonicalAlias.to_string(),
         };
         let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
@@ -225,9 +221,9 @@ impl super::MatrixApi for MatrixApi {
         Ok(Some(room_canonical_alias))
     }
 
-    fn get_room_creator(&self, matrix_room_id: RoomId) -> Result<UserId> {
+    fn get_room_creator(&self, room_id: RoomId) -> Result<UserId> {
         let path_params = get_state_events_for_empty_key::PathParams {
-            room_id: matrix_room_id,
+            room_id: room_id,
             event_type: EventType::RoomCreate.to_string(),
         };
         let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
@@ -250,15 +246,15 @@ impl super::MatrixApi for MatrixApi {
     }
 
 
-    fn get_room_members(&self, matrix_room_id: RoomId, sender_id: Option<UserId>) -> Result<Vec<MemberEvent>> {
+    fn get_room_members(&self, room_id: RoomId, sender_id: Option<UserId>) -> Result<Vec<MemberEvent>> {
         let path_params = get_member_events::PathParams {
-            room_id: matrix_room_id.clone(),
+            room_id: room_id.clone(),
         };
         let endpoint = self.base_url.clone() + &GetMemberEventsEndpoint::request_path(path_params);
         let user_id;
         let mut params = self.params_hash();
-        if let Some(matrix_user_id) = sender_id {
-            user_id = matrix_user_id.to_string();
+        if let Some(id) = sender_id {
+            user_id = id.to_string();
             params.insert("user_id", &user_id);
         }
 
@@ -267,7 +263,7 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        debug!(self.logger, "List of room members for room {} successfully received", matrix_room_id);
+        debug!(self.logger, "List of room members for room {} successfully received", room_id);
 
         let room_member_events: get_member_events::Response = serde_json::from_str(&body).chain_err(
             || ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix members API endpoint: `{}`", body)),
@@ -275,9 +271,9 @@ impl super::MatrixApi for MatrixApi {
         Ok(room_member_events.chunk)
     }
 
-    fn get_room_topic(&self, matrix_room_id: RoomId) -> Result<Option<String>> {
+    fn get_room_topic(&self, room_id: RoomId) -> Result<Option<String>> {
         let path_params = get_state_events_for_empty_key::PathParams {
-            room_id: matrix_room_id,
+            room_id: room_id,
             event_type: EventType::RoomTopic.to_string(),
         };
         let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
@@ -301,16 +297,16 @@ impl super::MatrixApi for MatrixApi {
         Ok(Some(room_topic_response["topic"].to_string().replace("\"", "")))
     }
 
-    fn invite(&self, matrix_room_id: RoomId, receiver_matrix_user_id: UserId, sender_matrix_user_id: UserId) -> Result<()> {
+    fn invite(&self, room_id: RoomId, receiver_user_id: UserId, sender_user_id: UserId) -> Result<()> {
         let path_params = invite_user::PathParams {
-            room_id: matrix_room_id.clone(),
+            room_id: room_id.clone(),
         };
         let endpoint = self.base_url.clone() + &InviteUserEndpoint::request_path(path_params);
-        let user_id = sender_matrix_user_id.to_string();
+        let user_id = sender_user_id.to_string();
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
         let body_params = invite_user::BodyParams {
-            user_id: receiver_matrix_user_id.clone(),
+            user_id: receiver_user_id.clone(),
         };
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("invite"))?;
 
@@ -319,19 +315,13 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        debug!(
-            self.logger,
-            "User {} successfully invited into room {} by {}",
-            receiver_matrix_user_id,
-            matrix_room_id,
-            sender_matrix_user_id
-        );
+        debug!(self.logger, "User {} successfully invited into room {} by {}", receiver_user_id, room_id, sender_user_id);
         Ok(())
     }
 
-    fn is_room_accessible_by_bot(&self, matrix_room_id: RoomId) -> Result<bool> {
+    fn is_room_accessible_by_bot(&self, room_id: RoomId) -> Result<bool> {
         let path_params = get_state_events_for_empty_key::PathParams {
-            room_id: matrix_room_id,
+            room_id: room_id,
             event_type: EventType::RoomCreate.to_string(),
         };
         let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
@@ -342,12 +332,12 @@ impl super::MatrixApi for MatrixApi {
         Ok(status_code != StatusCode::Forbidden)
     }
 
-    fn join(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {
+    fn join(&self, room_id: RoomId, user_id: UserId) -> Result<()> {
         let path_params = join_room_by_id::PathParams {
-            room_id: matrix_room_id.clone(),
+            room_id: room_id.clone(),
         };
         let endpoint = self.base_url.clone() + &JoinRoomByIdEndpoint::request_path(path_params);
-        let user_id = matrix_user_id.to_string();
+        let user_id = user_id.to_string();
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
 
@@ -356,16 +346,14 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        debug!(self.logger, "User {} successfully joined room {}", matrix_user_id, matrix_room_id);
+        debug!(self.logger, "User {} successfully joined room {}", user_id, room_id);
         Ok(())
     }
 
-    fn leave_room(&self, matrix_room_id: RoomId, matrix_user_id: UserId) -> Result<()> {
-        let path_params = leave_room::PathParams {
-            room_id: matrix_room_id,
-        };
+    fn leave_room(&self, room_id: RoomId, user_id: UserId) -> Result<()> {
+        let path_params = leave_room::PathParams { room_id: room_id };
         let endpoint = self.base_url.clone() + &LeaveRoomEndpoint::request_path(path_params);
-        let user_id = matrix_user_id.to_string();
+        let user_id = user_id.to_string();
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
 
@@ -377,9 +365,9 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn put_canonical_room_alias(&self, matrix_room_id: RoomId, matrix_room_alias_id: Option<RoomAliasId>) -> Result<()> {
+    fn put_canonical_room_alias(&self, room_id: RoomId, matrix_room_alias_id: Option<RoomAliasId>) -> Result<()> {
         let path_params = send_state_event_for_empty_key::PathParams {
-            room_id: matrix_room_id,
+            room_id: room_id,
             event_type: EventType::RoomCanonicalAlias,
         };
         let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
@@ -421,7 +409,7 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn send_text_message_event(&self, matrix_room_id: RoomId, matrix_user_id: UserId, body: String) -> Result<()> {
+    fn send_text_message_event(&self, room_id: RoomId, user_id: UserId, body: String) -> Result<()> {
         let formatted_body = render_markdown(&body);
         let mut message = Map::new();
         message.insert("body".to_string(), json!(body));
@@ -431,12 +419,12 @@ impl super::MatrixApi for MatrixApi {
         let payload = serde_json::to_string(&message).chain_err(|| body_params_error!("send message"))?;
         let txn_id = EventId::new(&self.base_url).chain_err(|| ErrorKind::EventIdGenerationFailed)?;
         let path_params = send_message_event::PathParams {
-            room_id: matrix_room_id.clone(),
+            room_id: room_id.clone(),
             event_type: EventType::RoomMessage,
             txn_id: txn_id.to_string(),
         };
         let endpoint = self.base_url.clone() + &SendMessageEventEndpoint::request_path(path_params);
-        let user_id = matrix_user_id.to_string();
+        let user_id = user_id.to_string();
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
 
@@ -446,22 +434,22 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        debug!(self.logger, "User {} successfully sent a message to room {}", matrix_user_id, matrix_room_id);
+        debug!(self.logger, "User {} successfully sent a message to room {}", user_id, room_id);
         Ok(())
     }
 
-    fn set_default_powerlevels(&self, matrix_room_id: RoomId, room_creator_matrix_user_id: UserId) -> Result<()> {
+    fn set_default_powerlevels(&self, room_id: RoomId, room_creator_user_id: UserId) -> Result<()> {
         let path_params = send_state_event_for_empty_key::PathParams {
-            room_id: matrix_room_id,
+            room_id: room_id,
             event_type: EventType::RoomPowerLevels,
         };
         let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
-        let user_id = room_creator_matrix_user_id.to_string();
+        let user_id = room_creator_user_id.to_string();
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
         let mut body_params = serde_json::Map::new();
         let mut users = serde_json::Map::new();
-        users.insert(room_creator_matrix_user_id.to_string(), json!(100));
+        users.insert(room_creator_user_id.to_string(), json!(100));
         body_params.insert("invite".to_string(), json!(50));
         body_params.insert("kick".to_string(), json!(50));
         body_params.insert("ban".to_string(), json!(50));
@@ -478,12 +466,12 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn set_display_name(&self, matrix_user_id: UserId, name: String) -> Result<()> {
+    fn set_display_name(&self, user_id: UserId, name: String) -> Result<()> {
         let path_params = set_display_name::PathParams {
-            user_id: matrix_user_id.clone(),
+            user_id: user_id.clone(),
         };
         let endpoint = self.base_url.clone() + &SetDisplayNameEndpoint::request_path(path_params);
-        let user_id = matrix_user_id.to_string();
+        let user_id = user_id.to_string();
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
         let body_params = set_display_name::BodyParams {
@@ -498,9 +486,9 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn set_room_name(&self, matrix_room_id: RoomId, name: String) -> Result<()> {
+    fn set_room_name(&self, room_id: RoomId, name: String) -> Result<()> {
         let path_params = send_state_event_for_empty_key::PathParams {
-            room_id: matrix_room_id,
+            room_id: room_id,
             event_type: EventType::RoomName,
         };
         let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
@@ -517,9 +505,9 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn set_room_topic(&self, matrix_room_id: RoomId, topic: String) -> Result<()> {
+    fn set_room_topic(&self, room_id: RoomId, topic: String) -> Result<()> {
         let path_params = send_state_event_for_empty_key::PathParams {
-            room_id: matrix_room_id,
+            room_id: room_id,
             event_type: EventType::RoomTopic,
         };
         let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);

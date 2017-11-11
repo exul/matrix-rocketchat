@@ -15,8 +15,7 @@ use std::convert::TryFrom;
 
 use iron::status;
 use matrix_rocketchat::api::MatrixApi;
-use matrix_rocketchat::db::Room;
-use matrix_rocketchat::models::Events;
+use matrix_rocketchat::models::{Events, Room};
 use matrix_rocketchat_test::{build_test_config, default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER,
                              TEMP_DIR_NAME};
 use ruma_client_api::Endpoint;
@@ -52,7 +51,9 @@ fn successfully_create_an_admin_room() {
     assert!(message_received_by_matrix.contains("No Rocket.Chat server is connected yet."));
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
+    let room_id = RoomId::try_from("!admin_room_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let members = room.user_ids(None).unwrap();
     assert_eq!(members.len(), 2);
     assert!(members.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
     assert!(members.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
@@ -270,7 +271,9 @@ fn the_bot_user_does_not_leave_the_admin_room_just_because_setting_the_room_disp
 
     // the bot doesn't leave the room
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
+    let room_id = RoomId::try_from("!admin_room_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let members = room.user_ids(None).unwrap();
     assert_eq!(members.len(), 2);
     assert!(members.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
     assert!(members.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
@@ -302,7 +305,9 @@ fn the_bot_user_does_not_leave_the_admin_room_just_because_getting_the_topic_fai
 
     // the bot doesn't leave the room
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
+    let room_id = RoomId::try_from("!admin_room_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let members = room.user_ids(None).unwrap();
     assert_eq!(members.len(), 2);
     assert!(members.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
     assert!(members.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
@@ -331,7 +336,9 @@ fn the_bot_user_does_not_leave_the_admin_room_just_because_the_get_topic_respons
 
     // the bot doesn't leave the room
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let members = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
+    let room_id = RoomId::try_from("!admin_room_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let members = room.user_ids(None).unwrap();
     assert_eq!(members.len(), 2);
     assert!(members.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
     assert!(members.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
@@ -433,7 +440,9 @@ fn bot_leaves_when_a_third_user_joins_the_admin_room() {
     let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let user_ids = Room::user_ids(&(*matrix_api), RoomId::try_from("!admin_room_id:localhost").unwrap(), None).unwrap();
+    let room_id = RoomId::try_from("!admin_room_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let user_ids = room.user_ids(None).unwrap();
     assert_eq!(user_ids.len(), 2);
 
     helpers::invite(

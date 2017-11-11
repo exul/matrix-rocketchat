@@ -3,7 +3,7 @@
 /// Matrix REST API
 pub mod matrix;
 /// Generic REST API
-pub mod rest_api;
+mod rest_api;
 /// Rocket.Chat REST API
 pub mod rocketchat;
 

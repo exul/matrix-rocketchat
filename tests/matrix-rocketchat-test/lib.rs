@@ -48,7 +48,7 @@ use iron::typemap::Key;
 use matrix_rocketchat::{Config, Server};
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, LOGIN_PATH, ME_PATH, USERS_INFO_PATH};
-use matrix_rocketchat::db::ConnectionPool;
+use matrix_rocketchat::models::ConnectionPool;
 use persistent::Write;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
@@ -73,19 +73,19 @@ use slog::{Drain, FnValue, Level, LevelFilter, Record};
 use tempdir::TempDir;
 
 /// Name of the temporary directory that is used for each test
-pub const TEMP_DIR_NAME: &'static str = "matrix_rocketchat_test";
+pub const TEMP_DIR_NAME: &str = "matrix_rocketchat_test";
 /// Name of the database file
-pub const DATABASE_NAME: &'static str = "test.db";
+pub const DATABASE_NAME: &str = "test.db";
 /// Application service token used in the tests
-const AS_TOKEN: &'static str = "at";
+const AS_TOKEN: &str = "at";
 /// Homeserver token used in the tests
-pub const HS_TOKEN: &'static str = "ht";
+pub const HS_TOKEN: &str = "ht";
 /// Rocket.Chat token used in the tests
-pub const RS_TOKEN: &'static str = "rt";
+pub const RS_TOKEN: &str = "rt";
 /// Number of threads that iron uses when running tests
 pub const IRON_THREADS: usize = 4;
 /// The version the mock Rocket.Chat server announces
-pub const DEFAULT_ROCKETCHAT_VERSION: &'static str = "0.49.0";
+pub const DEFAULT_ROCKETCHAT_VERSION: &str = "0.49.0";
 
 lazy_static! {
     /// Default logger
@@ -392,8 +392,8 @@ impl Test {
         };
 
         if let Some(bridged_room) = self.bridged_room {
-            let (room_name, matrix_user_id) = bridged_room;
-            channels.insert(room_name, vec![matrix_user_id]);
+            let (room_name, user_id) = bridged_room;
+            channels.insert(room_name, vec![user_id]);
         }
 
         if channels.len() > 0 {

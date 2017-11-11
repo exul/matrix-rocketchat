@@ -9,10 +9,10 @@ use slog::Logger;
 
 use api::MatrixApi;
 use config::Config;
-use db::ConnectionPool;
 use errors::*;
 use handlers::iron::{Rocketchat, RocketchatLogin, Transactions, Welcome};
 use log::IronLogger;
+use models::ConnectionPool;
 
 /// The application service server
 pub struct Server<'a> {

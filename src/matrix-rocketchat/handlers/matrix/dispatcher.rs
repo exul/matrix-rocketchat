@@ -7,26 +7,27 @@ use api::MatrixApi;
 use config::Config;
 use errors::*;
 use handlers::ErrorNotifier;
+use handlers::matrix::{MembershipHandler, MessageHandler};
 use log;
-use super::{MessageHandler, RoomHandler};
+use models::Room;
 
 /// Dispatches events to the corresponding handler.
-pub struct EventDispatcher<'a> {
+pub struct Dispatcher<'a> {
     config: &'a Config,
     connection: &'a SqliteConnection,
     logger: &'a Logger,
     matrix_api: Box<MatrixApi>,
 }
 
-impl<'a> EventDispatcher<'a> {
-    /// Create a new `EventDispatcher` with an SQLite connection
+impl<'a> Dispatcher<'a> {
+    /// Create a new `Dispatcher` with an SQLite connection
     pub fn new(
         config: &'a Config,
         connection: &'a SqliteConnection,
         logger: &'a Logger,
         matrix_api: Box<MatrixApi>,
-    ) -> EventDispatcher<'a> {
-        EventDispatcher {
+    ) -> Dispatcher<'a> {
+        Dispatcher {
             config: config,
             connection: connection,
             logger: logger,
@@ -39,17 +40,20 @@ impl<'a> EventDispatcher<'a> {
     pub fn process(&self, events: Vec<Box<Event>>) -> Result<()> {
         for event in events {
             match *event {
-                Event::RoomMember(member_event) => if let Err(err) =
-                    RoomHandler::new(self.config, self.connection, self.logger, self.matrix_api.as_ref()).process(&member_event)
-                {
-                    return self.handle_error(err, member_event.room_id);
-                },
-                Event::RoomMessage(message_event) => if let Err(err) =
-                    MessageHandler::new(self.config, self.connection, self.logger, self.matrix_api.clone())
-                        .process(&message_event)
-                {
-                    return self.handle_error(err, message_event.room_id);
-                },
+                Event::RoomMember(member_event) => {
+                    let room = Room::new(self.config, self.logger, self.matrix_api.as_ref(), member_event.room_id.clone());
+                    let handler =
+                        MembershipHandler::new(self.config, self.connection, self.logger, self.matrix_api.as_ref(), &room);
+                    if let Err(err) = handler.process(&member_event) {
+                        return self.handle_error(err, member_event.room_id);
+                    }
+                }
+                Event::RoomMessage(message_event) => {
+                    let handler = MessageHandler::new(self.config, self.connection, self.logger, self.matrix_api.clone());
+                    if let Err(err) = handler.process(&message_event) {
+                        return self.handle_error(err, message_event.room_id);
+                    }
+                }
                 _ => debug!(self.logger, "Skipping event, because the event type is not known"),
             }
         }
@@ -65,7 +69,6 @@ impl<'a> EventDispatcher<'a> {
 
         let error_notifier = ErrorNotifier {
             config: self.config,
-            connection: self.connection,
             logger: self.logger,
             matrix_api: self.matrix_api.as_ref(),
         };

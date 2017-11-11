@@ -7,12 +7,11 @@ use serde_json;
 
 use api::MatrixApi;
 use config::Config;
-use db::ConnectionPool;
 use errors::*;
-use handlers::events::EventDispatcher;
+use handlers::matrix::Dispatcher;
 use log::{self, IronLogger};
 use middleware::AccessToken;
-use models::Events;
+use models::{ConnectionPool, Events};
 
 /// Transactions is an endpoint of the application service API which is called by the homeserver
 /// to push new events.
@@ -50,7 +49,7 @@ impl Handler for Transactions {
         let connection = ConnectionPool::from_request(request)?;
 
         if let Err(err) =
-            EventDispatcher::new(&self.config, &connection, &logger, self.matrix_api.clone()).process(events_batch.events)
+            Dispatcher::new(&self.config, &connection, &logger, self.matrix_api.clone()).process(events_batch.events)
         {
             log::log_error(&logger, &err);
         }

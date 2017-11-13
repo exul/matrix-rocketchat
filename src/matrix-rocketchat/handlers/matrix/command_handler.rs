@@ -281,9 +281,6 @@ impl<'a> CommandHandler<'a> {
             )?,
         };
 
-        let matrix_room_alias_id = channel.build_room_alias_id()?;
-        self.matrix_api.put_canonical_room_alias(room_id.clone(), Some(matrix_room_alias_id))?;
-
         let message = t!(["admin_room", "room_successfully_bridged"]).with_vars(vec![
             ("channel_name", rocketchat_channel.name.clone().unwrap_or_else(|| rocketchat_channel.id.clone())),
         ]);

@@ -86,11 +86,15 @@ fn successfully_unbridge_a_rocketchat_room() {
     // discard message from virtual user
     receiver.recv_timeout(default_timeout()).unwrap();
 
+    // discard adding the room alias when the room is bridged
+    put_room_canonical_room_alias_receiver.recv_timeout(default_timeout()).unwrap();
+
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("bridged_channel is now unbridged."));
 
-    let canonical_room_alias_message = put_room_canonical_room_alias_receiver.recv_timeout(default_timeout());
-    assert!(canonical_room_alias_message.is_ok());
+    // the alias that was set by the application service is removed
+    let canonical_room_alias_message = put_room_canonical_room_alias_receiver.recv_timeout(default_timeout()).unwrap();
+    assert_eq!(canonical_room_alias_message, "{\"alias\":\"\"}".to_string());
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     let room_id = RoomId::try_from("!bridged_channel_id:localhost").unwrap();

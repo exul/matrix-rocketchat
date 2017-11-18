@@ -265,6 +265,11 @@ error_chain!{
             display("The room {} has matrix users ({}) in it, cannot unbridge", display_name, users)
         }
 
+        RoomAssociatedWithAliases(display_name: String, aliases: String) {
+            description("Aliases are associated with the room")
+            display("The room {} has aliases ({}) associated with it, cannot unbridge", display_name, aliases)
+        }
+
         ReadConfigError {
             description("Error when reading the config content to a string")
             display("Could not read config content to string")

@@ -4,7 +4,7 @@ use std::time::Duration;
 
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::member::MembershipState;
-use ruma_identifiers::{RoomId, UserId};
+use ruma_identifiers::{RoomAliasId, RoomId, UserId};
 use slog::Logger;
 
 use api::{MatrixApi, RocketchatApi};
@@ -261,5 +261,11 @@ impl<'a> Room<'a> {
         debug!(self.logger, "Successfully added {} virtual users to room {}", usernames.len(), self.id);
 
         Ok(())
+    }
+
+    /// Get all aliases fro a room.
+    pub fn aliases(&self) -> Result<Vec<RoomAliasId>> {
+        let bot_user_id = self.config.matrix_bot_user_id()?;
+        self.matrix_api.get_room_aliases(self.id.clone(), bot_user_id)
     }
 }

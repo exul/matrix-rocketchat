@@ -19,12 +19,14 @@ use ruma_client_api::r0::membership::invite_user;
 use ruma_client_api::r0::profile::{get_display_name, set_display_name};
 use ruma_client_api::r0::room::create_room;
 use ruma_client_api::r0::sync::get_member_events;
+use ruma_events::collections::only::StateEvent;
 use ruma_events::EventType;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
+use ruma_events::room::aliases::{AliasesEvent, AliasesEventContent};
 use ruma_identifiers::{EventId, RoomAliasId, RoomId, UserId};
 use serde_json::{self, Map, Value};
 use super::{extract_payload, helpers, Message, MessageForwarder, PendingInvites, RoomAliasMap, RoomsStatesMap, TestError,
-            UserList, UsersInRooms, DEFAULT_LOGGER};
+            UserList, UsersInRooms, AS_TOKEN, DEFAULT_LOGGER};
 
 #[derive(Serialize)]
 pub struct RocketchatInfo {
@@ -503,6 +505,41 @@ impl Handler for MatrixCreateRoom {
     }
 }
 
+pub struct MatrixState {}
+
+impl Handler for MatrixState {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        debug!(DEFAULT_LOGGER, "Matrix mock server got get state request");
+
+        let room_id = room_id_from_request(request);
+        let user_id = user_id_from_request(request);
+        let mut room_states: Vec<StateEvent> = Vec::new();
+
+        let mutex = request.get::<Write<RoomAliasMap>>().unwrap();
+        let room_alias_map = mutex.lock().unwrap();
+        if let Some(room_aliases) = room_alias_map.get(&room_id) {
+            let aliases_event = AliasesEvent {
+                content: AliasesEventContent {
+                    aliases: room_aliases.to_owned(),
+                },
+                event_id: EventId::new("localhost").unwrap(),
+                event_type: EventType::RoomAliases,
+                prev_content: None,
+                room_id: room_id.clone(),
+                state_key: "localhost".to_string(),
+                unsigned: None,
+                user_id: user_id.clone(),
+            };
+
+            room_states.push(StateEvent::RoomAliases(aliases_event));
+        }
+
+        let payload = serde_json::to_string(&room_states).unwrap();
+
+        Ok(Response::with((status::Ok, payload)))
+    }
+}
+
 pub struct SendRoomState {}
 
 impl SendRoomState {
@@ -521,25 +558,47 @@ impl Handler for SendRoomState {
         let url_room_id = params.find("room_id").unwrap();
         let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
         let room_id = RoomId::try_from(decoded_room_id.as_ref()).unwrap();
+        let event_type = match params.find("event_type") {
+            Some(url_event_type) => {
+                let decoded_event_type = percent_decode(url_event_type.as_bytes()).decode_utf8().unwrap();
+                let event_type = EventType::from(decoded_event_type.as_ref());
+                Some(event_type)
+            }
+            None => None,
+        };
         let user_id = user_id_from_request(request);
-
         let request_payload = extract_payload(request);
         let room_states_payload: serde_json::Value = serde_json::from_str(&request_payload).unwrap();
 
         match room_states_payload {
             serde_json::Value::Object(room_states) => for (k, v) in room_states {
                 let value = v.to_string().trim_matches('"').to_string();
-                if let Err(err) = add_state_to_room(request, &user_id, room_id.clone(), k, value) {
-                    debug!(DEFAULT_LOGGER, "{}", err);
-                    let payload = r#"{
+
+                if let Some(EventType::RoomAliases) = event_type {
+                    let room_alias_id = RoomAliasId::try_from(&value).unwrap();
+
+                    if let Err(err) = add_alias_to_room(request, room_id.clone(), room_alias_id) {
+                        debug!(DEFAULT_LOGGER, "{}", err);
+                        let payload = r#"{
+                            "errcode":"M_UNKNOWN",
+                            "error":"Room alias already exists."
+                        }"#;
+                        return Ok(Response::with((status::Conflict, payload.to_string())));
+                    }
+                } else {
+                    if let Err(err) = add_state_to_room(request, &user_id, room_id.clone(), k, value) {
+                        debug!(DEFAULT_LOGGER, "{}", err);
+                        let payload = r#"{
                           "errcode":"M_FORBIDDEN",
                           "error":"ERR_MSG"
                         }"#.replace("ERR_MSG", err);
-                    return Ok(Response::with((status::Forbidden, payload.to_string())));
+                        return Ok(Response::with((status::Forbidden, payload.to_string())));
+                    }
                 }
             },
             _ => panic!("JSON type not covered"),
         }
+
 
         let mut values = serde_json::Map::new();
         let event_id = EventId::new("localhost").unwrap();
@@ -1096,8 +1155,9 @@ pub struct PermissionCheck {}
 impl BeforeMiddleware for PermissionCheck {
     fn before(&self, request: &mut Request) -> IronResult<()> {
         let user_id = user_id_from_request(request);
+        let access_token = access_token_from_request(request);
 
-        if !user_id.to_string().starts_with("@rocketchat") {
+        if access_token == AS_TOKEN && !user_id.to_string().starts_with("@rocketchat") {
             info!(DEFAULT_LOGGER, "Received request for {} with user that the AS can't masquerade as {}", request.url, user_id);
             let response = MatrixErrorResponse {
                 errcode: "M_FORBIDDEN".to_string(),
@@ -1330,15 +1390,6 @@ fn room_id_from_alias_map(
     None
 }
 
-fn user_id_from_request(request: &mut Request) -> UserId {
-    let url: Url = request.url.clone().into();
-    let mut query_pairs = url.query_pairs();
-    let (_, user_id_param) = query_pairs
-        .find(|&(ref key, _)| key == "user_id")
-        .unwrap_or((Cow::from("user_id"), Cow::from("@rocketchat:localhost")));
-    UserId::try_from(user_id_param.as_ref()).unwrap()
-}
-
 fn add_pending_invite(
     pending_invites_for_rooms: &mut MutexGuard<HashMap<RoomId, HashMap<UserId, UserId>>>,
     room_id: RoomId,
@@ -1354,4 +1405,27 @@ fn add_pending_invite(
     let pending_invites_for_room = pending_invites_for_rooms.get_mut(&room_id).unwrap();
 
     pending_invites_for_room.insert(invitee_id, inviter_id);
+}
+
+fn user_id_from_request(request: &mut Request) -> UserId {
+    let url: Url = request.url.clone().into();
+    let mut query_pairs = url.query_pairs();
+    let (_, user_id_param) = query_pairs
+        .find(|&(ref key, _)| key == "user_id")
+        .unwrap_or((Cow::from("user_id"), Cow::from("@rocketchat:localhost")));
+    UserId::try_from(user_id_param.as_ref()).unwrap()
+}
+
+fn access_token_from_request(request: &mut Request) -> String {
+    let url: Url = request.url.clone().into();
+    let mut query_pairs = url.query_pairs();
+    let (_, access_token) = query_pairs.find(|&(ref key, _)| key == "access_token").unwrap_or_default();
+    access_token.to_string()
+}
+
+fn room_id_from_request(request: &mut Request) -> RoomId {
+    let params = request.extensions.get::<Router>().unwrap().clone();
+    let url_room_id = params.find("room_id").unwrap();
+    let decoded_room_id = percent_decode(url_room_id.as_bytes()).decode_utf8().unwrap();
+    RoomId::try_from(decoded_room_id.as_ref()).unwrap()
 }

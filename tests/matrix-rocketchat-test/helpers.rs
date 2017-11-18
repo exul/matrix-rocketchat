@@ -7,12 +7,14 @@ use matrix_rocketchat::api::{MatrixApi, RestApi};
 use matrix_rocketchat::models::Events;
 use matrix_rocketchat::models::UserOnRocketchatServer;
 use reqwest::{Method, StatusCode};
+use ruma_client_api::Endpoint;
+use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint as SendStateEventForEmptyKeyEndpoint};
 use ruma_events::EventType;
 use ruma_events::collections::all::Event;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
 use ruma_events::room::message::{MessageEvent, MessageEventContent, MessageType, TextMessageEventContent};
-use ruma_identifiers::{EventId, RoomId, UserId};
-use serde_json::{to_string, Map, Value};
+use ruma_identifiers::{EventId, RoomAliasId, RoomId, UserId};
+use serde_json::{self, to_string, Map, Value};
 use super::{DEFAULT_LOGGER, HS_TOKEN};
 
 pub fn invite(config: &Config, room_id: RoomId, user_id: UserId, sender_id: UserId) {
@@ -27,9 +29,7 @@ pub fn join(config: &Config, room_id: RoomId, user_id: UserId) {
 
 pub fn create_room(config: &Config, room_name: &str, sender_id: UserId, user_id: UserId) {
     let matrix_api = MatrixApi::new(&config, DEFAULT_LOGGER.clone()).unwrap();
-    matrix_api
-        .create_room(Some(room_name.to_string()), None, &sender_id)
-        .unwrap();
+    matrix_api.create_room(Some(room_name.to_string()), None, &sender_id).unwrap();
 
     let room_id = RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap();
     invite(&config, room_id, user_id, sender_id);
@@ -187,7 +187,24 @@ pub fn logout_user_from_rocketchat_server_on_bridge(
 ) {
     let mut user_on_rocketchat_server = UserOnRocketchatServer::find(connection, &user_id, rocketchat_server_id).unwrap();
     let rocketchat_user_id = user_on_rocketchat_server.rocketchat_user_id.clone();
-    user_on_rocketchat_server
-        .set_credentials(connection, rocketchat_user_id, None)
-        .unwrap();
+    user_on_rocketchat_server.set_credentials(connection, rocketchat_user_id, None).unwrap();
+}
+
+pub fn add_room_alias_id(config: &Config, room_id: RoomId, room_alias_id: RoomAliasId, user_id: UserId, access_token: &str) {
+    let path_params = send_state_event_for_empty_key::PathParams {
+        room_id: room_id,
+        event_type: EventType::RoomAliases,
+    };
+    let endpoint = config.hs_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
+    let room_alias = room_alias_id.to_string();
+    let id = user_id.to_string();
+    let mut params: HashMap<&str, &str> = HashMap::new();
+    params.insert("access_token", access_token);
+    params.insert("user_id", &id);
+
+    let mut body_params = serde_json::Map::new();
+    body_params.insert("alias".to_string(), json!(room_alias));
+    let payload = serde_json::to_string(&body_params).unwrap();
+
+    RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params).unwrap();
 }

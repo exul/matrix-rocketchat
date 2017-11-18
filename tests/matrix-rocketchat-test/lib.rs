@@ -17,6 +17,7 @@ extern crate ruma_identifiers;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
+#[macro_use]
 extern crate serde_json;
 #[macro_use]
 extern crate slog;
@@ -66,6 +67,7 @@ use ruma_client_api::r0::profile::set_display_name::Endpoint as SetDisplaynameEn
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_state_event_for_empty_key::Endpoint as SendStateEventForEmptyKeyEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
+use ruma_client_api::r0::sync::get_state_events::Endpoint as GetStateEventsEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::Endpoint as GetStateEventsForEmptyKeyEndpoint;
 use ruma_client_api::r0::sync::sync_events::Endpoint as SyncEventsEndpoint;
 use ruma_events::room::member::MembershipState;
@@ -510,9 +512,17 @@ impl Test {
             "versions",
         );
 
-        let mut get_state_event = Chain::new(handlers::GetRoomState {});
-        get_state_event.link_before(handlers::PermissionCheck {});
-        router.get(GetStateEventsForEmptyKeyEndpoint::router_path(), get_state_event, "get_state_events_for_empty_key");
+        let mut get_state_events_for_empty_key = Chain::new(handlers::GetRoomState {});
+        get_state_events_for_empty_key.link_before(handlers::PermissionCheck {});
+        router.get(
+            GetStateEventsForEmptyKeyEndpoint::router_path(),
+            get_state_events_for_empty_key,
+            "get_state_events_for_empty_key",
+        );
+
+        let mut get_state_events = Chain::new(handlers::MatrixState {});
+        get_state_events.link_before(handlers::PermissionCheck {});
+        router.get(GetStateEventsEndpoint::router_path(), get_state_events, "get_state_events");
 
         let mut get_members = Chain::new(handlers::RoomMembers {});
         get_members.link_before(handlers::PermissionCheck {});

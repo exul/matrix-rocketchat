@@ -29,6 +29,8 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn get_joined_rooms(&self, user_id: UserId) -> Result<Vec<RoomId>>;
     /// Get the room id based on the room alias.
     fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<Option<RoomId>>;
+    /// Get all room aliases for a room. This includes local and remote aliases.
+    fn get_room_aliases(&self, room_id: RoomId, user_id: UserId) -> Result<Vec<RoomAliasId>>;
     /// Get a rooms canonical alias.
     fn get_room_canonical_alias(&self, room_id: RoomId) -> Result<Option<RoomAliasId>>;
     /// Get the `user_id` of the user that created the room.

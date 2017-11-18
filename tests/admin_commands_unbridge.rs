@@ -23,7 +23,7 @@ use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
 use ruma_events::EventType;
-use ruma_identifiers::{RoomId, UserId};
+use ruma_identifiers::{RoomAliasId, RoomId, UserId};
 use router::Router;
 use serde_json::to_string;
 
@@ -231,7 +231,7 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
     assert!(message_received_by_matrix.contains("@other_user:localhost"));
     assert!(
         message_received_by_matrix
-            .contains("are still using the room. All Matrix users have to leave a room before it can be unbridged.",)
+            .contains("are still using the room. All Matrix users have to leave a room before the room can be unbridged.",)
     );
 }
 
@@ -263,6 +263,14 @@ fn do_not_allow_to_unbridge_a_channel_with_remaining_room_aliases() {
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
 
+    helpers::add_room_alias_id(
+        &test.config,
+        RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
+        RoomAliasId::try_from("#spec_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "user_access_token",
+    );
+
     helpers::leave_room(
         &test.config,
         RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
@@ -289,8 +297,8 @@ fn do_not_allow_to_unbridge_a_channel_with_remaining_room_aliases() {
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains(
-        "Cannot unbdrige room bridged_channel, because there are still aliases \
-         associated with the room."
+        "Cannot unbdrige room bridged_channel, because aliases (#spec_id:localhost) are still associated with the room. \
+         All aliases have to be removed before the room can be unbridged."
     ));
 }
 

@@ -18,8 +18,10 @@ use ruma_client_api::r0::send::send_message_event::{self, Endpoint as SendMessag
 use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint as SendStateEventForEmptyKeyEndpoint};
 use ruma_client_api::r0::sync::sync_events::Endpoint as SyncEventsEndpoint;
 use ruma_client_api::r0::sync::get_member_events::{self, Endpoint as GetMemberEventsEndpoint};
+use ruma_client_api::r0::sync::get_state_events::{self, Endpoint as GetStateEvents};
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKeyEndpoint};
 use ruma_events::EventType;
+use ruma_events::collections::all::Event;
 use ruma_events::room::member::MemberEvent;
 use ruma_events::room::message::MessageType;
 use ruma_identifiers::{EventId, RoomAliasId, RoomId, UserId};
@@ -187,6 +189,38 @@ impl super::MatrixApi for MatrixApi {
         )?;
 
         Ok(Some(get_alias_response.room_id.clone()))
+    }
+
+    fn get_room_aliases(&self, room_id: RoomId, user_id: UserId) -> Result<Vec<RoomAliasId>> {
+        let path_params = get_state_events::PathParams { room_id: room_id };
+        let endpoint = self.base_url.clone() + &GetStateEvents::request_path(path_params);
+        let user_id = user_id.to_string();
+        let mut params = self.params_hash();
+        params.insert("user_id", &user_id);
+
+        let (body, status_code) = RestApi::call_matrix(GetStateEvents::method(), &endpoint, "", &params)?;
+
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        let state_events: Vec<Event> = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(
+                format!("Could not deserialize response from Matrix get_state_events API endpoint: `{}`", body),
+            )
+        })?;
+
+        let mut aliases = Vec::new();
+        for event in state_events {
+            match event {
+                Event::RoomAliases(mut aliases_event) => aliases.append(&mut aliases_event.content.aliases),
+                _ => {
+                    debug!(self.logger, "Noop");
+                }
+            }
+        }
+
+        Ok(aliases)
     }
 
     fn get_room_canonical_alias(&self, room_id: RoomId) -> Result<Option<RoomAliasId>> {

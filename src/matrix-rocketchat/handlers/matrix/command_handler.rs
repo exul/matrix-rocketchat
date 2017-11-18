@@ -2,7 +2,7 @@ use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::message::MessageEvent;
 use ruma_events::room::message::MessageEventContent;
-use ruma_identifiers::UserId;
+use ruma_identifiers::{RoomAliasId, UserId};
 use slog::Logger;
 
 use MAX_ROCKETCHAT_SERVER_ID_LENGTH;
@@ -323,9 +323,19 @@ impl<'a> CommandHandler<'a> {
             );
         }
 
-        let room_alias_id = channel.build_room_alias_id()?;
+        let canonical_alias_id = channel.build_room_alias_id()?;
+        let user_aliases: Vec<RoomAliasId> = room.aliases()?.into_iter().filter(|alias| alias != &canonical_alias_id).collect();
+        if !user_aliases.is_empty() {
+            let user_aliases = user_aliases.iter().map(|a| a.to_string()).collect::<Vec<String>>().join(", ");
+            bail_error!(
+                ErrorKind::RoomAssociatedWithAliases(name.to_string(), user_aliases.clone()),
+                t!(["errors", "room_assocaited_with_aliases"])
+                    .with_vars(vec![("channel_name", name), ("aliases", user_aliases)])
+            );
+        }
+
         self.matrix_api.put_canonical_room_alias(room_id.clone(), None)?;
-        self.matrix_api.delete_room_alias(room_alias_id)?;
+        self.matrix_api.delete_room_alias(canonical_alias_id)?;
 
         //TODO: Should we cleanup all the virtual users here?
         let bot_user_id = self.config.matrix_bot_user_id()?;

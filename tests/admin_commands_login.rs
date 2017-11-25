@@ -19,6 +19,7 @@ use matrix_rocketchat::models::{RocketchatServer, UserOnRocketchatServer};
 use matrix_rocketchat::models::Credentials;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER};
 use reqwest::Method;
+use reqwest::StatusCode;
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -238,7 +239,7 @@ fn wrong_password_when_logging_in_via_rest_api() {
         None,
     ).unwrap();
     assert!(response.contains("Authentication failed!"));
-    assert_eq!(status_code, status::Unauthorized);
+    assert_eq!(status_code, StatusCode::Unauthorized);
 }
 
 #[test]
@@ -328,7 +329,7 @@ fn login_via_rest_api_with_invalid_payload() {
         None,
     ).unwrap();
     assert!(response.contains("Could not process request, the submitted data is not valid"));
-    assert_eq!(status_code, status::UnprocessableEntity);
+    assert_eq!(status_code, StatusCode::UnprocessableEntity);
 }
 
 #[test]
@@ -352,7 +353,7 @@ fn login_via_rest_api_with_a_non_existing_rocketchat_server() {
     ).unwrap();
     let expected_respones = "Rocket.Chat server http://nonexisting.foo not found, it is probably not connected.";
     assert!(response.contains(expected_respones));
-    assert_eq!(status_code, status::NotFound);
+    assert_eq!(status_code, StatusCode::NotFound);
 }
 
 #[test]

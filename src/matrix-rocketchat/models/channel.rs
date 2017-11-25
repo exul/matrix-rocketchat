@@ -52,10 +52,12 @@ impl<'a> Channel<'a> {
         let channel_id = rocketchat_api
             .channels_list()?
             .iter()
-            .filter_map(|channel| if channel.name == Some(name.clone()) {
-                Some(channel.id.clone())
-            } else {
-                None
+            .filter_map(|channel| {
+                if channel.name == Some(name.clone()) {
+                    Some(channel.id.clone())
+                } else {
+                    None
+                }
             })
             .next()
             .unwrap_or_default();

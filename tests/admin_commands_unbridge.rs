@@ -232,6 +232,65 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
 }
 
 #[test]
+fn do_not_allow_to_unbridge_a_channel_with_remaining_room_aliases() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("bridged_channel", "spec_user"))
+        .run();
+
+    // send message to create a virtual user
+    let message = Message {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "bridged_channel_id".to_string(),
+        channel_name: Some("bridged_channel".to_string()),
+        user_id: "new_user_id".to_string(),
+        user_name: "new_user".to_string(),
+        text: "spec_message".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    helpers::leave_room(
+        &test.config,
+        RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "unbridge bridged_channel".to_string(),
+    );
+
+    // discard welcome message for spec user
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message for spec user
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message for spec user
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard bridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard message from virtual user
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains(
+        "Cannot unbdrige room bridged_channel, because there are still aliases \
+         associated with the room."
+    ));
+}
+
+#[test]
 fn attempting_to_unbridge_a_non_existing_channel_returns_an_error() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();

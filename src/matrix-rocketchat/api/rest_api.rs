@@ -43,13 +43,13 @@ impl RestApi {
         params: &HashMap<&str, &'a str>,
         headers: Option<Headers>,
     ) -> Result<(String, StatusCode)> {
-        let client = Client::new().chain_err(|| ErrorKind::ApiCallFailed(url.to_string()))?;
+        let client = Client::new();
         let encoded_url = RestApi::encode_url(url.to_string(), params)?;
 
         let mut req = match method {
             Method::Get => client.get(&encoded_url),
-            Method::Put => client.request(Method::Put, &encoded_url).body(payload),
-            Method::Post => client.post(&encoded_url).body(payload),
+            Method::Put => client.put(&encoded_url),
+            Method::Post => client.post(&encoded_url),
             Method::Delete => client.delete(&encoded_url),
             _ => {
                 return Err(Error::from(ErrorKind::UnsupportedHttpMethod(method.to_string())));
@@ -57,15 +57,17 @@ impl RestApi {
         };
 
         if let Some(headers) = headers {
-            req = req.headers(headers);
+            req.headers(headers);
         }
 
-        let mut resp = req.send().chain_err(|| ErrorKind::ApiCallFailed(url.to_string()))?;
+        req.body(payload.to_owned());
+
+        let mut resp = req.send().chain_err(|| ErrorKind::ApiCallFailed(url.to_owned()))?;
         let mut body = String::new();
 
-        resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed(url.to_string()))?;
+        resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed(url.to_owned()))?;
 
-        Ok((body, *resp.status()))
+        Ok((body, resp.status()))
     }
 
     fn encode_url(base: String, parameters: &HashMap<&str, &str>) -> Result<String> {

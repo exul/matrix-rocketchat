@@ -27,7 +27,9 @@ pub fn join(config: &Config, room_id: RoomId, user_id: UserId) {
 
 pub fn create_room(config: &Config, room_name: &str, sender_id: UserId, user_id: UserId) {
     let matrix_api = MatrixApi::new(&config, DEFAULT_LOGGER.clone()).unwrap();
-    matrix_api.create_room(Some(room_name.to_string()), None, &sender_id).unwrap();
+    matrix_api
+        .create_room(Some(room_name.to_string()), None, &sender_id)
+        .unwrap();
 
     let room_id = RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap();
     invite(&config, room_id, user_id, sender_id);
@@ -185,5 +187,7 @@ pub fn logout_user_from_rocketchat_server_on_bridge(
 ) {
     let mut user_on_rocketchat_server = UserOnRocketchatServer::find(connection, &user_id, rocketchat_server_id).unwrap();
     let rocketchat_user_id = user_on_rocketchat_server.rocketchat_user_id.clone();
-    user_on_rocketchat_server.set_credentials(connection, rocketchat_user_id, None).unwrap();
+    user_on_rocketchat_server
+        .set_credentials(connection, rocketchat_user_id, None)
+        .unwrap();
 }

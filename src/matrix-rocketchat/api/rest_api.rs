@@ -15,41 +15,41 @@ pub struct RestApi {}
 impl RestApi {
     /// Call a matrix REST API endpoint
     pub fn call_matrix<'a>(
-        method: RumaHttpMethod,
+        method: &RumaHttpMethod,
         url: &str,
         payload: &str,
         params: &HashMap<&str, &'a str>,
     ) -> Result<(String, StatusCode)> {
-        let method = match method {
+        let method = match *method {
             RumaHttpMethod::Delete => Method::Delete,
             RumaHttpMethod::Get => Method::Get,
             RumaHttpMethod::Post => Method::Post,
             RumaHttpMethod::Put => Method::Put,
         };
 
-        RestApi::call(method, url, payload, params, None)
+        RestApi::call(&method, url, payload, params, None)
     }
 
     /// Call a Rocket.Chat API endpoint
     pub fn call_rocketchat(endpoint: &Endpoint) -> Result<(String, StatusCode)> {
-        RestApi::call(endpoint.method(), &endpoint.url(), &endpoint.payload()?, &endpoint.query_params(), endpoint.headers())
+        RestApi::call(&endpoint.method(), &endpoint.url(), &endpoint.payload()?, &endpoint.query_params(), endpoint.headers())
     }
 
     /// Call a REST API endpoint
     pub fn call<'a>(
-        method: Method,
+        method: &Method,
         url: &str,
         payload: &str,
         params: &HashMap<&str, &'a str>,
         headers: Option<Headers>,
     ) -> Result<(String, StatusCode)> {
-        let client = Client::new().chain_err(|| ErrorKind::ApiCallFailed(url.to_string()))?;
+        let client = Client::new();
         let encoded_url = RestApi::encode_url(url.to_string(), params)?;
 
-        let mut req = match method {
+        let mut req = match *method {
             Method::Get => client.get(&encoded_url),
-            Method::Put => client.request(Method::Put, &encoded_url).body(payload),
-            Method::Post => client.post(&encoded_url).body(payload),
+            Method::Put => client.put(&encoded_url),
+            Method::Post => client.post(&encoded_url),
             Method::Delete => client.delete(&encoded_url),
             _ => {
                 return Err(Error::from(ErrorKind::UnsupportedHttpMethod(method.to_string())));
@@ -57,15 +57,17 @@ impl RestApi {
         };
 
         if let Some(headers) = headers {
-            req = req.headers(headers);
+            req.headers(headers);
         }
 
-        let mut resp = req.send().chain_err(|| ErrorKind::ApiCallFailed(url.to_string()))?;
+        req.body(payload.to_owned());
+
+        let mut resp = req.send().chain_err(|| ErrorKind::ApiCallFailed(url.to_owned()))?;
         let mut body = String::new();
 
-        resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed(url.to_string()))?;
+        resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed(url.to_owned()))?;
 
-        Ok((body, *resp.status()))
+        Ok((body, resp.status()))
     }
 
     fn encode_url(base: String, parameters: &HashMap<&str, &str>) -> Result<String> {

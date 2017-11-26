@@ -101,7 +101,7 @@ impl RocketchatApi {
         let url = base_url.clone() + "/api/info";
         let params = HashMap::new();
 
-        let (body, status_code) = match RestApi::call(Method::Get, &url, "", &params, None) {
+        let (body, status_code) = match RestApi::call(&Method::Get, &url, "", &params, None) {
             Ok((body, status_code)) => (body, status_code),
             Err(err) => {
                 debug!(logger, "{}", err);

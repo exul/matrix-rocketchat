@@ -580,61 +580,6 @@ fn the_room_is_not_bridged_when_setting_the_canonical_room_alias_failes() {
 }
 
 #[test]
-fn bridge_a_room_after_setting_the_canonical_room_failed() {
-    let test = Test::new();
-    let (message_forwarder, receiver) = MessageForwarder::new();
-    let (put_room_canonical_room_alias_forwarder, put_room_canonical_room_alias_receiver) =
-        handlers::SendRoomState::with_forwarder();
-    let mut matrix_router = test.default_matrix_routes();
-    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.put(
-        "/_matrix/client/r0/rooms/:room_id/state/m.room.canonical_alias",
-        put_room_canonical_room_alias_forwarder,
-        "put_room_canonical_room_alias",
-    );
-    let mut channels = HashMap::new();
-    channels.insert("joined_channel", vec!["spec_user"]);
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
-
-    // create a room with an alias that is used by the bridge, this can happen when attempting to
-    // bridge a channel, but the canonical room alias could not be set. When tried again, the room
-    // with the alias has to be used to bridge the channel.
-    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    matrix_api
-        .create_room(
-            Some("joined_channel".to_string()),
-            Some("rocketchat#rcid#joined_channel_id".to_string()),
-            &UserId::try_from("@rocketchat:localhost").unwrap(),
-        )
-        .unwrap();
-
-    helpers::send_room_message_from_matrix(
-        &test.config.as_url,
-        RoomId::try_from("!admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
-        "bridge joined_channel".to_string(),
-    );
-
-    // discard welcome message
-    receiver.recv_timeout(default_timeout()).unwrap();
-    // discard connect message
-    receiver.recv_timeout(default_timeout()).unwrap();
-    // discard login message
-    receiver.recv_timeout(default_timeout()).unwrap();
-
-    let put_canonical_room_alias_message = put_room_canonical_room_alias_receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(put_canonical_room_alias_message.contains("rocketchat#rcid#joined_channel_id"));
-
-    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("joined_channel is now bridged."))
-}
-
-#[test]
 fn the_user_gets_a_message_when_creating_the_room_failes() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();

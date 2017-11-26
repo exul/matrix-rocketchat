@@ -55,7 +55,7 @@ impl<'a> Server<'a> {
         let mut router = Router::new();
         router.get("/", Welcome {}, "welcome");
         router.put("/transactions/:txn_id", Transactions::chain(self.config.clone(), matrix_api.clone()), "transactions");
-        router.post("/rocketchat", Rocketchat::chain(self.config.clone(), matrix_api.clone()), "rocketchat");
+        router.post("/rocketchat", Rocketchat::chain(self.config, matrix_api.clone()), "rocketchat");
         router.post(
             "/rocketchat/login",
             RocketchatLogin {

@@ -237,7 +237,7 @@ impl<'a> MembershipHandler<'a> {
             log::log_error(self.logger, &err);
         }
 
-        if let Err(err) = self.leave_and_forget_room(matrix_bot_user_id.clone()) {
+        if let Err(err) = self.leave_and_forget_room(matrix_bot_user_id) {
             log::log_error(self.logger, &err);
         }
     }

@@ -23,7 +23,7 @@ use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
 use ruma_events::EventType;
-use ruma_identifiers::{RoomId, UserId};
+use ruma_identifiers::{RoomAliasId, RoomId, UserId};
 use router::Router;
 use serde_json::to_string;
 
@@ -86,11 +86,15 @@ fn successfully_unbridge_a_rocketchat_room() {
     // discard message from virtual user
     receiver.recv_timeout(default_timeout()).unwrap();
 
+    // discard adding the room alias when the room is bridged
+    put_room_canonical_room_alias_receiver.recv_timeout(default_timeout()).unwrap();
+
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("bridged_channel is now unbridged."));
 
-    let canonical_room_alias_message = put_room_canonical_room_alias_receiver.recv_timeout(default_timeout());
-    assert!(canonical_room_alias_message.is_ok());
+    // the alias that was set by the application service is removed
+    let canonical_room_alias_message = put_room_canonical_room_alias_receiver.recv_timeout(default_timeout()).unwrap();
+    assert_eq!(canonical_room_alias_message, "{\"alias\":\"\"}".to_string());
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     let room_id = RoomId::try_from("!bridged_channel_id:localhost").unwrap();
@@ -227,8 +231,75 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
     assert!(message_received_by_matrix.contains("@other_user:localhost"));
     assert!(
         message_received_by_matrix
-            .contains("are still using the room. All Matrix users have to leave a room before it can be unbridged.",)
+            .contains("are still using the room. All Matrix users have to leave a room before the room can be unbridged.",)
     );
+}
+
+#[test]
+fn do_not_allow_to_unbridge_a_channel_with_remaining_room_aliases() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("bridged_channel", "spec_user"))
+        .run();
+
+    // send message to create a virtual user
+    let message = Message {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "bridged_channel_id".to_string(),
+        channel_name: Some("bridged_channel".to_string()),
+        user_id: "new_user_id".to_string(),
+        user_name: "new_user".to_string(),
+        text: "spec_message".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    helpers::add_room_alias_id(
+        &test.config,
+        RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
+        RoomAliasId::try_from("#spec_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "user_access_token",
+    );
+
+    helpers::leave_room(
+        &test.config,
+        RoomId::try_from("!bridged_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "unbridge bridged_channel".to_string(),
+    );
+
+    // discard welcome message for spec user
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message for spec user
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message for spec user
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard bridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard message from virtual user
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains(
+        "Cannot unbdrige room bridged_channel, because aliases (#spec_id:localhost) are still associated with the room. \
+         All aliases have to be removed before the room can be unbridged."
+    ));
 }
 
 #[test]

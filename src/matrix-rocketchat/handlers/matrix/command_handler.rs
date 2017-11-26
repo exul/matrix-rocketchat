@@ -2,7 +2,7 @@ use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::message::MessageEvent;
 use ruma_events::room::message::MessageEventContent;
-use ruma_identifiers::UserId;
+use ruma_identifiers::{RoomAliasId, UserId};
 use slog::Logger;
 
 use MAX_ROCKETCHAT_SERVER_ID_LENGTH;
@@ -105,7 +105,7 @@ impl<'a> CommandHandler<'a> {
                         let rocketchat_id = command.by_ref().next().unwrap_or_default();
                         self.connect_new_rocketchat_server(rocketchat_id, rocketchat_url, token, &event.user_id)?
                     }
-                    None => self.get_existing_rocketchat_server(rocketchat_url.to_string())?,
+                    None => self.get_existing_rocketchat_server(rocketchat_url)?,
                 };
 
                 let new_user_on_rocketchat_server = NewUserOnRocketchatServer {
@@ -274,15 +274,12 @@ impl<'a> CommandHandler<'a> {
             }
             None => channel.bridge(
                 rocketchat_api.as_ref(),
-                Some(channel_name.to_string()),
+                &Some(channel_name.to_string()),
                 &rocketchat_channel.usernames,
                 &bot_user_id,
                 &event.user_id,
             )?,
         };
-
-        let matrix_room_alias_id = channel.build_room_alias_id()?;
-        self.matrix_api.put_canonical_room_alias(room_id.clone(), Some(matrix_room_alias_id))?;
 
         let message = t!(["admin_room", "room_successfully_bridged"]).with_vars(vec![
             ("channel_name", rocketchat_channel.name.clone().unwrap_or_else(|| rocketchat_channel.id.clone())),
@@ -303,13 +300,13 @@ impl<'a> CommandHandler<'a> {
         );
 
         let channel =
-            Channel::from_name(self.config, self.logger, self.matrix_api, name.clone(), &server.id, rocketchat_api.as_ref())?;
+            Channel::from_name(self.config, self.logger, self.matrix_api, &name, &server.id, rocketchat_api.as_ref())?;
         let room_id = match channel.matrix_id()? {
             Some(room_id) => room_id,
             None => {
                 bail_error!(
                     ErrorKind::UnbridgeOfNotBridgedRoom(name.to_string()),
-                    t!(["errors", "unbridge_of_not_bridged_room"]).with_vars(vec![("channel_name", name)])
+                    t!(["errors", "unbridge_of_not_bridged_room"]).with_vars(vec![("channel_name", name.clone())])
                 );
             }
         };
@@ -322,13 +319,23 @@ impl<'a> CommandHandler<'a> {
             let user_ids = user_ids.iter().map(|id| id.to_string()).collect::<Vec<String>>().join(", ");
             bail_error!(
                 ErrorKind::RoomNotEmpty(name.to_string(), user_ids.clone()),
-                t!(["errors", "room_not_empty"]).with_vars(vec![("channel_name", name), ("users", user_ids)])
+                t!(["errors", "room_not_empty"]).with_vars(vec![("channel_name", name.clone()), ("users", user_ids)])
             );
         }
 
-        let room_alias_id = channel.build_room_alias_id()?;
+        let canonical_alias_id = channel.build_room_alias_id()?;
+        let user_aliases: Vec<RoomAliasId> = room.aliases()?.into_iter().filter(|alias| alias != &canonical_alias_id).collect();
+        if !user_aliases.is_empty() {
+            let user_aliases = user_aliases.iter().map(|a| a.to_string()).collect::<Vec<String>>().join(", ");
+            bail_error!(
+                ErrorKind::RoomAssociatedWithAliases(name.to_string(), user_aliases.clone()),
+                t!(["errors", "room_assocaited_with_aliases"])
+                    .with_vars(vec![("channel_name", name.clone()), ("aliases", user_aliases)])
+            );
+        }
+
         self.matrix_api.put_canonical_room_alias(room_id.clone(), None)?;
-        self.matrix_api.delete_room_alias(room_alias_id)?;
+        self.matrix_api.delete_room_alias(canonical_alias_id)?;
 
         //TODO: Should we cleanup all the virtual users here?
         let bot_user_id = self.config.matrix_bot_user_id()?;
@@ -338,8 +345,8 @@ impl<'a> CommandHandler<'a> {
         Ok(info!(self.logger, "Successfully unbridged room {}", name.clone()))
     }
 
-    fn get_existing_rocketchat_server(&self, rocketchat_url: String) -> Result<RocketchatServer> {
-        let server: RocketchatServer = match RocketchatServer::find_by_url(self.connection, &rocketchat_url)? {
+    fn get_existing_rocketchat_server(&self, rocketchat_url: &str) -> Result<RocketchatServer> {
+        let server: RocketchatServer = match RocketchatServer::find_by_url(self.connection, rocketchat_url)? {
             Some(server) => server,
             None => {
                 bail_error!(ErrorKind::RocketchatTokenMissing, t!(["errors", "rocketchat_token_missing"]));

@@ -19,6 +19,7 @@ use matrix_rocketchat::models::{RocketchatServer, UserOnRocketchatServer};
 use matrix_rocketchat::models::Credentials;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER};
 use reqwest::Method;
+use reqwest::StatusCode;
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -188,7 +189,7 @@ fn sucessfully_login_via_rest_api() {
     };
     let payload = to_string(&login_request).unwrap();
     let (response, status_code) = RestApi::call(
-        Method::Post,
+        &Method::Post,
         &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
         &payload,
         &HashMap::new(),
@@ -231,14 +232,14 @@ fn wrong_password_when_logging_in_via_rest_api() {
     };
     let payload = to_string(&login_request).unwrap();
     let (response, status_code) = RestApi::call(
-        Method::Post,
+        &Method::Post,
         &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
         &payload,
         &HashMap::new(),
         None,
     ).unwrap();
     assert!(response.contains("Authentication failed!"));
-    assert_eq!(status_code, status::Unauthorized);
+    assert_eq!(status_code, StatusCode::Unauthorized);
 }
 
 #[test]
@@ -284,7 +285,7 @@ fn login_multiple_times_via_rest_message() {
 
     for _ in 0..2 {
         let (response, status_code) = RestApi::call(
-            Method::Post,
+            &Method::Post,
             &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
             &payload,
             &HashMap::new(),
@@ -321,14 +322,14 @@ fn login_via_rest_api_with_invalid_payload() {
     let test = test.with_rocketchat_mock().with_custom_rocketchat_routes(rocketchat_router).with_connected_admin_room().run();
 
     let (response, status_code) = RestApi::call(
-        Method::Post,
+        &Method::Post,
         &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
         "not json",
         &HashMap::new(),
         None,
     ).unwrap();
     assert!(response.contains("Could not process request, the submitted data is not valid"));
-    assert_eq!(status_code, status::UnprocessableEntity);
+    assert_eq!(status_code, StatusCode::UnprocessableEntity);
 }
 
 #[test]
@@ -344,7 +345,7 @@ fn login_via_rest_api_with_a_non_existing_rocketchat_server() {
     let payload = to_string(&login_request).unwrap();
 
     let (response, status_code) = RestApi::call(
-        Method::Post,
+        &Method::Post,
         &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
         &payload,
         &HashMap::new(),
@@ -352,7 +353,7 @@ fn login_via_rest_api_with_a_non_existing_rocketchat_server() {
     ).unwrap();
     let expected_respones = "Rocket.Chat server http://nonexisting.foo not found, it is probably not connected.";
     assert!(response.contains(expected_respones));
-    assert_eq!(status_code, status::NotFound);
+    assert_eq!(status_code, StatusCode::NotFound);
 }
 
 #[test]

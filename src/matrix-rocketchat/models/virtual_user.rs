@@ -30,11 +30,11 @@ impl<'a> VirtualUser<'a> {
     /// Register a virtual user on the Matrix server and assign it to a Rocket.Chat server.
     pub fn find_or_register(
         &self,
-        rocketchat_server_id: String,
-        rocketchat_user_id: String,
-        rocketchat_user_name: String,
+        rocketchat_server_id: &str,
+        rocketchat_user_id: &str,
+        rocketchat_user_name: &str,
     ) -> Result<UserId> {
-        let user_id = self.build_user_id(&rocketchat_user_id, &rocketchat_server_id)?;
+        let user_id = self.build_user_id(rocketchat_user_id, rocketchat_server_id)?;
 
         debug!(
             self.logger,
@@ -53,8 +53,8 @@ impl<'a> VirtualUser<'a> {
         self.matrix_api.register(user_id.localpart().to_string())?;
         debug!(self.logger, "Successfully registred user {}", &user_id);
 
-        if let Err(err) = self.matrix_api.set_display_name(user_id.clone(), rocketchat_user_name.clone()) {
-            warn!(self.logger, "Setting display name `{}`, for user `{}` failed with {}", &user_id, &rocketchat_user_name, err);
+        if let Err(err) = self.matrix_api.set_display_name(user_id.clone(), rocketchat_user_name.to_string()) {
+            warn!(self.logger, "Setting display name `{}`, for user `{}` failed with {}", &user_id, rocketchat_user_name, err);
         }
 
         Ok(user_id)

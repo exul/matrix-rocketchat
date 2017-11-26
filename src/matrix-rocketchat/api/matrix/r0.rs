@@ -111,10 +111,12 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn forget_room(&self, room_id: RoomId) -> Result<()> {
+    fn forget_room(&self, room_id: RoomId, user_id: UserId) -> Result<()> {
         let path_params = forget_room::PathParams { room_id: room_id };
         let endpoint = self.base_url.clone() + &ForgetRoomEndpoint::request_path(path_params);
-        let params = self.params_hash();
+        let user_id = user_id.to_string();
+        let mut params = self.params_hash();
+        params.insert("user_id", &user_id);
 
         let (body, status_code) = RestApi::call_matrix(&ForgetRoomEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {

@@ -312,15 +312,22 @@ impl<'a> CommandHandler<'a> {
         };
 
         let room = Room::new(self.config, self.logger, self.matrix_api, room_id.clone());
-        let virtual_user_prefix = format!("@{}", self.config.sender_localpart);
-        let user_ids: Vec<UserId> =
-            room.user_ids(None)?.into_iter().filter(|id| !id.to_string().starts_with(&virtual_user_prefix)).collect();
-        if !user_ids.is_empty() {
-            let user_ids = user_ids.iter().map(|id| id.to_string()).collect::<Vec<String>>().join(", ");
-            bail_error!(
-                ErrorKind::RoomNotEmpty(name.to_string(), user_ids.clone()),
-                t!(["errors", "room_not_empty"]).with_vars(vec![("channel_name", name.clone()), ("users", user_ids)])
-            );
+        let user_ids = room.user_ids(None)?;
+        // scope to drop non_virtual_user_ids
+        {
+            let non_virtual_user_ids: Vec<&UserId> =
+                user_ids.iter().filter(|id| !self.config.is_application_service_user(id)).collect();
+            if !non_virtual_user_ids.is_empty() {
+                let non_virtual_user_ids =
+                    non_virtual_user_ids.iter().map(|id| id.to_string()).collect::<Vec<String>>().join(", ");
+                bail_error!(
+                    ErrorKind::RoomNotEmpty(name.to_string(), non_virtual_user_ids.clone()),
+                    t!(["errors", "room_not_empty"]).with_vars(vec![
+                        ("channel_name", name.clone()),
+                        ("users", non_virtual_user_ids),
+                    ])
+                );
+            }
         }
 
         let canonical_alias_id = channel.build_room_alias_id()?;
@@ -337,7 +344,11 @@ impl<'a> CommandHandler<'a> {
         self.matrix_api.put_canonical_room_alias(room_id.clone(), None)?;
         self.matrix_api.delete_room_alias(canonical_alias_id)?;
 
-        //TODO: Should we cleanup all the virtual users here?
+        for user_id in user_ids {
+            debug!(self.logger, "Leaving and forgetting room {} for user {}", room.id, user_id);
+            room.forget(user_id)?;
+        }
+
         let bot_user_id = self.config.matrix_bot_user_id()?;
         let message = t!(["admin_room", "room_successfully_unbridged"]).with_vars(vec![("channel_name", name.clone())]);
         self.matrix_api.send_text_message_event(event.room_id.clone(), bot_user_id, message.l(DEFAULT_LANGUAGE))?;

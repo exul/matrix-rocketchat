@@ -16,7 +16,6 @@ use iron::status;
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH};
-use matrix_rocketchat::models::Room;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
@@ -95,18 +94,6 @@ fn successfully_unbridge_a_rocketchat_room() {
     // the alias that was set by the application service is removed
     let canonical_room_alias_message = put_room_canonical_room_alias_receiver.recv_timeout(default_timeout()).unwrap();
     assert_eq!(canonical_room_alias_message, "{\"alias\":\"\"}".to_string());
-
-    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let room_id = RoomId::try_from("!bridged_channel_id:localhost").unwrap();
-    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
-    let user_ids = room.user_ids(None).unwrap();
-    let rocketchat_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
-    let new_user_id = UserId::try_from("@rocketchat_rcid_new_user_id:localhost").unwrap();
-    let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
-
-    assert!(user_ids.iter().any(|id| id == &rocketchat_user_id));
-    assert!(user_ids.iter().any(|id| id == &new_user_id));
-    assert!(!user_ids.iter().any(|id| id == &spec_user_id));
 }
 
 #[test]

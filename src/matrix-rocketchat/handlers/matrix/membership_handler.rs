@@ -183,7 +183,7 @@ impl<'a> MembershipHandler<'a> {
             let bot_user_id = self.config.matrix_bot_user_id()?;
             let body = t!(["errors", "other_user_joined"]).l(DEFAULT_LANGUAGE);
             self.matrix_api.send_text_message_event(self.room.id.clone(), bot_user_id.clone(), body)?;
-            self.leave_and_forget_room(bot_user_id)?;
+            self.room.forget(bot_user_id)?;
         }
         Ok(())
     }
@@ -191,15 +191,10 @@ impl<'a> MembershipHandler<'a> {
     fn handle_user_leave(&self) -> Result<()> {
         if self.room.is_admin_room()? {
             let bot_user_id = self.config.matrix_bot_user_id()?;
-            return self.leave_and_forget_room(bot_user_id);
+            return self.room.forget(bot_user_id);
         }
 
         Ok(())
-    }
-
-    fn leave_and_forget_room(&self, user_id: UserId) -> Result<()> {
-        self.matrix_api.leave_room(self.room.id.clone(), user_id)?;
-        self.matrix_api.forget_room(self.room.id.clone())
     }
 
     fn is_remote_invite(&self) -> Result<bool> {
@@ -237,7 +232,7 @@ impl<'a> MembershipHandler<'a> {
             log::log_error(self.logger, &err);
         }
 
-        if let Err(err) = self.leave_and_forget_room(matrix_bot_user_id) {
+        if let Err(err) = self.room.forget(matrix_bot_user_id) {
             log::log_error(self.logger, &err);
         }
     }

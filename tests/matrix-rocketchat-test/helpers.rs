@@ -171,13 +171,13 @@ pub fn simulate_message_from_matrix(as_url: &str, payload: &str) -> (String, Sta
     let url = format!("{}/transactions/{}", as_url, "specid");
     let mut params = HashMap::new();
     params.insert("access_token", HS_TOKEN);
-    RestApi::call(Method::Put, &url, payload, &params, None).unwrap()
+    RestApi::call(&Method::Put, &url, payload, &params, None).unwrap()
 }
 
 pub fn simulate_message_from_rocketchat(as_url: &str, payload: &str) -> (String, StatusCode) {
     let url = format!("{}/rocketchat", as_url);
     let params = HashMap::new();
-    RestApi::call(Method::Post, &url, payload, &params, None).unwrap()
+    RestApi::call(&Method::Post, &url, payload, &params, None).unwrap()
 }
 
 pub fn logout_user_from_rocketchat_server_on_bridge(
@@ -206,5 +206,5 @@ pub fn add_room_alias_id(config: &Config, room_id: RoomId, room_alias_id: RoomAl
     body_params.insert("alias".to_string(), json!(room_alias));
     let payload = serde_json::to_string(&body_params).unwrap();
 
-    RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params).unwrap();
+    RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params).unwrap();
 }

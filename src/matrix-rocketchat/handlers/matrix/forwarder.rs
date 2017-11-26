@@ -22,7 +22,7 @@ impl<'a> Forwarder<'a> {
     }
 
     /// Forwards messages to Rocket.Chat
-    pub fn process(&self, event: &MessageEvent, server: RocketchatServer, channel_id: String) -> Result<()> {
+    pub fn process(&self, event: &MessageEvent, server: RocketchatServer, channel_id: &str) -> Result<()> {
         let mut user_on_rocketchat_server =
             match UserOnRocketchatServer::find_by_matrix_user_id(self.connection, &event.user_id, server.id)? {
                 Some(user_on_rocketchat_server) => user_on_rocketchat_server,
@@ -38,7 +38,7 @@ impl<'a> Forwarder<'a> {
                     user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
                     user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
                 );
-                rocketchat_api.post_chat_message(&text_content.body, &channel_id)?;
+                rocketchat_api.post_chat_message(&text_content.body, channel_id)?;
             }
             _ => info!(self.logger, "Forwarding the type {} is not implemented.", event.event_type),
         }

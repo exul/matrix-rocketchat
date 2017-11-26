@@ -15,29 +15,29 @@ pub struct RestApi {}
 impl RestApi {
     /// Call a matrix REST API endpoint
     pub fn call_matrix<'a>(
-        method: RumaHttpMethod,
+        method: &RumaHttpMethod,
         url: &str,
         payload: &str,
         params: &HashMap<&str, &'a str>,
     ) -> Result<(String, StatusCode)> {
-        let method = match method {
+        let method = match *method {
             RumaHttpMethod::Delete => Method::Delete,
             RumaHttpMethod::Get => Method::Get,
             RumaHttpMethod::Post => Method::Post,
             RumaHttpMethod::Put => Method::Put,
         };
 
-        RestApi::call(method, url, payload, params, None)
+        RestApi::call(&method, url, payload, params, None)
     }
 
     /// Call a Rocket.Chat API endpoint
     pub fn call_rocketchat(endpoint: &Endpoint) -> Result<(String, StatusCode)> {
-        RestApi::call(endpoint.method(), &endpoint.url(), &endpoint.payload()?, &endpoint.query_params(), endpoint.headers())
+        RestApi::call(&endpoint.method(), &endpoint.url(), &endpoint.payload()?, &endpoint.query_params(), endpoint.headers())
     }
 
     /// Call a REST API endpoint
     pub fn call<'a>(
-        method: Method,
+        method: &Method,
         url: &str,
         payload: &str,
         params: &HashMap<&str, &'a str>,
@@ -46,7 +46,7 @@ impl RestApi {
         let client = Client::new();
         let encoded_url = RestApi::encode_url(url.to_string(), params)?;
 
-        let mut req = match method {
+        let mut req = match *method {
             Method::Get => client.get(&encoded_url),
             Method::Put => client.put(&encoded_url),
             Method::Post => client.post(&encoded_url),

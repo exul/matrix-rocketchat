@@ -45,7 +45,7 @@ impl<'a> Channel<'a> {
         config: &'a Config,
         logger: &'a Logger,
         matrix_api: &'a MatrixApi,
-        name: String,
+        name: &'a str,
         server_id: &'a str,
         rocketchat_api: &'a RocketchatApi,
     ) -> Result<Channel<'a>> {
@@ -53,7 +53,7 @@ impl<'a> Channel<'a> {
             .channels_list()?
             .iter()
             .filter_map(|channel| {
-                if channel.name == Some(name.clone()) {
+                if channel.name == Some(name.to_string()) {
                     Some(channel.id.clone())
                 } else {
                     None
@@ -71,7 +71,7 @@ impl<'a> Channel<'a> {
     pub fn bridge(
         &self,
         rocketchat_api: &RocketchatApi,
-        name: Option<String>,
+        name: &Option<String>,
         userlist: &[String],
         creator_id: &UserId,
         invited_user_id: &UserId,
@@ -80,13 +80,13 @@ impl<'a> Channel<'a> {
 
         let matrix_room_alias = self.build_room_alias_name();
         let alias = Some(matrix_room_alias);
-        let room_id = Room::create(self.matrix_api, alias, name.clone(), creator_id, invited_user_id)?;
+        let room_id = Room::create(self.matrix_api, alias, name, creator_id, invited_user_id)?;
         let matrix_room_alias_id = self.build_room_alias_id()?;
         let alias_id = Some(matrix_room_alias_id);
         self.matrix_api.put_canonical_room_alias(room_id.clone(), alias_id)?;
 
         let room = Room::new(self.config, self.logger, self.matrix_api, room_id.clone());
-        room.join_all_rocketchat_users(rocketchat_api, userlist, self.server_id.to_owned())?;
+        room.join_all_rocketchat_users(rocketchat_api, userlist, self.server_id)?;
 
         Ok(room_id)
     }

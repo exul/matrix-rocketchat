@@ -20,7 +20,7 @@ pub struct Rocketchat {
 
 impl Rocketchat {
     /// Rocket.Chat endpoint with middleware
-    pub fn chain(config: Config, matrix_api: Box<MatrixApi>) -> Chain {
+    pub fn chain(config: &Config, matrix_api: Box<MatrixApi>) -> Chain {
         let rocketchat = Rocketchat {
             config: config.clone(),
             matrix_api: matrix_api,

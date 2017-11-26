@@ -44,7 +44,7 @@ impl<'a> Room<'a> {
     pub fn create(
         matrix_api: &MatrixApi,
         alias: Option<String>,
-        display_name: Option<String>,
+        display_name: &Option<String>,
         creator_id: &UserId,
         invited_user_id: &UserId,
     ) -> Result<RoomId> {
@@ -243,7 +243,7 @@ impl<'a> Room<'a> {
         &self,
         rocketchat_api: &RocketchatApi,
         usernames: &[String],
-        rocketchat_server_id: String,
+        rocketchat_server_id: &str,
     ) -> Result<()> {
         debug!(self.logger, "Starting to add virtual users to room {}", self.id);
 
@@ -252,8 +252,7 @@ impl<'a> Room<'a> {
         let bot_user_id = self.config.matrix_bot_user_id()?;
         for username in usernames.iter() {
             let rocketchat_user = rocketchat_api.users_info(username)?;
-            let user_id =
-                virtual_user.find_or_register(rocketchat_server_id.clone(), rocketchat_user.id, username.to_string())?;
+            let user_id = virtual_user.find_or_register(rocketchat_server_id, &rocketchat_user.id, username)?;
             self.join_user(user_id, bot_user_id.clone())?;
             thread::sleep(Duration::from_millis(API_QUERY_DELAY))
         }

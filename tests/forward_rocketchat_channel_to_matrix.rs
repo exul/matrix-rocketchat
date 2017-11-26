@@ -350,7 +350,7 @@ fn rocketchat_sends_mal_formatted_json() {
     let url = format!("{}/rocketchat", &test.config.as_url);
 
     let params = HashMap::new();
-    let (_, status_code) = RestApi::call(Method::Post, &url, payload, &params, None).unwrap();
+    let (_, status_code) = RestApi::call(&Method::Post, &url, payload, &params, None).unwrap();
 
     assert_eq!(status_code, StatusCode::UnprocessableEntity)
 }
@@ -558,7 +558,7 @@ fn returns_unauthorized_when_the_rs_token_is_missing() {
     let url = format!("{}/rocketchat", &test.config.as_url);
 
     let params = HashMap::new();
-    let (_, status_code) = RestApi::call(Method::Post, &url, &payload, &params, None).unwrap();
+    let (_, status_code) = RestApi::call(&Method::Post, &url, &payload, &params, None).unwrap();
 
     assert_eq!(status_code, StatusCode::Unauthorized)
 }
@@ -580,7 +580,7 @@ fn returns_forbidden_when_the_rs_token_does_not_match_a_server() {
     let url = format!("{}/rocketchat", &test.config.as_url);
 
     let params = HashMap::new();
-    let (_, status_code) = RestApi::call(Method::Post, &url, &payload, &params, None).unwrap();
+    let (_, status_code) = RestApi::call(&Method::Post, &url, &payload, &params, None).unwrap();
 
     assert_eq!(status_code, StatusCode::Forbidden)
 }

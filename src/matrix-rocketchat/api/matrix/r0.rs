@@ -83,7 +83,7 @@ impl super::MatrixApi for MatrixApi {
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
 
-        let (body, status_code) = RestApi::call_matrix(CreateRoomEndpoint::method(), &endpoint, &payload, &params)?;
+        let (body, status_code) = RestApi::call_matrix(&CreateRoomEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -103,7 +103,7 @@ impl super::MatrixApi for MatrixApi {
         let endpoint = self.base_url.clone() + &format!("/_matrix/client/r0/directory/room/{}", &encoded_room_alias);
         let params = self.params_hash();
 
-        let (body, status_code) = RestApi::call_matrix(DeleteAliasEndpoint::method(), &endpoint, "{}", &params)?;
+        let (body, status_code) = RestApi::call_matrix(&DeleteAliasEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -116,7 +116,7 @@ impl super::MatrixApi for MatrixApi {
         let endpoint = self.base_url.clone() + &ForgetRoomEndpoint::request_path(path_params);
         let params = self.params_hash();
 
-        let (body, status_code) = RestApi::call_matrix(ForgetRoomEndpoint::method(), &endpoint, "{}", &params)?;
+        let (body, status_code) = RestApi::call_matrix(&ForgetRoomEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -129,7 +129,7 @@ impl super::MatrixApi for MatrixApi {
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
 
-        let (body, status_code) = RestApi::call_matrix(SyncEventsEndpoint::method(), &endpoint, "", &params)?;
+        let (body, status_code) = RestApi::call_matrix(&SyncEventsEndpoint::method(), &endpoint, "", &params)?;
 
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
@@ -150,7 +150,7 @@ impl super::MatrixApi for MatrixApi {
         let endpoint = self.base_url.clone() + &GetDisplayNameEndpoint::request_path(path_params);
         let params = self.params_hash();
 
-        let (body, status_code) = RestApi::call_matrix(GetDisplayNameEndpoint::method(), &endpoint, "", &params)?;
+        let (body, status_code) = RestApi::call_matrix(&GetDisplayNameEndpoint::method(), &endpoint, "", &params)?;
         if status_code == StatusCode::NotFound {
             return Ok(None);
         }
@@ -175,7 +175,7 @@ impl super::MatrixApi for MatrixApi {
         let endpoint = self.base_url.clone() + &format!("/_matrix/client/r0/directory/room/{}", &encoded_room_alias);
         let params = self.params_hash();
 
-        let (body, status_code) = RestApi::call_matrix(GetAliasEndpoint::method(), &endpoint, "{}", &params)?;
+        let (body, status_code) = RestApi::call_matrix(&GetAliasEndpoint::method(), &endpoint, "{}", &params)?;
         if status_code == StatusCode::NotFound {
             return Ok(None);
         }
@@ -198,7 +198,7 @@ impl super::MatrixApi for MatrixApi {
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
 
-        let (body, status_code) = RestApi::call_matrix(GetStateEvents::method(), &endpoint, "", &params)?;
+        let (body, status_code) = RestApi::call_matrix(&GetStateEvents::method(), &endpoint, "", &params)?;
 
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
@@ -231,7 +231,7 @@ impl super::MatrixApi for MatrixApi {
         let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
         let params = self.params_hash();
 
-        let (body, status_code) = RestApi::call_matrix(GetStateEventsForEmptyKeyEndpoint::method(), &endpoint, "{}", &params)?;
+        let (body, status_code) = RestApi::call_matrix(&GetStateEventsForEmptyKeyEndpoint::method(), &endpoint, "{}", &params)?;
         if status_code == StatusCode::NotFound {
             return Ok(None);
         }
@@ -263,7 +263,7 @@ impl super::MatrixApi for MatrixApi {
         let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
         let params = self.params_hash();
 
-        let (body, status_code) = RestApi::call_matrix(GetStateEventsForEmptyKeyEndpoint::method(), &endpoint, "{}", &params)?;
+        let (body, status_code) = RestApi::call_matrix(&GetStateEventsForEmptyKeyEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -292,7 +292,7 @@ impl super::MatrixApi for MatrixApi {
             params.insert("user_id", &user_id);
         }
 
-        let (body, status_code) = RestApi::call_matrix(GetMemberEventsEndpoint::method(), &endpoint, "{}", &params)?;
+        let (body, status_code) = RestApi::call_matrix(&GetMemberEventsEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -313,7 +313,7 @@ impl super::MatrixApi for MatrixApi {
         let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
         let params = self.params_hash();
 
-        let (body, status_code) = RestApi::call_matrix(GetStateEventsForEmptyKeyEndpoint::method(), &endpoint, "{}", &params)?;
+        let (body, status_code) = RestApi::call_matrix(&GetStateEventsForEmptyKeyEndpoint::method(), &endpoint, "{}", &params)?;
         if status_code == StatusCode::NotFound {
             return Ok(None);
         }
@@ -344,7 +344,7 @@ impl super::MatrixApi for MatrixApi {
         };
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("invite"))?;
 
-        let (body, status_code) = RestApi::call_matrix(InviteUserEndpoint::method(), &endpoint, &payload, &params)?;
+        let (body, status_code) = RestApi::call_matrix(&InviteUserEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -361,7 +361,7 @@ impl super::MatrixApi for MatrixApi {
         let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
         let params = self.params_hash();
 
-        let (_, status_code) = RestApi::call_matrix(GetStateEventsForEmptyKeyEndpoint::method(), &endpoint, "{}", &params)?;
+        let (_, status_code) = RestApi::call_matrix(&GetStateEventsForEmptyKeyEndpoint::method(), &endpoint, "{}", &params)?;
 
         Ok(status_code != StatusCode::Forbidden)
     }
@@ -375,7 +375,7 @@ impl super::MatrixApi for MatrixApi {
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
 
-        let (body, status_code) = RestApi::call_matrix(JoinRoomByIdEndpoint::method(), &endpoint, "{}", &params)?;
+        let (body, status_code) = RestApi::call_matrix(&JoinRoomByIdEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -392,7 +392,7 @@ impl super::MatrixApi for MatrixApi {
         params.insert("user_id", &user_id);
 
 
-        let (body, status_code) = RestApi::call_matrix(LeaveRoomEndpoint::method(), &endpoint, "{}", &params)?;
+        let (body, status_code) = RestApi::call_matrix(&LeaveRoomEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -416,7 +416,7 @@ impl super::MatrixApi for MatrixApi {
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("canonical room alias"))?;
 
         let (body, status_code) =
-            RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
+            RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -436,7 +436,7 @@ impl super::MatrixApi for MatrixApi {
         };
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("account"))?;
 
-        let (body, status_code) = RestApi::call_matrix(RegisterEndpoint::method(), &endpoint, &payload, &params)?;
+        let (body, status_code) = RestApi::call_matrix(&RegisterEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -462,7 +462,7 @@ impl super::MatrixApi for MatrixApi {
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
 
-        let (body, status_code) = RestApi::call_matrix(SendMessageEventEndpoint::method(), &endpoint, &payload, &params)?;
+        let (body, status_code) = RestApi::call_matrix(&SendMessageEventEndpoint::method(), &endpoint, &payload, &params)?;
 
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
@@ -493,7 +493,7 @@ impl super::MatrixApi for MatrixApi {
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("power levels"))?;
 
         let (body, status_code) =
-            RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
+            RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -513,7 +513,7 @@ impl super::MatrixApi for MatrixApi {
         };
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("set display name"))?;
 
-        let (body, status_code) = RestApi::call_matrix(SetDisplayNameEndpoint::method(), &endpoint, &payload, &params)?;
+        let (body, status_code) = RestApi::call_matrix(&SetDisplayNameEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -532,7 +532,7 @@ impl super::MatrixApi for MatrixApi {
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("room name"))?;
 
         let (body, status_code) =
-            RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
+            RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -551,7 +551,7 @@ impl super::MatrixApi for MatrixApi {
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("room topic"))?;
 
         let (body, status_code) =
-            RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
+            RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }

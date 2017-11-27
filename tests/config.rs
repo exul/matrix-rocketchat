@@ -21,6 +21,10 @@ fn read_config_from_file() {
                         sender_localpart: "rocketchat"
                         database_url: "./database.sqlite3"
                         accept_remote_invites: true
+                        log_level: "info"
+                        log_to_console: true
+                        log_to_file: true
+                        log_file_path: "matrix-rocketchat.log"
                         use_ssl: false"#.replace("  ", ""); // hacky way to remove the whitespaces before the keys
     let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
     let config_path = temp_dir.path().join("test.config");
@@ -37,5 +41,9 @@ fn read_config_from_file() {
     assert_eq!(config.sender_localpart, "rocketchat");
     assert_eq!(config.database_url, "./database.sqlite3");
     assert_eq!(config.accept_remote_invites, true);
+    assert_eq!(config.log_level, "info");
+    assert_eq!(config.log_to_console, true);
+    assert_eq!(config.log_to_file, true);
+    assert_eq!(config.log_file_path, "matrix-rocketchat.log");
     assert_eq!(config.use_ssl, false);
 }

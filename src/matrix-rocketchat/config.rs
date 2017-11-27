@@ -30,6 +30,14 @@ pub struct Config {
     /// If this flag is set to true, the bot user accepts invites from rooms on other homeservers.
     /// Which means that users from other homeservers can use this Rocket.Chat bridge.
     pub accept_remote_invites: bool,
+    /// Logging verbosity, available values: debug, info, warning, error.
+    pub log_level: String,
+    /// Flag that indicates if the application service should output the log to the console
+    pub log_to_console: bool,
+    /// Flag that indicates if the application service should log to a file
+    pub log_to_file: bool,
+    /// Path to the log file (this is only mandatory if logging to a file is enabled)
+    pub log_file_path: String,
     /// Flag to indicate if the application service should use HTTPS
     pub use_ssl: bool,
     /// Path to the SSL certificate (only needed if SSL is used)

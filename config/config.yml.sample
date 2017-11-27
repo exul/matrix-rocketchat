@@ -38,6 +38,8 @@ sender_localpart: "rocketchat"
 # can choose any file path that the user you run the application service has
 # access to. The path can be absolute or relative.
 database_url: "./database.sqlite3"
+# Logging verbosity, available values: debug, info, warning, error.
+log_level: "debug"
 # Flag that indicates if the application service should output the log to the console
 log_to_console: true
 # Flag that indicates if the application service should log to a file

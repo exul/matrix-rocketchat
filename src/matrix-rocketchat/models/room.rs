@@ -267,4 +267,10 @@ impl<'a> Room<'a> {
         let bot_user_id = self.config.matrix_bot_user_id()?;
         self.matrix_api.get_room_aliases(self.id.clone(), bot_user_id)
     }
+
+    /// Forget a room (also leaves the room if the user is still in it)
+    pub fn forget(&self, user_id: UserId) -> Result<()> {
+        self.matrix_api.leave_room(self.id.clone(), user_id.clone())?;
+        self.matrix_api.forget_room(self.id.clone(), user_id)
+    }
 }

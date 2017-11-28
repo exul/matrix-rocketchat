@@ -328,13 +328,6 @@ fn susccessfully_bridge_a_rocketchat_room_that_was_unbridged_before() {
 
     let invite_received_by_matrix = invite_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(invite_received_by_matrix.contains("@spec_user:localhost"));
-
-    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
-    let room_id = RoomId::try_from("!joined_channel_id:localhost").unwrap();
-    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
-    let user_ids = room.user_ids(None).unwrap();
-    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
-    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
 }
 
 #[test]

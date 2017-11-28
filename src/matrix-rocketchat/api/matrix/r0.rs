@@ -212,11 +212,8 @@ impl super::MatrixApi for MatrixApi {
 
         let mut aliases = Vec::new();
         for event in state_events {
-            match event {
-                Event::RoomAliases(mut aliases_event) => aliases.append(&mut aliases_event.content.aliases),
-                _ => {
-                    debug!(self.logger, "Noop");
-                }
+            if let Event::RoomAliases(mut aliases_event) = event {
+                aliases.append(&mut aliases_event.content.aliases);
             }
         }
 

@@ -30,15 +30,8 @@ use serde_json::to_string;
 fn successfully_unbridge_a_rocketchat_room() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let (put_room_canonical_room_alias_forwarder, put_room_canonical_room_alias_receiver) =
-        handlers::SendRoomState::with_forwarder();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.put(
-        "/_matrix/client/r0/rooms/:room_id/state/m.room.canonical_alias",
-        put_room_canonical_room_alias_forwarder,
-        "put_room_canonical_room_alias",
-    );
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -85,15 +78,8 @@ fn successfully_unbridge_a_rocketchat_room() {
     // discard message from virtual user
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    // discard adding the room alias when the room is bridged
-    put_room_canonical_room_alias_receiver.recv_timeout(default_timeout()).unwrap();
-
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("bridged_channel is now unbridged."));
-
-    // the alias that was set by the application service is removed
-    let canonical_room_alias_message = put_room_canonical_room_alias_receiver.recv_timeout(default_timeout()).unwrap();
-    assert_eq!(canonical_room_alias_message, "{\"alias\":\"\"}".to_string());
 }
 
 #[test]

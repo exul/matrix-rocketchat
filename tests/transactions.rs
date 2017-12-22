@@ -75,7 +75,7 @@ fn returns_unauthorized_when_the_hs_access_token_is_missing() {
     let url = test.config.as_url.clone() + "/transactions/txn_id";
     let params = HashMap::new();
 
-    let (_, status) = RestApi::call(&Method::Put, &url, "{}", &params, None).unwrap();
+    let (_, status) = RestApi::call(&Method::Put, &url, "{}".to_string(), &params, None).unwrap();
 
     assert_eq!(status, StatusCode::Unauthorized);
 }
@@ -87,7 +87,7 @@ fn returns_forbidden_when_the_hs_access_token_is_wrong() {
     let mut params = HashMap::new();
     params.insert("access_token", "wrong_token");
 
-    let (_, status) = RestApi::call(&Method::Put, &url, "{}", &params, None).unwrap();
+    let (_, status) = RestApi::call(&Method::Put, &url, "{}".to_string(), &params, None).unwrap();
 
     assert_eq!(status, StatusCode::Forbidden);
 }
@@ -103,7 +103,7 @@ fn returns_ok_when_the_hs_access_token_is_correct() {
     let mut params = HashMap::new();
     params.insert("access_token", HS_TOKEN);
 
-    let (_, status) = RestApi::call(&Method::Put, &url, &payload, &params, None).unwrap();
+    let (_, status) = RestApi::call(&Method::Put, &url, payload, &params, None).unwrap();
 
     assert_eq!(status, StatusCode::Ok);
 }

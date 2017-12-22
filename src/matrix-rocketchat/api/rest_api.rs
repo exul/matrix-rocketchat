@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::io::Read;
 
 use url;
-use reqwest::{Client, Method, StatusCode, Url};
+use reqwest::{Body, Client, Method, Response, StatusCode, Url};
 use reqwest::header::Headers;
 use ruma_client_api::Method as RumaHttpMethod;
 
@@ -14,10 +14,10 @@ pub struct RestApi {}
 
 impl RestApi {
     /// Call a matrix REST API endpoint
-    pub fn call_matrix<'a>(
+    pub fn call_matrix<'a, T: Into<Body>>(
         method: &RumaHttpMethod,
         url: &str,
-        payload: &str,
+        payload: T,
         params: &HashMap<&str, &'a str>,
     ) -> Result<(String, StatusCode)> {
         let method = match *method {
@@ -32,17 +32,42 @@ impl RestApi {
 
     /// Call a Rocket.Chat API endpoint
     pub fn call_rocketchat(endpoint: &Endpoint) -> Result<(String, StatusCode)> {
-        RestApi::call(&endpoint.method(), &endpoint.url(), &endpoint.payload()?, &endpoint.query_params(), endpoint.headers())
+        RestApi::call(&endpoint.method(), &endpoint.url(), endpoint.payload()?, &endpoint.query_params(), endpoint.headers())
+    }
+
+    /// Get a file that was uploaded to Rocket.Chat
+    pub fn get_rocketchat_file(endpoint: &Endpoint) -> Result<Response> {
+        RestApi::call_raw(
+            &endpoint.method(),
+            &endpoint.url(),
+            endpoint.payload()?,
+            &endpoint.query_params(),
+            endpoint.headers(),
+        )
     }
 
     /// Call a REST API endpoint
-    pub fn call<'a>(
+    pub fn call<'a, T: Into<Body>>(
         method: &Method,
         url: &str,
-        payload: &str,
+        payload: T,
         params: &HashMap<&str, &'a str>,
         headers: Option<Headers>,
     ) -> Result<(String, StatusCode)> {
+        let mut resp = RestApi::call_raw(method, url, payload, params, headers)?;
+        let mut body = String::new();
+        resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed(url.to_owned()))?;
+
+        Ok((body, resp.status()))
+    }
+
+    fn call_raw<'a, T: Into<Body>>(
+        method: &Method,
+        url: &str,
+        payload: T,
+        params: &HashMap<&str, &'a str>,
+        headers: Option<Headers>,
+    ) -> Result<Response> {
         let client = Client::new();
         let encoded_url = RestApi::encode_url(url.to_string(), params)?;
 
@@ -60,14 +85,11 @@ impl RestApi {
             req.headers(headers);
         }
 
-        req.body(payload.to_owned());
+        req.body(payload);
 
-        let mut resp = req.send().chain_err(|| ErrorKind::ApiCallFailed(url.to_owned()))?;
-        let mut body = String::new();
+        let resp = req.send().chain_err(|| ErrorKind::ApiCallFailed(url.to_owned()))?;
 
-        resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed(url.to_owned()))?;
-
-        Ok((body, resp.status()))
+        Ok(resp)
     }
 
     fn encode_url(base: String, parameters: &HashMap<&str, &str>) -> Result<String> {

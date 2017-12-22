@@ -13,17 +13,21 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
 use iron::{status, Chain};
 use matrix_rocketchat::api::{MatrixApi, RestApi};
 use matrix_rocketchat::api::rocketchat::Message;
+use matrix_rocketchat::api::rocketchat::v1::{Attachment, Message as RocketchatMessage, UserInfo, GET_CHAT_MESSAGE_PATH};
 use matrix_rocketchat::models::Room;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use reqwest::{Method, StatusCode};
+use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
 use ruma_client_api::r0::membership::invite_user::Endpoint as InviteUserEndpoint;
 use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinRoomByIdEndpoint;
+use ruma_client_api::r0::media::create_content::Endpoint as CreateContentEndpoint;
 use ruma_client_api::r0::profile::set_display_name::Endpoint as SetDisplayNameEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_identifiers::{RoomId, UserId};
@@ -233,6 +237,309 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("spec_message 2"));
+}
+
+#[test]
+fn successfully_forwards_a_image_from_rocketchat_to_matrix_when_the_user_is_not_registered_on_matrix() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let uploaded_files = Arc::new(Mutex::new(Vec::new()));
+    let (create_content_forwarder, create_content_receiver) =
+        handlers::MatrixCreateContentHandler::with_forwarder(Arc::clone(&uploaded_files));
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(CreateContentEndpoint::router_path(), create_content_forwarder, "create_content");
+
+    let attachments = vec![
+        Attachment {
+            description: "Spec image".to_string(),
+            image_size: Some(100),
+            image_type: Some("image/png".to_string()),
+            image_url: Some("/file-upload/image.png".to_string()),
+            title: "Spec titel".to_string(),
+        },
+    ];
+    let rocketchat_message = Arc::new(Mutex::new(Some(RocketchatMessage {
+        id: "spec_id".to_string(),
+        rid: "spec_rid".to_string(),
+        msg: "".to_string(),
+        ts: "2017-12-12 11:11".to_string(),
+        attachments: Some(attachments),
+        u: UserInfo {
+            id: "spec_user_id".to_string(),
+            username: "spec_sender".to_string(),
+            name: "spec sender".to_string(),
+        },
+        mentions: Vec::new(),
+        channels: Vec::new(),
+        updated_at: "2017-12-12 11:11".to_string(),
+    })));
+    let rocketchat_message_responder = handlers::RocketchatMessageResponder {
+        message: rocketchat_message,
+    };
+    let mut rocketchat_router = Router::new();
+    rocketchat_router.get(GET_CHAT_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
+    let mut files = HashMap::new();
+    files.insert("image.png".to_string(), b"image".to_vec());
+    rocketchat_router.get(
+        "/file-upload/:filename",
+        handlers::RocketchatFileResponder {
+            files: files,
+        },
+        "get_file",
+    );
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard room bridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message = Message {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_channel_id".to_string(),
+        channel_name: Some("spec_channel".to_string()),
+        user_id: "new_user_id".to_string(),
+        user_name: "new_spec_user".to_string(),
+        text: "Uploaded an image".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    let file = create_content_receiver.recv_timeout(default_timeout()).unwrap();
+    // this would contain the image data, but for the test this was just a string converted to bytes.
+    assert_eq!(file, "image");
+
+    let message = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message.contains("Spec titel"));
+    let files = uploaded_files.lock().unwrap();
+    let file_id = files.first().unwrap();
+    assert!(message.contains(&format!("mxc://localhost/{}", file_id)));
+}
+
+#[test]
+fn do_not_forward_an_image_message_when_there_are_no_attachments() {
+    let test = Test::new();
+    let uploaded_files = Arc::new(Mutex::new(Vec::new()));
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let (create_content_forwarder, create_content_receiver) =
+        handlers::MatrixCreateContentHandler::with_forwarder(Arc::clone(&uploaded_files));
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(CreateContentEndpoint::router_path(), create_content_forwarder, "create_content");
+
+    let rocketchat_message = Arc::new(Mutex::new(Some(RocketchatMessage {
+        id: "spec_id".to_string(),
+        rid: "spec_rid".to_string(),
+        msg: "".to_string(),
+        ts: "2017-12-12 11:11".to_string(),
+        attachments: None,
+        u: UserInfo {
+            id: "spec_user_id".to_string(),
+            username: "spec_sender".to_string(),
+            name: "spec sender".to_string(),
+        },
+        mentions: Vec::new(),
+        channels: Vec::new(),
+        updated_at: "2017-12-12 11:11".to_string(),
+    })));
+    let rocketchat_message_responder = handlers::RocketchatMessageResponder {
+        message: rocketchat_message,
+    };
+    let mut rocketchat_router = Router::new();
+    rocketchat_router.get(GET_CHAT_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
+    let mut files = HashMap::new();
+    files.insert("image.png".to_string(), b"image".to_vec());
+    rocketchat_router.get(
+        "/file-upload/:filename",
+        handlers::RocketchatFileResponder {
+            files: files,
+        },
+        "get_file",
+    );
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard room bridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message = Message {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_channel_id".to_string(),
+        channel_name: Some("spec_channel".to_string()),
+        user_id: "new_user_id".to_string(),
+        user_name: "new_spec_user".to_string(),
+        text: "Uploaded an image".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    assert!(create_content_receiver.recv_timeout(default_timeout()).is_err());
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
+}
+
+#[test]
+fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_message() {
+    let test = Test::new();
+    let uploaded_files = Arc::new(Mutex::new(Vec::new()));
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let (create_content_forwarder, create_content_receiver) =
+        handlers::MatrixCreateContentHandler::with_forwarder(Arc::clone(&uploaded_files));
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(CreateContentEndpoint::router_path(), create_content_forwarder, "create_content");
+
+    let rocketchat_error_responder = handlers::RocketchatErrorResponder {
+        message: "Could not get image".to_string(),
+        status: status::InternalServerError,
+    };
+    let mut rocketchat_router = Router::new();
+    rocketchat_router.get(GET_CHAT_MESSAGE_PATH, rocketchat_error_responder, "get_chat_message");
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard room bridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message = Message {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_channel_id".to_string(),
+        channel_name: Some("spec_channel".to_string()),
+        user_id: "new_user_id".to_string(),
+        user_name: "new_spec_user".to_string(),
+        text: "Uploaded an image".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    assert!(create_content_receiver.recv_timeout(default_timeout()).is_err());
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
+}
+
+#[test]
+fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_file() {
+    let test = Test::new();
+    let uploaded_files = Arc::new(Mutex::new(Vec::new()));
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let (create_content_forwarder, create_content_receiver) =
+        handlers::MatrixCreateContentHandler::with_forwarder(Arc::clone(&uploaded_files));
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(CreateContentEndpoint::router_path(), create_content_forwarder, "create_content");
+
+    let attachments = vec![
+        Attachment {
+            description: "Spec image".to_string(),
+            image_size: Some(100),
+            image_type: Some("image/png".to_string()),
+            image_url: Some("/file-upload/image.png".to_string()),
+            title: "Spec titel".to_string(),
+        },
+    ];
+    let rocketchat_message = Arc::new(Mutex::new(Some(RocketchatMessage {
+        id: "spec_id".to_string(),
+        rid: "spec_rid".to_string(),
+        msg: "".to_string(),
+        ts: "2017-12-12 11:11".to_string(),
+        attachments: Some(attachments),
+        u: UserInfo {
+            id: "spec_user_id".to_string(),
+            username: "spec_sender".to_string(),
+            name: "spec sender".to_string(),
+        },
+        mentions: Vec::new(),
+        channels: Vec::new(),
+        updated_at: "2017-12-12 11:11".to_string(),
+    })));
+    let rocketchat_message_responder = handlers::RocketchatMessageResponder {
+        message: rocketchat_message,
+    };
+    let mut rocketchat_router = Router::new();
+    rocketchat_router.get(GET_CHAT_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
+    let mut files = HashMap::new();
+    files.insert("image.png".to_string(), b"image".to_vec());
+    rocketchat_router.get(
+        "/file-upload/:filename",
+        handlers::RocketchatErrorResponder {
+            message: "Could not get file".to_string(),
+            status: status::InternalServerError,
+        },
+        "get_file",
+    );
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard room bridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message = Message {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_channel_id".to_string(),
+        channel_name: Some("spec_channel".to_string()),
+        user_id: "new_user_id".to_string(),
+        user_name: "new_spec_user".to_string(),
+        text: "Uploaded an image".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    assert!(create_content_receiver.recv_timeout(default_timeout()).is_err());
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 
 #[test]
@@ -557,7 +864,7 @@ fn returns_unauthorized_when_the_rs_token_is_missing() {
     let url = format!("{}/rocketchat", &test.config.as_url);
 
     let params = HashMap::new();
-    let (_, status_code) = RestApi::call(&Method::Post, &url, &payload, &params, None).unwrap();
+    let (_, status_code) = RestApi::call(&Method::Post, &url, payload, &params, None).unwrap();
 
     assert_eq!(status_code, StatusCode::Unauthorized)
 }
@@ -579,7 +886,7 @@ fn returns_forbidden_when_the_rs_token_does_not_match_a_server() {
     let url = format!("{}/rocketchat", &test.config.as_url);
 
     let params = HashMap::new();
-    let (_, status_code) = RestApi::call(&Method::Post, &url, &payload, &params, None).unwrap();
+    let (_, status_code) = RestApi::call(&Method::Post, &url, payload, &params, None).unwrap();
 
     assert_eq!(status_code, StatusCode::Forbidden)
 }

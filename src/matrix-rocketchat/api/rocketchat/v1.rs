@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::io::Read;
 
 use reqwest::header::{ContentType, Headers};
 use reqwest::{Method, StatusCode};
@@ -6,7 +7,7 @@ use serde_json;
 use slog::Logger;
 
 use api::RestApi;
-use api::rocketchat::{Channel, Endpoint, User};
+use api::rocketchat::{Attachment as RocketchatAttachment, Channel, Endpoint, User};
 use errors::*;
 use i18n::*;
 
@@ -20,13 +21,78 @@ pub const USERS_INFO_PATH: &str = "/api/v1/users.info";
 pub const CHANNELS_LIST_PATH: &str = "/api/v1/channels.list";
 /// Direct messages list endpoint path
 pub const DIRECT_MESSAGES_LIST_PATH: &str = "/api/v1/dm.list";
+/// Get a chat message endpoint path
+pub const GET_CHAT_MESSAGE_PATH: &str = "/api/v1/chat.getMessage";
 /// Post chat message endpoint path
 pub const POST_CHAT_MESSAGE_PATH: &str = "/api/v1/chat.postMessage";
+
+/// A single Message on the Rocket.Chat server.
+#[derive(Deserialize, Debug, Serialize)]
+pub struct Message {
+    /// The unique message identifier
+    #[serde(rename = "_id")]
+    pub id: String,
+    /// The ID of the room the message was sent in.
+    pub rid: String,
+    /// The text content of the message
+    pub msg: String,
+    /// The timestamp when the message was sent
+    pub ts: String,
+    /// A list of attachments that are associated with the message
+    pub attachments: Option<Vec<Attachment>>,
+    /// Information about the user who sent the message
+    pub u: UserInfo,
+    /// A list of mentions
+    pub mentions: Vec<serde_json::Value>,
+    /// A list of channels
+    pub channels: Vec<serde_json::Value>,
+    /// The timestamp when the message was updated the last time
+    #[serde(rename = "_updatedAt")]
+    pub updated_at: String,
+}
+
+/// Metadata for a file that is uploaded to Rocket.Chat
+#[derive(Deserialize, Debug, Serialize)]
+pub struct Attachment {
+    /// An optional title for the file
+    pub title: String,
+    /// An optinal description of the file
+    pub description: String,
+    /// URL to download the image, it's only present when the attachment is an image
+    pub image_url: Option<String>,
+    /// The type of the uploaded file, it's only present when the attachment is an image
+    pub image_type: Option<String>,
+    /// The size of the uploaded image in bytes, it's only present when the attachment is an image
+    pub image_size: Option<i64>,
+}
+
+#[derive(Deserialize, Debug, Serialize)]
+/// Further information about a user.
+pub struct UserInfo {
+    /// The users unique identifier
+    #[serde(rename = "_id")]
+    pub id: String,
+    /// The users username
+    pub username: String,
+    /// The users name
+    pub name: String,
+}
+
+impl Attachment {
+    /// The content the of the attachment
+    pub fn content_type(&self) -> Result<ContentType> {
+        match self.image_type {
+            Some(ref content_type) if content_type == "image/jpeg" => Ok(ContentType::jpeg()),
+            Some(ref content_type) if content_type == "image/png" => Ok(ContentType::png()),
+            _ => bail_error!(ErrorKind::UnknownContentType(self.image_type.clone().unwrap_or_default())),
+        }
+    }
+}
 
 /// V1 get endpoints that require authentication
 pub struct GetWithAuthEndpoint<'a> {
     base_url: String,
-    path: &'static str,
+    path: &'a str,
     user_id: String,
     auth_token: String,
     query_params: HashMap<&'static str, &'a str>,
@@ -50,6 +116,40 @@ impl<'a> Endpoint for GetWithAuthEndpoint<'a> {
         headers.set(ContentType::json());
         headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
         headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
+        Some(headers)
+    }
+
+    fn query_params(&self) -> HashMap<&'static str, &str> {
+        self.query_params.clone()
+    }
+}
+
+/// Get a file that was uploaded to Rocket.Chat and needs authentication to be downloaded
+pub struct GetFileWithAuthEndpoint<'a> {
+    base_url: String,
+    path: &'a str,
+    user_id: String,
+    auth_token: String,
+    query_params: HashMap<&'static str, &'a str>,
+}
+
+impl<'a> Endpoint for GetFileWithAuthEndpoint<'a> {
+    fn method(&self) -> Method {
+        Method::Get
+    }
+
+    fn url(&self) -> String {
+        self.base_url.clone() + self.path
+    }
+
+    fn payload(&self) -> Result<String> {
+        Ok("".to_string())
+    }
+
+    fn headers(&self) -> Option<Headers> {
+        let mut headers = Headers::new();
+        let cookie = "rc_uid=".to_string() + &self.user_id + "; rc_token=" + &self.auth_token;
+        headers.set_raw("Cookie", vec![cookie.into_bytes()]);
         Some(headers)
     }
 
@@ -178,6 +278,13 @@ pub struct UsersInfoResponse {
     pub user: User,
 }
 
+/// Response payload from the Rocket.Chat chat.message endpoint.
+#[derive(Deserialize)]
+pub struct MessageResponse {
+    /// The chat messsage for the requested ID
+    pub message: Message,
+}
+
 #[derive(Clone)]
 /// Rocket.Chat REST API v1
 pub struct RocketchatApi {
@@ -279,6 +386,73 @@ impl super::RocketchatApi for RocketchatApi {
         })?;
 
         Ok(direct_messages_list_response.ims)
+    }
+
+    fn get_attachments(&self, message_id: &str) -> Result<Vec<RocketchatAttachment>> {
+        debug!(self.logger, "Retreiving image URL for message {}", message_id);
+
+        let mut query_params = HashMap::new();
+        query_params.insert("msgId", message_id);
+
+        let message_endpoint = GetWithAuthEndpoint {
+            base_url: self.base_url.clone(),
+            user_id: self.user_id.clone(),
+            auth_token: self.auth_token.clone(),
+            path: GET_CHAT_MESSAGE_PATH,
+            query_params: query_params,
+        };
+
+        let (body, status_code) = RestApi::call_rocketchat(&message_endpoint)?;
+        if !status_code.is_success() {
+            return Err(build_error(&message_endpoint.url(), &body, &status_code));
+        }
+
+        let message_response: MessageResponse = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Rocket.Chat chat message API endpoint: `{}`",
+                body
+            ))
+        })?;
+
+        let mut files = Vec::new();
+
+        if let Some(attachments) = message_response.message.attachments {
+            for attachment in attachments {
+                if let Some(ref image_url) = attachment.image_url {
+                    debug!(self.logger, "Getting file {}", image_url);
+
+                    let mut get_file_endpoint = GetFileWithAuthEndpoint {
+                        base_url: self.base_url.clone(),
+                        user_id: self.user_id.clone(),
+                        auth_token: self.auth_token.clone(),
+                        path: image_url,
+                        query_params: HashMap::new(),
+                    };
+
+                    let mut resp = RestApi::get_rocketchat_file(&get_file_endpoint)?;
+
+                    if !resp.status().is_success() {
+                        let mut body = String::new();
+                        resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed(image_url.to_owned()))?;
+                        return Err(build_error(&get_file_endpoint.url(), &body, &resp.status()));
+                    }
+
+                    let mut buffer = Vec::new();
+                    resp.read_to_end(&mut buffer).chain_err(|| ErrorKind::InternalServerError)?;
+                    let content_type = attachment.content_type()?;
+                    let rocketchat_attachment = RocketchatAttachment {
+                        content_type: content_type,
+                        data: buffer,
+                        title: attachment.title,
+                    };
+                    files.push(rocketchat_attachment);
+                }
+            }
+        }else{
+            info!(self.logger, "No attachments found for message ID {}", message_id);
+        }
+
+        Ok(files)
     }
 
     fn login(&self, username: &str, password: &str) -> Result<(String, String)> {

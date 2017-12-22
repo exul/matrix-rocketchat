@@ -107,7 +107,6 @@ lazy_static! {
     };
 }
 
-
 #[macro_export]
 macro_rules! assert_error_kind {
     ($err:expr, $kind:pat) => (match *$err.error_chain.kind() {
@@ -385,7 +384,11 @@ impl Test {
                 },
                 "me",
             );
-            router.get(USERS_INFO_PATH, handlers::RocketchatUsersInfo {}, "users_info");
+            router.get(
+                USERS_INFO_PATH,
+                handlers::RocketchatUsersInfo {},
+                "users_info",
+            );
         }
 
         let mut channels = match self.channels.clone() {
@@ -451,9 +454,16 @@ impl Test {
         let matrix_api = MatrixApi::new(&self.config, DEFAULT_LOGGER.clone()).unwrap();
         let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
         let rocketchat_user_id = UserId::try_from("@rocketchat:localhost").unwrap();
-        matrix_api.create_room(Some("admin_room".to_string()), None, &spec_user_id).unwrap();
+        matrix_api
+            .create_room(Some("admin_room".to_string()), None, &spec_user_id)
+            .unwrap();
 
-        helpers::invite(&self.config, RoomId::try_from("!admin_room_id:localhost").unwrap(), rocketchat_user_id, spec_user_id);
+        helpers::invite(
+            &self.config,
+            RoomId::try_from("!admin_room_id:localhost").unwrap(),
+            rocketchat_user_id,
+            spec_user_id,
+        );
     }
 
     fn create_connected_admin_room(&self) {
@@ -491,18 +501,30 @@ impl Test {
     pub fn default_matrix_routes(&self) -> Router {
         let mut router = Router::new();
 
-        router.get(SyncEventsEndpoint::router_path(), handlers::MatrixSync {}, "sync");
+        router.get(
+            SyncEventsEndpoint::router_path(),
+            handlers::MatrixSync {},
+            "sync",
+        );
 
         let join_room_handler = handlers::MatrixJoinRoom {
             as_url: self.config.as_url.clone(),
             send_inviter: true,
         };
-        router.post(JoinRoomByIdEndpoint::router_path(), join_room_handler, "join_room");
+        router.post(
+            JoinRoomByIdEndpoint::router_path(),
+            join_room_handler,
+            "join_room",
+        );
 
         let leave_room_handler = handlers::MatrixLeaveRoom {
             as_url: self.config.as_url.clone(),
         };
-        router.post(LeaveRoomEndpoint::router_path(), leave_room_handler, "leave_room");
+        router.post(
+            LeaveRoomEndpoint::router_path(),
+            leave_room_handler,
+            "leave_room",
+        );
 
         router.get(
             "/_matrix/client/versions",
@@ -522,17 +544,37 @@ impl Test {
 
         let mut get_state_events = Chain::new(handlers::MatrixState {});
         get_state_events.link_before(handlers::PermissionCheck {});
-        router.get(GetStateEventsEndpoint::router_path(), get_state_events, "get_state_events");
+        router.get(
+            GetStateEventsEndpoint::router_path(),
+            get_state_events,
+            "get_state_events",
+        );
 
         let mut get_members = Chain::new(handlers::RoomMembers {});
         get_members.link_before(handlers::PermissionCheck {});
-        router.get(GetMemberEventsEndpoint::router_path(), get_members, "room_members");
+        router.get(
+            GetMemberEventsEndpoint::router_path(),
+            get_members,
+            "room_members",
+        );
 
-        router.post(RegisterEndpoint::router_path(), handlers::MatrixRegister {}, "register");
+        router.post(
+            RegisterEndpoint::router_path(),
+            handlers::MatrixRegister {},
+            "register",
+        );
 
-        router.get(GetDisplaynameEndpoint::router_path(), handlers::MatrixGetDisplayName {}, "get_displayname");
+        router.get(
+            GetDisplaynameEndpoint::router_path(),
+            handlers::MatrixGetDisplayName {},
+            "get_displayname",
+        );
 
-        router.put(SetDisplaynameEndpoint::router_path(), handlers::MatrixSetDisplayName {}, "set_displayname");
+        router.put(
+            SetDisplaynameEndpoint::router_path(),
+            handlers::MatrixSetDisplayName {},
+            "set_displayname",
+        );
 
         router.post(
             CreateRoomEndpoint::router_path(),
@@ -545,17 +587,33 @@ impl Test {
         let invite_user_handler = handlers::MatrixInviteUser {
             as_url: self.config.as_url.clone(),
         };
-        router.post(InviteUserEndpoint::router_path(), invite_user_handler, "invite_user");
+        router.post(
+            InviteUserEndpoint::router_path(),
+            invite_user_handler,
+            "invite_user",
+        );
 
         let mut send_room_state = Chain::new(handlers::SendRoomState {});
         send_room_state.link_before(handlers::PermissionCheck {});
-        router.put(SendStateEventForEmptyKeyEndpoint::router_path(), send_room_state, "send_room_state");
+        router.put(
+            SendStateEventForEmptyKeyEndpoint::router_path(),
+            send_room_state,
+            "send_room_state",
+        );
 
         let mut get_room_alias = Chain::new(handlers::GetRoomAlias {});
         get_room_alias.link_before(handlers::PermissionCheck {});
-        router.get(GetAliasEndpoint::router_path(), get_room_alias, "get_room_alias");
+        router.get(
+            GetAliasEndpoint::router_path(),
+            get_room_alias,
+            "get_room_alias",
+        );
 
-        router.delete(DeleteAliasEndpoint::router_path(), handlers::DeleteRoomAlias {}, "delete_room_alias");
+        router.delete(
+            DeleteAliasEndpoint::router_path(),
+            handlers::DeleteRoomAlias {},
+            "delete_room_alias",
+        );
 
         router.post("*", handlers::EmptyJson {}, "default_post");
         router.put("*", handlers::EmptyJson {}, "default_put");

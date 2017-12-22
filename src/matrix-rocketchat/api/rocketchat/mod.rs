@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use iron::typemap::Key;
-use reqwest::header::Headers;
+use reqwest::header::{ContentType, Headers};
 use reqwest::Method;
 use serde_json;
 use slog::Logger;
@@ -27,6 +27,16 @@ pub trait Endpoint {
     fn query_params(&self) -> HashMap<&'static str, &str> {
         HashMap::new()
     }
+}
+
+/// A file that was uploaded to Rocket.Chat
+pub struct Attachment {
+    /// The content type according to RFC7231
+    pub content_type: ContentType,
+    /// The file
+    pub data: Vec<u8>,
+    /// A title that describes the file
+    pub title: String,
 }
 
 /// A Rocket.Chat channel
@@ -78,6 +88,8 @@ pub trait RocketchatApi {
     fn current_username(&self) -> Result<String>;
     /// List of direct messages the user is part of
     fn direct_messages_list(&self) -> Result<Vec<Channel>>;
+    /// Get the url of an image that is attached to a message.
+    fn get_attachments(&self, message_id: &str) -> Result<Vec<Attachment>>;
     /// Login a user on the Rocket.Chat server
     fn login(&self, username: &str, password: &str) -> Result<(String, String)>;
     /// Post a chat message

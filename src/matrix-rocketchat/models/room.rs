@@ -273,4 +273,18 @@ impl<'a> Room<'a> {
         self.matrix_api.leave_room(self.id.clone(), user_id.clone())?;
         self.matrix_api.forget_room(self.id.clone(), user_id)
     }
+
+    /// Return a list of users that are logged in on the Rocket.Chat server.
+    pub fn logged_in_users(
+        &self,
+        connection: &SqliteConnection,
+        rocketchat_server_id: String,
+    ) -> Result<Vec<UserOnRocketchatServer>> {
+        let room_creator = self.matrix_api.get_room_creator(self.id.clone())?;
+        let user_ids = self.user_ids(Some(room_creator))?
+            .into_iter()
+            .filter(|id| !self.config.is_application_service_virtual_user(id))
+            .collect();
+        UserOnRocketchatServer::find_by_matrix_user_ids(connection, user_ids, rocketchat_server_id)
+    }
 }

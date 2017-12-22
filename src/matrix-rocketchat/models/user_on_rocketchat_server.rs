@@ -109,6 +109,23 @@ impl UserOnRocketchatServer {
         Ok(user_on_rocketchat_server.into_iter().next())
     }
 
+    /// Find a list of `UserOnRocketchatServer` by their matrix user Id and the Rocket.Chat server ID.
+    pub fn find_by_matrix_user_ids(
+        connection: &SqliteConnection,
+        matrix_user_ids: Vec<UserId>,
+        rocketchat_server_id: String,
+    ) -> Result<Vec<UserOnRocketchatServer>> {
+        let users_on_rocketchat_server = users_on_rocketchat_servers::table
+            .filter(
+                users_on_rocketchat_servers::matrix_user_id
+                    .eq_any(matrix_user_ids)
+                    .and(users_on_rocketchat_servers::rocketchat_server_id.eq(rocketchat_server_id)),
+            )
+            .load(connection)
+            .chain_err(|| ErrorKind::DBSelectError)?;
+        Ok(users_on_rocketchat_server)
+    }
+
     /// Find a `UserOnRocketchatServer` by his Rocket.Chat user ID. Returns `None`,
     /// if the `UserOnRocketchatServer` is not found.
     pub fn find_by_rocketchat_user_id(

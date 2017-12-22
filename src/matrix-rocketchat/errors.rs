@@ -358,6 +358,11 @@ error_chain!{
             display("Deleting record from the database failed")
         }
 
+        UnknownContentType(content_type: String) {
+            description("The content type of the file is unknown")
+            display("Don't know how to handle content type {}", content_type)
+        }
+
         InternalServerError {
             description("An internal error")
             display("An internal error occurred")

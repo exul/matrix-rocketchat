@@ -29,7 +29,9 @@ pub fn join(config: &Config, room_id: RoomId, user_id: UserId) {
 
 pub fn create_room(config: &Config, room_name: &str, sender_id: UserId, user_id: UserId) {
     let matrix_api = MatrixApi::new(&config, DEFAULT_LOGGER.clone()).unwrap();
-    matrix_api.create_room(Some(room_name.to_string()), None, &sender_id).unwrap();
+    matrix_api
+        .create_room(Some(room_name.to_string()), None, &sender_id)
+        .unwrap();
 
     let room_id = RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap();
     invite(&config, room_id, user_id, sender_id);
@@ -67,7 +69,10 @@ pub fn send_join_event_from_matrix(as_url: &str, room_id: RoomId, user_id: UserI
 
     if let Some(inviter_id) = inviter_id {
         let mut unsigned_content = Map::new();
-        unsigned_content.insert("prev_sender".to_string(), Value::String(inviter_id.to_string()));
+        unsigned_content.insert(
+            "prev_sender".to_string(),
+            Value::String(inviter_id.to_string()),
+        );
         unsigned = Some(Value::Object(unsigned_content))
     }
 
@@ -171,13 +176,13 @@ pub fn simulate_message_from_matrix(as_url: &str, payload: &str) -> (String, Sta
     let url = format!("{}/transactions/{}", as_url, "specid");
     let mut params = HashMap::new();
     params.insert("access_token", HS_TOKEN);
-    RestApi::call(&Method::Put, &url, payload, &params, None).unwrap()
+    RestApi::call(&Method::Put, &url, payload.to_owned(), &params, None).unwrap()
 }
 
 pub fn simulate_message_from_rocketchat(as_url: &str, payload: &str) -> (String, StatusCode) {
     let url = format!("{}/rocketchat", as_url);
     let params = HashMap::new();
-    RestApi::call(&Method::Post, &url, payload, &params, None).unwrap()
+    RestApi::call(&Method::Post, &url, payload.to_owned(), &params, None).unwrap()
 }
 
 pub fn logout_user_from_rocketchat_server_on_bridge(
@@ -187,7 +192,9 @@ pub fn logout_user_from_rocketchat_server_on_bridge(
 ) {
     let mut user_on_rocketchat_server = UserOnRocketchatServer::find(connection, &user_id, rocketchat_server_id).unwrap();
     let rocketchat_user_id = user_on_rocketchat_server.rocketchat_user_id.clone();
-    user_on_rocketchat_server.set_credentials(connection, rocketchat_user_id, None).unwrap();
+    user_on_rocketchat_server
+        .set_credentials(connection, rocketchat_user_id, None)
+        .unwrap();
 }
 
 pub fn add_room_alias_id(config: &Config, room_id: RoomId, room_alias_id: RoomAliasId, user_id: UserId, access_token: &str) {
@@ -206,5 +213,10 @@ pub fn add_room_alias_id(config: &Config, room_id: RoomId, room_alias_id: RoomAl
     body_params.insert("alias".to_string(), json!(room_alias));
     let payload = serde_json::to_string(&body_params).unwrap();
 
-    RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params).unwrap();
+    RestApi::call_matrix(
+        &SendStateEventForEmptyKeyEndpoint::method(),
+        &endpoint,
+        payload,
+        &params,
+    ).unwrap();
 }

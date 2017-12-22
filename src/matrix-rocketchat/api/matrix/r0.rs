@@ -2,10 +2,12 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use pulldown_cmark::{html, Options, Parser};
-use reqwest::StatusCode;
+use reqwest::{Method, StatusCode};
+use reqwest::header::{ContentType, Headers};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::alias::get_alias::{self, Endpoint as GetAliasEndpoint};
 use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
+use ruma_client_api::r0::media::create_content::{self, Endpoint as CreateContentEndpoint};
 use ruma_client_api::r0::account::register::{self, Endpoint as RegisterEndpoint};
 use ruma_client_api::r0::membership::forget_room::{self, Endpoint as ForgetRoomEndpoint};
 use ruma_client_api::r0::membership::invite_user::{self, Endpoint as InviteUserEndpoint};
@@ -83,7 +85,7 @@ impl super::MatrixApi for MatrixApi {
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
 
-        let (body, status_code) = RestApi::call_matrix(&CreateRoomEndpoint::method(), &endpoint, &payload, &params)?;
+        let (body, status_code) = RestApi::call_matrix(&CreateRoomEndpoint::method(), &endpoint, payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -353,7 +355,7 @@ impl super::MatrixApi for MatrixApi {
         };
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("invite"))?;
 
-        let (body, status_code) = RestApi::call_matrix(&InviteUserEndpoint::method(), &endpoint, &payload, &params)?;
+        let (body, status_code) = RestApi::call_matrix(&InviteUserEndpoint::method(), &endpoint, payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -426,7 +428,7 @@ impl super::MatrixApi for MatrixApi {
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("canonical room alias"))?;
 
         let (body, status_code) =
-            RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
+            RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -446,7 +448,7 @@ impl super::MatrixApi for MatrixApi {
         };
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("account"))?;
 
-        let (body, status_code) = RestApi::call_matrix(&RegisterEndpoint::method(), &endpoint, &payload, &params)?;
+        let (body, status_code) = RestApi::call_matrix(&RegisterEndpoint::method(), &endpoint, payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -460,7 +462,7 @@ impl super::MatrixApi for MatrixApi {
         message.insert("formatted_body".to_string(), json!(formatted_body));
         message.insert("msgtype".to_string(), json!(MessageType::Text));
         message.insert("format".to_string(), json!("org.matrix.custom.html"));
-        let payload = serde_json::to_string(&message).chain_err(|| body_params_error!("send message"))?;
+        let payload = serde_json::to_string(&message).chain_err(|| body_params_error!("send text message"))?;
         let txn_id = EventId::new(&self.base_url).chain_err(|| ErrorKind::EventIdGenerationFailed)?;
         let path_params = send_message_event::PathParams {
             room_id: room_id.clone(),
@@ -472,13 +474,40 @@ impl super::MatrixApi for MatrixApi {
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
 
-        let (body, status_code) = RestApi::call_matrix(&SendMessageEventEndpoint::method(), &endpoint, &payload, &params)?;
+        let (body, status_code) = RestApi::call_matrix(&SendMessageEventEndpoint::method(), &endpoint, payload, &params)?;
 
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        debug!(self.logger, "User {} successfully sent a message to room {}", user_id, room_id);
+        debug!(self.logger, "User {} successfully sent a text message to room {}", user_id, room_id);
+        Ok(())
+    }
+
+    fn send_image_message_event(&self, room_id: RoomId, user_id: UserId, body: String, url: String) -> Result<()> {
+        let mut message = Map::new();
+        message.insert("body".to_string(), json!(body));
+        message.insert("msgtype".to_string(), json!(MessageType::Image));
+        message.insert("url".to_string(), json!(url));
+        let payload = serde_json::to_string(&message).chain_err(|| body_params_error!("send image message"))?;
+        let txn_id = EventId::new(&self.base_url).chain_err(|| ErrorKind::EventIdGenerationFailed)?;
+        let path_params = send_message_event::PathParams {
+            room_id: room_id.clone(),
+            event_type: EventType::RoomMessage,
+            txn_id: txn_id.to_string(),
+        };
+        let endpoint = self.base_url.clone() + &SendMessageEventEndpoint::request_path(path_params);
+        let user_id = user_id.to_string();
+        let mut params = self.params_hash();
+        params.insert("user_id", &user_id);
+
+        let (body, status_code) = RestApi::call_matrix(&SendMessageEventEndpoint::method(), &endpoint, payload, &params)?;
+
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        debug!(self.logger, "User {} successfully sent an image message to room {}", user_id, room_id);
         Ok(())
     }
 
@@ -503,7 +532,7 @@ impl super::MatrixApi for MatrixApi {
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("power levels"))?;
 
         let (body, status_code) =
-            RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
+            RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -523,7 +552,7 @@ impl super::MatrixApi for MatrixApi {
         };
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("set display name"))?;
 
-        let (body, status_code) = RestApi::call_matrix(&SetDisplayNameEndpoint::method(), &endpoint, &payload, &params)?;
+        let (body, status_code) = RestApi::call_matrix(&SetDisplayNameEndpoint::method(), &endpoint, payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -542,7 +571,7 @@ impl super::MatrixApi for MatrixApi {
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("room name"))?;
 
         let (body, status_code) =
-            RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
+            RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -561,11 +590,33 @@ impl super::MatrixApi for MatrixApi {
         let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("room topic"))?;
 
         let (body, status_code) =
-            RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, &payload, &params)?;
+            RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, payload, &params)?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
         Ok(())
+    }
+
+    fn upload(&self, data: Vec<u8>, content_type: ContentType) -> Result<String> {
+        let endpoint = self.base_url.clone() + &CreateContentEndpoint::request_path(());
+        let params = self.params_hash();
+        let mut headers = Headers::new();
+        headers.set(content_type);
+
+        let (body, status_code) = RestApi::call(&Method::Post, &endpoint, data, &params, Some(headers))?;
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        //TODO: Read response and return image url
+        let create_content_response: create_content::Response = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Matrix create_content API endpoint: `{}`",
+                body
+            ))
+        })?;
+
+        Ok(create_content_response.content_uri.clone())
     }
 }
 

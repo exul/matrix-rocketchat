@@ -26,7 +26,7 @@ use serde_json::to_string;
 fn successfully_forwards_a_text_message_from_matrix_to_rocketchat() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = test.default_matrix_routes();
+    let mut rocketchat_router = Router::new();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
     let test = test.with_rocketchat_mock()
@@ -52,7 +52,7 @@ fn successfully_forwards_a_text_message_from_matrix_to_rocketchat() {
 fn do_not_forward_messages_from_the_bot_user_to_avoid_loops() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = test.default_matrix_routes();
+    let mut rocketchat_router = Router::new();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
     let test = test.with_rocketchat_mock()
@@ -76,7 +76,7 @@ fn do_not_forward_messages_from_the_bot_user_to_avoid_loops() {
 fn do_not_forward_messages_from_virtual_user_to_avoid_loops() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = test.default_matrix_routes();
+    let mut rocketchat_router = Router::new();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
     let test = test.with_rocketchat_mock()
@@ -113,7 +113,7 @@ fn do_not_forward_messages_from_virtual_user_to_avoid_loops() {
 fn ignore_messages_from_unbridged_rooms() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = test.default_matrix_routes();
+    let mut rocketchat_router = Router::new();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
     let test = test.with_rocketchat_mock()
@@ -177,7 +177,7 @@ fn ignore_messages_from_rooms_with_empty_room_canonical_alias() {
 fn ignore_messages_with_a_message_type_that_is_not_supported() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = test.default_matrix_routes();
+    let mut rocketchat_router = Router::new();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
     let test = test.with_rocketchat_mock()

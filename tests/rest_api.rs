@@ -12,7 +12,7 @@ use reqwest::Method;
 #[test]
 fn rest_api_returns_an_error_when_called_with_an_unkown_http_method() {
     let params = HashMap::new();
-    let api_result = RestApi::call(&Method::Head, "http://localhost", "", &params, None);
+    let api_result = RestApi::call(&Method::Head, "http://localhost", "".to_string(), &params, None);
     let err = api_result.unwrap_err();
     let _method = Method::Head.to_string();
     assert_error_kind!(err, ErrorKind::UnsupportedHttpMethod(ref _method));

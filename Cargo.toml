@@ -13,15 +13,15 @@ clap = "2.26"
 diesel = { version = "0.12", default-features = false, features = ["sqlite"] }
 diesel_codegen = { version = "0.12", default-features = false, features = ["sqlite"] }
 error-chain = "0.11"
-iron = "0.5"
+iron = "0.6"
 lazy_static = "0.2"
 num_cpus = "1.7"
-persistent = "0.3"
+persistent = "0.4"
 pulldown-cmark = "0.1"
 r2d2 = "0.7"
 r2d2-diesel = "0.12"
 reqwest = "0.8"
-router = "0.5"
+router = "0.6"
 ruma-client-api = { git = "https://github.com/exul/ruma-client-api.git" }
 ruma-events = { git = "https://github.com/exul/ruma-events.git" }
 ruma-identifiers = { git = "https://github.com/exul/ruma-identifiers.git", features = ["diesel"] }

@@ -50,7 +50,10 @@ impl UserOnRocketchatServer {
         user_on_rocketchat_server: &NewUserOnRocketchatServer,
     ) -> Result<UserOnRocketchatServer> {
         let users_on_rocketchat_server: Vec<UserOnRocketchatServer> = users_on_rocketchat_servers::table
-            .find((&user_on_rocketchat_server.matrix_user_id, &user_on_rocketchat_server.rocketchat_server_id))
+            .find((
+                &user_on_rocketchat_server.matrix_user_id,
+                &user_on_rocketchat_server.rocketchat_server_id,
+            ))
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
 
@@ -63,13 +66,12 @@ impl UserOnRocketchatServer {
                 )?;
             }
             None => {
-                diesel::insert(user_on_rocketchat_server)
-                    .into(users_on_rocketchat_servers::table)
+                diesel::insert_into(users_on_rocketchat_servers::table)
+                    .values(user_on_rocketchat_server)
                     .execute(connection)
                     .chain_err(|| ErrorKind::DBInsertError)?;
             }
         }
-
 
         UserOnRocketchatServer::find(
             connection,
@@ -149,8 +151,10 @@ impl UserOnRocketchatServer {
 
     /// Update last message sent.
     pub fn set_last_message_sent(&mut self, connection: &SqliteConnection) -> Result<()> {
-        let last_message_sent =
-            SystemTime::now().duration_since(UNIX_EPOCH).chain_err(|| ErrorKind::InternalServerError)?.as_secs() as i64;
+        let last_message_sent = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .chain_err(|| ErrorKind::InternalServerError)?
+            .as_secs() as i64;
         self.last_message_sent = last_message_sent;
         diesel::update(users_on_rocketchat_servers::table.find((&self.matrix_user_id, self.rocketchat_server_id.clone())))
             .set(users_on_rocketchat_servers::last_message_sent.eq(last_message_sent))

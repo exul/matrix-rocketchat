@@ -57,8 +57,8 @@ pub struct Credentials {
 impl RocketchatServer {
     /// Insert a `RocketchatServer`.
     pub fn insert(connection: &SqliteConnection, new_rocketchat_server: &NewRocketchatServer) -> Result<RocketchatServer> {
-        diesel::insert(new_rocketchat_server)
-            .into(rocketchat_servers::table)
+        diesel::insert_into(rocketchat_servers::table)
+            .values(new_rocketchat_server)
             .execute(connection)
             .chain_err(|| ErrorKind::DBInsertError)?;
 

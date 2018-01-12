@@ -63,13 +63,12 @@ impl UserOnRocketchatServer {
                 )?;
             }
             None => {
-                diesel::insert(user_on_rocketchat_server)
-                    .into(users_on_rocketchat_servers::table)
+                diesel::insert_into(users_on_rocketchat_servers::table)
+                    .values(user_on_rocketchat_server)
                     .execute(connection)
                     .chain_err(|| ErrorKind::DBInsertError)?;
             }
         }
-
 
         UserOnRocketchatServer::find(
             connection,

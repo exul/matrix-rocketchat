@@ -2,7 +2,7 @@ use diesel::sqlite::SqliteConnection;
 use iron::{Plugin, Request};
 use iron::typemap::Key;
 use persistent::Write;
-use r2d2::{Config, Pool, PooledConnection};
+use r2d2::{Pool, PooledConnection};
 use r2d2_diesel::ConnectionManager;
 
 use errors::*;
@@ -13,9 +13,8 @@ pub struct ConnectionPool;
 impl ConnectionPool {
     /// Create connection pool for the sqlite database
     pub fn create(database_url: &str) -> Result<Pool<ConnectionManager<SqliteConnection>>> {
-        let config = Config::default();
         let manager = ConnectionManager::<SqliteConnection>::new(database_url);
-        Pool::new(config, manager).chain_err(|| ErrorKind::ConnectionPoolCreationError).map_err(Error::from)
+        Pool::new(manager).chain_err(|| ErrorKind::ConnectionPoolCreationError).map_err(Error::from)
     }
 
     /// Extract a database connection from the pool stored in the request.

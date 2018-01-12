@@ -247,9 +247,9 @@ impl super::RocketchatApi for RocketchatApi {
             return Err(build_error(&me_endpoint.url(), &body, &status_code));
         }
 
-        let me_response: MeResponse = serde_json::from_str(&body).chain_err(
-            || ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat me API endpoint: `{}`", body)),
-        )?;
+        let me_response: MeResponse = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat me API endpoint: `{}`", body))
+        })?;
 
         Ok(me_response.username)
     }
@@ -343,9 +343,10 @@ impl super::RocketchatApi for RocketchatApi {
         }
 
         let users_info_response: UsersInfoResponse = serde_json::from_str(&body).chain_err(|| {
-            ErrorKind::InvalidJSON(
-                format!("Could not deserialize response from Rocket.Chat users.info API endpoint: `{}`", body),
-            )
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Rocket.Chat users.info API endpoint: `{}`",
+                body
+            ))
         })?;
 
         Ok(users_info_response.user)
@@ -361,9 +362,7 @@ impl super::RocketchatApi for RocketchatApi {
 fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
     let json_error_msg = format!(
         "Could not deserialize error from Rocket.Chat API endpoint {} with status code {}: `{}`",
-        endpoint,
-        status_code,
-        body
+        endpoint, status_code, body
     );
     let json_error = ErrorKind::InvalidJSON(json_error_msg);
     let rocketchat_error_resp: RocketchatErrorResponse =

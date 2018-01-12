@@ -107,7 +107,13 @@ fn startup_fails_when_querying_the_api_version_is_not_successful_and_returns_an_
 #[test]
 fn startup_fails_when_the_server_can_query_the_matrix_api_version_but_gets_an_invalid_response() {
     let mut router = Router::new();
-    router.get("/_matrix/client/versions", handlers::InvalidJsonResponse { status: status::Ok }, "get_versions");
+    router.get(
+        "/_matrix/client/versions",
+        handlers::InvalidJsonResponse {
+            status: status::Ok,
+        },
+        "get_versions",
+    );
 
     let server_result = start_servers(router);
 

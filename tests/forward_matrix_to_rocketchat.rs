@@ -210,7 +210,6 @@ fn ignore_messages_with_a_message_type_that_is_not_supported() {
     assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 
-
 #[test]
 fn the_user_gets_a_message_when_forwarding_a_message_failes() {
     let test = Test::new();
@@ -306,7 +305,9 @@ fn the_user_gets_a_message_when_when_getting_the_canonical_room_alias_response_c
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.get(
         "/_matrix/client/r0/rooms/!spec_channel_id:localhost/state/m.room.canonical_alias",
-        handlers::InvalidJsonResponse { status: status::Ok },
+        handlers::InvalidJsonResponse {
+            status: status::Ok,
+        },
         "get_room_canonical_room_alias",
     );
 

@@ -7,6 +7,7 @@ use std::fmt::Error as FmtError;
 use std::result::Result as StdResult;
 
 use diesel::result::Error as DieselError;
+use diesel_migrations::RunMigrationsError;
 use iron::{IronError, Response};
 use iron::modifier::Modifier;
 use iron::status::Status;
@@ -404,6 +405,12 @@ impl From<ErrorKind> for Error {
 
 impl From<DieselError> for Error {
     fn from(error: DieselError) -> Error {
+        simple_error!(format!("{}", error))
+    }
+}
+
+impl From<RunMigrationsError> for Error {
+    fn from(error: RunMigrationsError) -> Error {
         simple_error!(format!("{}", error))
     }
 }

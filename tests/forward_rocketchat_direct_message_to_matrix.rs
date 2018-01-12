@@ -33,7 +33,6 @@ use ruma_client_api::r0::sync::sync_events::Endpoint as SyncEventsEndpoint;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json::to_string;
 
-
 #[test]
 fn successfully_forwards_a_direct_message_to_matrix() {
     let test = Test::new();
@@ -622,7 +621,9 @@ fn no_room_is_created_when_the_direct_message_list_response_cannot_be_deserializ
     let mut rocketchat_router = Router::new();
     rocketchat_router.get(
         DIRECT_MESSAGES_LIST_PATH,
-        handlers::InvalidJsonResponse { status: status::Ok },
+        handlers::InvalidJsonResponse {
+            status: status::Ok,
+        },
         "direct_messages_list",
     );
 
@@ -658,7 +659,13 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_response_cannot_b
     let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
-    matrix_router.get(SyncEventsEndpoint::router_path(), handlers::InvalidJsonResponse { status: status::Ok }, "sync");
+    matrix_router.get(
+        SyncEventsEndpoint::router_path(),
+        handlers::InvalidJsonResponse {
+            status: status::Ok,
+        },
+        "sync",
+    );
 
     let mut rocketchat_router = Router::new();
     let mut direct_messages = HashMap::new();
@@ -722,7 +729,9 @@ fn no_room_is_created_when_getting_the_displayname_respones_cannot_be_deserializ
         user_id: UserId::try_from("@rocketchat_rcid_other_user_id:localhost").unwrap(),
     };
     let get_display_name_path = GetDisplaynameEndpoint::request_path(get_display_name_params);
-    let invalid_json_responder = handlers::InvalidJsonResponse { status: status::Ok };
+    let invalid_json_responder = handlers::InvalidJsonResponse {
+        status: status::Ok,
+    };
     matrix_router.get(get_display_name_path, invalid_json_responder, "get_displayname_invalid_json");
     let mut rocketchat_router = Router::new();
     let mut direct_messages = HashMap::new();

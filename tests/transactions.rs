@@ -96,7 +96,9 @@ fn returns_forbidden_when_the_hs_access_token_is_wrong() {
 fn returns_ok_when_the_hs_access_token_is_correct() {
     let test = Test::new().run();
     let url = test.config.as_url.clone() + "/transactions/txn_id";
-    let events = Events { events: Vec::new() };
+    let events = Events {
+        events: Vec::new(),
+    };
     let payload = serde_json::to_string(&events).unwrap();
     let mut params = HashMap::new();
     params.insert("access_token", HS_TOKEN);

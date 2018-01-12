@@ -18,7 +18,6 @@ use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint a
 use ruma_events::EventType;
 use ruma_identifiers::{RoomId, UserId};
 
-
 #[test]
 fn help_command_when_not_connected_and_no_one_else_has_connected_a_server_yet() {
     let test = Test::new();

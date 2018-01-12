@@ -28,7 +28,9 @@ impl Transactions {
             matrix_api: matrix_api,
         };
         let mut chain = Chain::new(transactions);
-        chain.link_before(AccessToken { config: config });
+        chain.link_before(AccessToken {
+            config: config,
+        });
 
         chain
     }

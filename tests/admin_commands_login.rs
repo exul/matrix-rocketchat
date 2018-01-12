@@ -291,11 +291,9 @@ fn login_multiple_times_via_rest_message() {
             &HashMap::new(),
             None,
         ).unwrap();
-        assert!(
-            response.contains(
-                "You are logged in. Return to your Matrix client and enter help in the admin room for more instructions.",
-            )
-        );
+        assert!(response.contains(
+            "You are logged in. Return to your Matrix client and enter help in the admin room for more instructions.",
+        ));
         assert!(status_code.is_success());
     }
 }
@@ -467,7 +465,13 @@ fn the_user_gets_a_message_when_the_login_response_cannot_be_deserialized() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(LOGIN_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "login");
+    rocketchat_router.post(
+        LOGIN_PATH,
+        handlers::InvalidJsonResponse {
+            status: status::Ok,
+        },
+        "login",
+    );
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)

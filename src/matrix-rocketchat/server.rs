@@ -1,7 +1,5 @@
 use diesel::Connection;
-use diesel::migrations::setup_database;
 use diesel::sqlite::SqliteConnection;
-use embedded_migrations::run as run_embedded_migrations;
 use iron::{Chain, Iron, Listening};
 use persistent::{State, Write};
 use router::Router;
@@ -13,6 +11,8 @@ use errors::*;
 use handlers::iron::{Rocketchat, RocketchatLogin, Transactions, Welcome};
 use log::IronLogger;
 use models::ConnectionPool;
+
+embed_migrations!("migrations");
 
 /// The application service server
 pub struct Server<'a> {
@@ -70,8 +70,7 @@ impl<'a> Server<'a> {
     fn prepare_database(&self) -> Result<()> {
         debug!(self.logger, "Setting up database {}", self.config.database_url);
         let connection = SqliteConnection::establish(&self.config.database_url).chain_err(|| ErrorKind::DBConnectionError)?;
-        setup_database(&connection).chain_err(|| ErrorKind::DatabaseSetupError)?;
-        run_embedded_migrations(&connection).chain_err(|| ErrorKind::MigrationError).map_err(Error::from)
+        embedded_migrations::run(&connection).map_err(Error::from)
     }
 
     fn setup_bot_user(&self, matrix_api: &MatrixApi) -> Result<()> {

@@ -85,8 +85,7 @@ impl<'a> MembershipHandler<'a> {
             _ => {
                 let msg = format!(
                     "Skipping event, don't know how to handle membership state `{}` with state key `{}`",
-                    event.content.membership,
-                    event.state_key
+                    event.content.membership, event.state_key
                 );
                 debug!(self.logger, "{}", msg);
             }

@@ -132,7 +132,6 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
         "me",
     );
 
-
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)

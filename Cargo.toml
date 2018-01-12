@@ -9,14 +9,13 @@ name = "matrix_rocketchat"
 path = "src/matrix-rocketchat/lib.rs"
 
 [dependencies]
-clap = "2.26"
+clap = "2.2"
 diesel = { version = "1.0", default-features = false, features = ["sqlite"] }
-diesel_codegen = { version = "0.16", default-features = false, features = ["sqlite"] }
 diesel_migrations = { version = "1.0", default-features = false, features = ["sqlite"] }
 error-chain = "0.11"
 iron = "0.6"
-lazy_static = "0.2"
-num_cpus = "1.7"
+lazy_static = "1.0"
+num_cpus = "1.8"
 persistent = "0.4"
 pulldown-cmark = "0.1"
 r2d2 = "0.8"
@@ -30,13 +29,13 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 serde_yaml = "0.7"
-slog = "2.0"
-slog-async = "2.1"
-slog-json = "2.0"
-slog-term = "2.2"
+slog = "2.1"
+slog-async = "2.2"
+slog-json = "2.2"
+slog-term = "2.3"
 slog-stream = "1.2"
-url = "1.5"
-yaml-rust = "0.3"
+url = "1.6"
+yaml-rust = "0.4"
 
 [dev-dependencies]
 matrix_rocketchat_test = { path = "tests/matrix-rocketchat-test" }

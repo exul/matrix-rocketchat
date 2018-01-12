@@ -19,7 +19,6 @@ use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_identifiers::{RoomId, UserId};
 
-
 #[test]
 fn sucessfully_list_rocketchat_rooms() {
     let test = Test::new();
@@ -136,7 +135,13 @@ fn the_user_gets_a_message_when_the_room_list_cannot_be_deserialized() {
         },
         "me",
     );
-    rocketchat_router.get(CHANNELS_LIST_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "channels_list");
+    rocketchat_router.get(
+        CHANNELS_LIST_PATH,
+        handlers::InvalidJsonResponse {
+            status: status::Ok,
+        },
+        "channels_list",
+    );
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
@@ -258,7 +263,13 @@ fn the_user_gets_a_message_when_the_me_response_cannot_be_deserialized() {
         },
         "login",
     );
-    rocketchat_router.get(ME_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "me");
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::InvalidJsonResponse {
+            status: status::Ok,
+        },
+        "me",
+    );
 
     let mut channels = HashMap::new();
     channels.insert("spec_channel", Vec::new());

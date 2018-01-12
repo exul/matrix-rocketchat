@@ -112,7 +112,9 @@ impl super::MatrixApi for MatrixApi {
     }
 
     fn forget_room(&self, room_id: RoomId, user_id: UserId) -> Result<()> {
-        let path_params = forget_room::PathParams { room_id: room_id };
+        let path_params = forget_room::PathParams {
+            room_id: room_id,
+        };
         let endpoint = self.base_url.clone() + &ForgetRoomEndpoint::request_path(path_params);
         let user_id = user_id.to_string();
         let mut params = self.params_hash();
@@ -148,7 +150,9 @@ impl super::MatrixApi for MatrixApi {
     }
 
     fn get_display_name(&self, user_id: UserId) -> Result<Option<String>> {
-        let path_params = get_display_name::PathParams { user_id: user_id };
+        let path_params = get_display_name::PathParams {
+            user_id: user_id,
+        };
         let endpoint = self.base_url.clone() + &GetDisplayNameEndpoint::request_path(path_params);
         let params = self.params_hash();
 
@@ -162,9 +166,10 @@ impl super::MatrixApi for MatrixApi {
         }
 
         let get_display_name_response: get_display_name::Response = serde_json::from_str(&body).chain_err(|| {
-            ErrorKind::InvalidJSON(
-                format!("Could not deserialize response from Matrix get_display_name API endpoint: `{}`", body),
-            )
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Matrix get_display_name API endpoint: `{}`",
+                body
+            ))
         })?;
 
         Ok(Some(get_display_name_response.displayname.unwrap_or_default()))
@@ -186,15 +191,17 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        let get_alias_response: get_alias::Response = serde_json::from_str(&body).chain_err(
-            || ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix get_alias API endpoint: `{}`", body)),
-        )?;
+        let get_alias_response: get_alias::Response = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix get_alias API endpoint: `{}`", body))
+        })?;
 
         Ok(Some(get_alias_response.room_id.clone()))
     }
 
     fn get_room_aliases(&self, room_id: RoomId, user_id: UserId) -> Result<Vec<RoomAliasId>> {
-        let path_params = get_state_events::PathParams { room_id: room_id };
+        let path_params = get_state_events::PathParams {
+            room_id: room_id,
+        };
         let endpoint = self.base_url.clone() + &GetStateEvents::request_path(path_params);
         let user_id = user_id.to_string();
         let mut params = self.params_hash();
@@ -207,9 +214,10 @@ impl super::MatrixApi for MatrixApi {
         }
 
         let state_events: Vec<Event> = serde_json::from_str(&body).chain_err(|| {
-            ErrorKind::InvalidJSON(
-                format!("Could not deserialize response from Matrix get_state_events API endpoint: `{}`", body),
-            )
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Matrix get_state_events API endpoint: `{}`",
+                body
+            ))
         })?;
 
         let mut aliases = Vec::new();
@@ -240,9 +248,10 @@ impl super::MatrixApi for MatrixApi {
         }
 
         let room_canonical_alias_response: Value = serde_json::from_str(&body).chain_err(|| {
-            ErrorKind::InvalidJSON(
-                format!("Could not deserialize response from Matrix get_state_events_for_empty_key API endpoint: `{}`", body),
-            )
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Matrix get_state_events_for_empty_key API endpoint: `{}`",
+                body
+            ))
         })?;
 
         let alias = room_canonical_alias_response["alias"].to_string().replace("\"", "");
@@ -268,16 +277,16 @@ impl super::MatrixApi for MatrixApi {
         }
 
         let room_create: Value = serde_json::from_str(&body).chain_err(|| {
-            ErrorKind::InvalidJSON(
-                format!("Could not deserialize response from Matrix get_state_events_for_empty_key API endpoint: `{}`", body),
-            )
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Matrix get_state_events_for_empty_key API endpoint: `{}`",
+                body
+            ))
         })?;
 
         let room_creator = room_create["creator"].to_string().replace("\"", "");
         let user_id = UserId::try_from(&room_creator).chain_err(|| ErrorKind::InvalidUserId(room_creator))?;
         Ok(user_id)
     }
-
 
     fn get_room_members(&self, room_id: RoomId, sender_id: Option<UserId>) -> Result<Vec<MemberEvent>> {
         let path_params = get_member_events::PathParams {
@@ -298,9 +307,9 @@ impl super::MatrixApi for MatrixApi {
 
         debug!(self.logger, "List of room members for room {} successfully received", room_id);
 
-        let room_member_events: get_member_events::Response = serde_json::from_str(&body).chain_err(
-            || ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix members API endpoint: `{}`", body)),
-        )?;
+        let room_member_events: get_member_events::Response = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix members API endpoint: `{}`", body))
+        })?;
         Ok(room_member_events.chunk)
     }
 
@@ -322,9 +331,10 @@ impl super::MatrixApi for MatrixApi {
         }
 
         let room_topic_response: Value = serde_json::from_str(&body).chain_err(|| {
-            ErrorKind::InvalidJSON(
-                format!("Could not deserialize response from Matrix get_state_events_for_empty_key API endpoint: `{}`", body),
-            )
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Matrix get_state_events_for_empty_key API endpoint: `{}`",
+                body
+            ))
         })?;
 
         Ok(Some(room_topic_response["topic"].to_string().replace("\"", "")))
@@ -384,12 +394,13 @@ impl super::MatrixApi for MatrixApi {
     }
 
     fn leave_room(&self, room_id: RoomId, user_id: UserId) -> Result<()> {
-        let path_params = leave_room::PathParams { room_id: room_id };
+        let path_params = leave_room::PathParams {
+            room_id: room_id,
+        };
         let endpoint = self.base_url.clone() + &LeaveRoomEndpoint::request_path(path_params);
         let user_id = user_id.to_string();
         let mut params = self.params_hash();
         params.insert("user_id", &user_id);
-
 
         let (body, status_code) = RestApi::call_matrix(&LeaveRoomEndpoint::method(), &endpoint, "{}", &params)?;
         if !status_code.is_success() {
@@ -561,9 +572,7 @@ impl super::MatrixApi for MatrixApi {
 fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
     let json_error_msg = format!(
         "Could not deserialize error from Matrix API endpoint {} with status code {}: `{}`",
-        endpoint,
-        status_code,
-        body
+        endpoint, status_code, body
     );
     let json_error = ErrorKind::InvalidJSON(json_error_msg);
     let matrix_error_resp: MatrixErrorResponse = match serde_json::from_str(body).chain_err(|| json_error).map_err(Error::from)

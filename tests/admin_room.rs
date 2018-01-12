@@ -209,7 +209,9 @@ fn the_bot_user_leaves_the_admin_room_when_the_room_members_cannot_be_deserializ
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.get(
         GetMemberEventsEndpoint::router_path(),
-        handlers::InvalidJsonResponse { status: status::Ok },
+        handlers::InvalidJsonResponse {
+            status: status::Ok,
+        },
         "get_member",
     );
     let admin_room_creator_handler = handlers::RoomStateCreate {
@@ -325,7 +327,9 @@ fn the_bot_user_does_not_leave_the_admin_room_just_because_the_get_topic_respons
     };
     matrix_router.get(
         GetStateEventsForEmptyKey::request_path(room_topic_params),
-        handlers::InvalidJsonResponse { status: status::Ok },
+        handlers::InvalidJsonResponse {
+            status: status::Ok,
+        },
         "get_room_topic",
     );
     let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
@@ -570,12 +574,12 @@ fn ignore_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
         },
         "get_state_events_for_empty_key",
     );
-    let user_ids = vec![
-        (UserId::try_from("@spec_user:other-homeserver.com").unwrap(), MembershipState::Join),
-    ];
+    let user_ids = vec![(UserId::try_from("@spec_user:other-homeserver.com").unwrap(), MembershipState::Join)];
     matrix_router.get(
         GetMemberEventsEndpoint::router_path(),
-        handlers::StaticRoomMembers { user_ids: user_ids },
+        handlers::StaticRoomMembers {
+            user_ids: user_ids,
+        },
         "room_members",
     );
     let test = test.with_matrix_routes(matrix_router).run();
@@ -635,7 +639,9 @@ fn accept_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
     ];
     matrix_router.get(
         GetMemberEventsEndpoint::router_path(),
-        handlers::StaticRoomMembers { user_ids: user_ids },
+        handlers::StaticRoomMembers {
+            user_ids: user_ids,
+        },
         "room_members",
     );
 
@@ -740,7 +746,9 @@ fn the_user_does_get_a_message_when_getting_the_room_creator_cannot_be_deseriali
     };
     matrix_router.get(
         GetStateEventsForEmptyKey::request_path(room_creator_params),
-        handlers::InvalidJsonResponse { status: status::Ok },
+        handlers::InvalidJsonResponse {
+            status: status::Ok,
+        },
         "get_state_events_for_empty_key_with_invalid_json",
     );
     let (leave_room, leave_receiver) = handlers::MatrixLeaveRoom::with_forwarder(test.config.as_url.clone());

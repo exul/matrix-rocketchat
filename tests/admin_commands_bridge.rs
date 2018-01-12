@@ -884,7 +884,13 @@ fn the_user_gets_a_message_when_the_users_info_response_cannot_be_deserialized()
         },
         "me",
     );
-    rocketchat_router.get(USERS_INFO_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "users_info");
+    rocketchat_router.get(
+        USERS_INFO_PATH,
+        handlers::InvalidJsonResponse {
+            status: status::Ok,
+        },
+        "users_info",
+    );
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -924,7 +930,13 @@ fn the_user_gets_a_message_when_getting_the_room_alias_response_cannot_be_deseri
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.get(GetAliasEndpoint::router_path(), handlers::InvalidJsonResponse { status: status::Ok }, "get_room_alias");
+    matrix_router.get(
+        GetAliasEndpoint::router_path(),
+        handlers::InvalidJsonResponse {
+            status: status::Ok,
+        },
+        "get_room_alias",
+    );
     let mut channels = HashMap::new();
     channels.insert("joined_channel", vec!["spec_user"]);
     let test = test.with_matrix_routes(matrix_router)

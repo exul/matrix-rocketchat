@@ -61,7 +61,13 @@ fn attempt_to_connect_to_an_incompatible_rocketchat_server_version() {
 
     thread::spawn(move || {
         let mut rocketchat_router = Router::new();
-        rocketchat_router.get("/api/info", handlers::RocketchatInfo { version: "0.1.0" }, "info");
+        rocketchat_router.get(
+            "/api/info",
+            handlers::RocketchatInfo {
+                version: "0.1.0",
+            },
+            "info",
+        );
         let mut server = Iron::new(rocketchat_router);
         server.threads = IRON_THREADS;
         let listening = server.http(&socket_addr).unwrap();
@@ -150,7 +156,13 @@ fn attempt_to_connect_to_a_server_with_the_correct_endpoint_but_an_incompatible_
 
     thread::spawn(move || {
         let mut rocketchat_router = Router::new();
-        rocketchat_router.get("/api/info", handlers::InvalidJsonResponse { status: status::Ok }, "info");
+        rocketchat_router.get(
+            "/api/info",
+            handlers::InvalidJsonResponse {
+                status: status::Ok,
+            },
+            "info",
+        );
         let mut server = Iron::new(rocketchat_router);
         server.threads = IRON_THREADS;
         let listening = server.http(&socket_addr).unwrap();
@@ -436,7 +448,6 @@ fn attempt_to_connect_to_an_existing_server_with_a_token() {
         UserId::try_from("@other_user:localhost").unwrap(),
     );
 
-
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
         RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
@@ -475,7 +486,13 @@ fn attempt_to_connect_an_already_connected_room() {
 
     thread::spawn(move || {
         let mut rocketchat_router = Router::new();
-        rocketchat_router.get("/api/info", handlers::RocketchatInfo { version: "0.49.0" }, "info");
+        rocketchat_router.get(
+            "/api/info",
+            handlers::RocketchatInfo {
+                version: "0.49.0",
+            },
+            "info",
+        );
         let mut server = Iron::new(rocketchat_router);
         server.threads = IRON_THREADS;
         let listening = server.http(&socket_addr).unwrap();

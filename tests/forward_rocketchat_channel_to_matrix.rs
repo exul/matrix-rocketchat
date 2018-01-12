@@ -373,7 +373,6 @@ fn no_message_is_forwarded_when_inviting_the_user_failes() {
     invite_with_error.link_before(conditional_error);
     matrix_router.post(InviteUserEndpoint::router_path(), invite_with_error, "invite_user_spec_channel");
 
-
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()

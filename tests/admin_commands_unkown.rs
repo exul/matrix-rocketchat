@@ -12,7 +12,6 @@ use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_identifiers::{RoomId, UserId};
 
-
 #[test]
 fn unknown_commands_from_the_admin_room_are_ignored() {
     let test = Test::new();

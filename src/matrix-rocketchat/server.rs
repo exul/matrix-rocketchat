@@ -47,26 +47,15 @@ impl<'a> Server<'a> {
         info!(self.logger, "Starting server"; "address" => format!("{:?}", self.config.as_address));
         let mut server = Iron::new(chain);
         server.threads = threads;
-        server
-            .http(self.config.as_address)
-            .chain_err(|| ErrorKind::ServerStartupError)
-            .map_err(Error::from)
+        server.http(self.config.as_address).chain_err(|| ErrorKind::ServerStartupError).map_err(Error::from)
     }
 
     fn setup_routes(&self, matrix_api: Box<MatrixApi>) -> Router {
         debug!(self.logger, "Setting up routes");
         let mut router = Router::new();
         router.get("/", Welcome {}, "welcome");
-        router.put(
-            "/transactions/:txn_id",
-            Transactions::chain(self.config.clone(), matrix_api.clone()),
-            "transactions",
-        );
-        router.post(
-            "/rocketchat",
-            Rocketchat::chain(self.config, matrix_api.clone()),
-            "rocketchat",
-        );
+        router.put("/transactions/:txn_id", Transactions::chain(self.config.clone(), matrix_api.clone()), "transactions");
+        router.post("/rocketchat", Rocketchat::chain(self.config, matrix_api.clone()), "rocketchat");
         router.post(
             "/rocketchat/login",
             RocketchatLogin {
@@ -79,10 +68,7 @@ impl<'a> Server<'a> {
     }
 
     fn prepare_database(&self) -> Result<()> {
-        debug!(
-            self.logger,
-            "Setting up database {}", self.config.database_url
-        );
+        debug!(self.logger, "Setting up database {}", self.config.database_url);
         let connection = SqliteConnection::establish(&self.config.database_url).chain_err(|| ErrorKind::DBConnectionError)?;
         embedded_migrations::run(&connection).map_err(Error::from)
     }
@@ -90,26 +76,14 @@ impl<'a> Server<'a> {
     fn setup_bot_user(&self, matrix_api: &MatrixApi) -> Result<()> {
         let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
         debug!(self.logger, "Setting up bot user {}", matrix_bot_user_id);
-        if matrix_api
-            .get_display_name(matrix_bot_user_id.clone())?
-            .is_some()
-        {
-            debug!(
-                self.logger,
-                "Bot user {} exists, skipping", matrix_bot_user_id
-            );
+        if matrix_api.get_display_name(matrix_bot_user_id.clone())?.is_some() {
+            debug!(self.logger, "Bot user {} exists, skipping", matrix_bot_user_id);
             return Ok(());
         }
 
-        debug!(
-            self.logger,
-            "Bot user {} doesn't exists, starting registration", matrix_bot_user_id
-        );
+        debug!(self.logger, "Bot user {} doesn't exists, starting registration", matrix_bot_user_id);
         matrix_api.register(self.config.sender_localpart.clone())?;
-        info!(
-            self.logger,
-            "Bot user {} successfully registered", matrix_bot_user_id
-        );
+        info!(self.logger, "Bot user {} successfully registered", matrix_bot_user_id);
         Ok(())
     }
 }

@@ -167,10 +167,8 @@ impl<'a> CommandHandler<'a> {
             if server.rocketchat_token.is_some() {
                 bail_error!(
                     ErrorKind::RocketchatServerAlreadyConnected(rocketchat_url.to_owned()),
-                    t!(["errors", "rocketchat_server_already_connected"]).with_vars(vec![
-                        ("rocketchat_url", rocketchat_url.to_owned()),
-                        ("user_id", user_id.to_string()),
-                    ])
+                    t!(["errors", "rocketchat_server_already_connected"])
+                        .with_vars(vec![("rocketchat_url", rocketchat_url.to_owned()), ("user_id", user_id.to_string())])
                 );
             }
         }
@@ -322,10 +320,8 @@ impl<'a> CommandHandler<'a> {
                     non_virtual_user_ids.iter().map(|id| id.to_string()).collect::<Vec<String>>().join(", ");
                 bail_error!(
                     ErrorKind::RoomNotEmpty(name.to_string(), non_virtual_user_ids.clone()),
-                    t!(["errors", "room_not_empty"]).with_vars(vec![
-                        ("channel_name", name.clone()),
-                        ("users", non_virtual_user_ids),
-                    ])
+                    t!(["errors", "room_not_empty"])
+                        .with_vars(vec![("channel_name", name.clone()), ("users", non_virtual_user_ids)])
                 );
             }
         }
@@ -396,9 +392,10 @@ impl<'a> CommandHandler<'a> {
     fn get_rocketchat_server(&self) -> Result<RocketchatServer> {
         match self.admin_room.rocketchat_server_for_admin_room(self.connection)? {
             Some(server) => Ok(server),
-            None => Err(
-                user_error!(ErrorKind::RoomNotConnected(self.admin_room.id.to_string()), t!(["errors", "room_not_connected"])),
-            ),
+            None => Err(user_error!(
+                ErrorKind::RoomNotConnected(self.admin_room.id.to_string()),
+                t!(["errors", "room_not_connected"])
+            )),
         }
     }
 

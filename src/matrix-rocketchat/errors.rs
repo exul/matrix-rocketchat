@@ -432,11 +432,7 @@ impl<'a> Modifier<Response> for &'a Error {
             None => format!("{}", self),
         };
 
-        let causes = self.error_chain
-            .iter()
-            .skip(1)
-            .map(|e| format!("{}", e))
-            .collect();
+        let causes = self.error_chain.iter().skip(1).map(|e| format!("{}", e)).collect();
         let resp = ErrorResponse {
             error: error_message,
             causes: causes,

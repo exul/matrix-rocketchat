@@ -60,15 +60,13 @@ impl<'a> Forwarder<'a> {
             None => {
                 debug!(
                     self.logger,
-                    "Ignoring message from Rocket.Chat channel `{}`, because the channel is not bridged.",
-                    message.channel_id
+                    "Ignoring message from Rocket.Chat channel `{}`, because the channel is not bridged.", message.channel_id
                 );
                 return Ok(());
             }
         };
 
-        let sender_id =
-            self.virtual_user.find_or_register(&server.id, &message.user_id, &message.user_name)?;
+        let sender_id = self.virtual_user.find_or_register(&server.id, &message.user_id, &message.user_name)?;
         let current_displayname = self.matrix_api.get_display_name(sender_id.clone())?.unwrap_or_default();
         if message.user_name != current_displayname {
             debug!(self.logger, "Display name changed from `{}` to `{}`, will update", current_displayname, message.user_name);
@@ -146,7 +144,6 @@ impl<'a> Forwarder<'a> {
             return Ok(None);
         }
 
-
         //TODO: This is highly inefficient and needs some kind of caching, but no persistent storage or alias is needed
         for room_id in self.matrix_api.get_joined_rooms(sender_id.clone())? {
             let room = Room::new(self.config, self.logger, self.matrix_api, room_id);
@@ -204,8 +201,7 @@ impl<'a> Forwarder<'a> {
         );
 
         if rocketchat_api.direct_messages_list()?.iter().any(|dm| dm.id == message.channel_id) {
-            let sender_id =
-                self.virtual_user.find_or_register(&server.id, &message.user_id, &message.user_name)?;
+            let sender_id = self.virtual_user.find_or_register(&server.id, &message.user_id, &message.user_name)?;
 
             let room_display_name_suffix = t!(["defaults", "direct_message_room_display_name_suffix"]).l(DEFAULT_LANGUAGE);
             let room_display_name = format!("{} {}", message.user_name, room_display_name_suffix);

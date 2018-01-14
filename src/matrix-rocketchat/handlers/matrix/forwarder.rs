@@ -1,8 +1,10 @@
 use diesel::sqlite::SqliteConnection;
 use ruma_events::room::message::{MessageEvent, MessageEventContent};
+use reqwest::mime::Mime;
 use slog::Logger;
+use url::Url;
 
-use api::RocketchatApi;
+use api::{MatrixApi, RocketchatApi};
 use errors::*;
 use models::{RocketchatServer, UserOnRocketchatServer};
 
@@ -10,14 +12,16 @@ use models::{RocketchatServer, UserOnRocketchatServer};
 pub struct Forwarder<'a> {
     connection: &'a SqliteConnection,
     logger: &'a Logger,
+    matrix_api: &'a MatrixApi,
 }
 
 impl<'a> Forwarder<'a> {
     /// Create a new `Forwarder`.
-    pub fn new(connection: &'a SqliteConnection, logger: &'a Logger) -> Forwarder<'a> {
+    pub fn new(connection: &'a SqliteConnection, logger: &'a Logger, matrix_api: &'a MatrixApi) -> Forwarder<'a> {
         Forwarder {
             connection: connection,
             logger: logger,
+            matrix_api: matrix_api,
         }
     }
 
@@ -39,6 +43,21 @@ impl<'a> Forwarder<'a> {
                     user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
                 );
                 rocketchat_api.post_chat_message(&text_content.body, channel_id)?;
+            }
+            MessageEventContent::Image(ref image_content) => {
+                let url = Url::parse(&image_content.url).chain_err(|| ErrorKind::InternalServerError)?;
+                let host = url.host_str().unwrap_or_default();
+                let image_id = url.path().trim_left_matches('/');
+                let image = self.matrix_api.get_content(host.to_string(), image_id.to_string())?;
+
+                let rocketchat_api = RocketchatApi::new(server.rocketchat_url, self.logger.clone())?.with_credentials(
+                    user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
+                    user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
+                );
+
+                let info = image_content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?;
+                let mime_type: Mime = info.mimetype.parse().chain_err(|| ErrorKind::UnknownMimeType(info.mimetype.clone()))?;
+                rocketchat_api.post_file_message(image, &image_content.body, mime_type, channel_id)?;
             }
             _ => info!(self.logger, "Forwarding the type {} is not implemented.", event.event_type),
         }

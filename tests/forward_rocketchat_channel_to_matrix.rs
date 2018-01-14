@@ -16,7 +16,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
 use iron::{status, Chain};
-use matrix_rocketchat::api::{MatrixApi, RestApi};
+use matrix_rocketchat::api::{MatrixApi, RequestData, RestApi};
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::api::rocketchat::v1::{Attachment, Message as RocketchatMessage, UserInfo, GET_CHAT_MESSAGE_PATH};
 use matrix_rocketchat::models::Room;
@@ -657,7 +657,7 @@ fn rocketchat_sends_mal_formatted_json() {
     let url = format!("{}/rocketchat", &test.config.as_url);
 
     let params = HashMap::new();
-    let (_, status_code) = RestApi::call(&Method::Post, &url, payload, &params, None).unwrap();
+    let (_, status_code) = RestApi::call(&Method::Post, &url, RequestData::Body(payload), &params, None).unwrap();
 
     assert_eq!(status_code, StatusCode::UnprocessableEntity)
 }
@@ -864,7 +864,7 @@ fn returns_unauthorized_when_the_rs_token_is_missing() {
     let url = format!("{}/rocketchat", &test.config.as_url);
 
     let params = HashMap::new();
-    let (_, status_code) = RestApi::call(&Method::Post, &url, payload, &params, None).unwrap();
+    let (_, status_code) = RestApi::call(&Method::Post, &url, RequestData::Body(payload), &params, None).unwrap();
 
     assert_eq!(status_code, StatusCode::Unauthorized)
 }
@@ -886,7 +886,7 @@ fn returns_forbidden_when_the_rs_token_does_not_match_a_server() {
     let url = format!("{}/rocketchat", &test.config.as_url);
 
     let params = HashMap::new();
-    let (_, status_code) = RestApi::call(&Method::Post, &url, payload, &params, None).unwrap();
+    let (_, status_code) = RestApi::call(&Method::Post, &url, RequestData::Body(payload), &params, None).unwrap();
 
     assert_eq!(status_code, StatusCode::Forbidden)
 }

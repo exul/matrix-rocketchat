@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::io::Read;
 
 use pulldown_cmark::{html, Options, Parser};
 use reqwest::{Method, StatusCode};
@@ -7,8 +8,9 @@ use reqwest::header::{ContentType, Headers};
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::alias::get_alias::{self, Endpoint as GetAliasEndpoint};
 use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
-use ruma_client_api::r0::media::create_content::{self, Endpoint as CreateContentEndpoint};
 use ruma_client_api::r0::account::register::{self, Endpoint as RegisterEndpoint};
+use ruma_client_api::r0::media::create_content::{self, Endpoint as CreateContentEndpoint};
+use ruma_client_api::r0::media::get_content::{self, Endpoint as GetContentEndpoint};
 use ruma_client_api::r0::membership::forget_room::{self, Endpoint as ForgetRoomEndpoint};
 use ruma_client_api::r0::membership::invite_user::{self, Endpoint as InviteUserEndpoint};
 use ruma_client_api::r0::membership::join_room_by_id::{self, Endpoint as JoinRoomByIdEndpoint};
@@ -31,7 +33,7 @@ use serde_json::{self, Map, Value};
 use slog::Logger;
 use url;
 
-use api::RestApi;
+use api::{RequestData, RestApi};
 use config::Config;
 use errors::*;
 
@@ -129,26 +131,25 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn get_joined_rooms(&self, user_id: UserId) -> Result<Vec<RoomId>> {
-        let endpoint = self.base_url.clone() + &SyncEventsEndpoint::request_path(());
-        let user_id = user_id.to_string();
-        let mut params = self.params_hash();
-        params.insert("user_id", &user_id);
+    fn get_content(&self, server_name: String, media_id: String) -> Result<Vec<u8>> {
+        let path_params = get_content::PathParams {
+            server_name: server_name,
+            media_id: media_id,
+        };
+        let endpoint = self.base_url.clone() + &GetContentEndpoint::request_path(path_params);
+        let params = self.params_hash();
 
-        let (body, status_code) = RestApi::call_matrix(&SyncEventsEndpoint::method(), &endpoint, "", &params)?;
-
-        if !status_code.is_success() {
-            return Err(build_error(&endpoint, &body, &status_code));
+        let mut resp = RestApi::get_matrix_file(&GetContentEndpoint::method(), &endpoint, "", &params)?;
+        if !resp.status().is_success() {
+            let mut body = String::new();
+            resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed(endpoint.clone()))?;
+            return Err(build_error(&endpoint, &body, &resp.status()));
         }
 
-        let sync_response: Value = serde_json::from_str(&body).chain_err(|| {
-            ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix sync_events API endpoint: `{}`", body))
-        })?;
+        let mut buffer = Vec::new();
+        resp.read_to_end(&mut buffer).chain_err(|| ErrorKind::InternalServerError)?;
 
-        let empty_rooms = Value::Object(Map::new());
-        let raw_rooms = sync_response.get("rooms").unwrap_or(&empty_rooms).get("join").unwrap_or(&empty_rooms);
-        let rooms: HashMap<RoomId, Value> = serde_json::from_value(raw_rooms.clone()).unwrap_or_default();
-        Ok(rooms.keys().map(|k| k.to_owned()).collect())
+        Ok(buffer)
     }
 
     fn get_display_name(&self, user_id: UserId) -> Result<Option<String>> {
@@ -175,6 +176,28 @@ impl super::MatrixApi for MatrixApi {
         })?;
 
         Ok(Some(get_display_name_response.displayname.unwrap_or_default()))
+    }
+
+    fn get_joined_rooms(&self, user_id: UserId) -> Result<Vec<RoomId>> {
+        let endpoint = self.base_url.clone() + &SyncEventsEndpoint::request_path(());
+        let user_id = user_id.to_string();
+        let mut params = self.params_hash();
+        params.insert("user_id", &user_id);
+
+        let (body, status_code) = RestApi::call_matrix(&SyncEventsEndpoint::method(), &endpoint, "", &params)?;
+
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
+        let sync_response: Value = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!("Could not deserialize response from Matrix sync_events API endpoint: `{}`", body))
+        })?;
+
+        let empty_rooms = Value::Object(Map::new());
+        let raw_rooms = sync_response.get("rooms").unwrap_or(&empty_rooms).get("join").unwrap_or(&empty_rooms);
+        let rooms: HashMap<RoomId, Value> = serde_json::from_value(raw_rooms.clone()).unwrap_or_default();
+        Ok(rooms.keys().map(|k| k.to_owned()).collect())
     }
 
     fn get_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<Option<RoomId>> {
@@ -603,7 +626,7 @@ impl super::MatrixApi for MatrixApi {
         let mut headers = Headers::new();
         headers.set(content_type);
 
-        let (body, status_code) = RestApi::call(&Method::Post, &endpoint, data, &params, Some(headers))?;
+        let (body, status_code) = RestApi::call(&Method::Post, &endpoint, RequestData::Body(data), &params, Some(headers))?;
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
@@ -621,6 +644,10 @@ impl super::MatrixApi for MatrixApi {
 }
 
 fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
+    if status_code == &StatusCode::NotFound {
+        return Error::from(ErrorKind::MatrixError("Not found".to_string()));
+    }
+
     let json_error_msg = format!(
         "Could not deserialize error from Matrix API endpoint {} with status code {}: `{}`",
         endpoint, status_code, body

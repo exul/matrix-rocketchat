@@ -65,7 +65,7 @@ impl Handler for MessageForwarder {
 
         // endpoints that are changing the room state are only accessible if the user is in
         // the room, except for the forget endpoint.
-        let is_restricted_room_endpoint = url.path().contains("rooms") && !url.path().contains("forget");
+        let is_restricted_room_endpoint = url.path().contains("/rooms/") && !url.path().contains("forget");
         if is_restricted_room_endpoint {
             validate_message_forwarding_for_user(request, url)?;
         }

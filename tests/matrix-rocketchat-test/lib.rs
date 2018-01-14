@@ -87,7 +87,7 @@ pub const RS_TOKEN: &str = "rt";
 /// Number of threads that iron uses when running tests
 pub const IRON_THREADS: usize = 4;
 /// The version the mock Rocket.Chat server announces
-pub const DEFAULT_ROCKETCHAT_VERSION: &str = "0.49.0";
+pub const DEFAULT_ROCKETCHAT_VERSION: &str = "0.60.0";
 
 lazy_static! {
     /// Default logger

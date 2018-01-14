@@ -92,7 +92,7 @@ fn attempt_to_connect_to_an_incompatible_rocketchat_server_version() {
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains(
-        "No supported API version (>= 0.49) found for the Rocket.Chat server, \
+        "No supported API version (>= 0.60) found for the Rocket.Chat server, \
          found version: 0.1.0",
     ));
 

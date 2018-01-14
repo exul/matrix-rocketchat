@@ -2,25 +2,29 @@ use std::collections::HashMap;
 
 use iron::typemap::Key;
 use reqwest::header::{ContentType, Headers};
-use reqwest::Method;
+use reqwest::mime::Mime;
+use reqwest::{Body, Method};
 use serde_json;
 use slog::Logger;
 
-use api::RestApi;
+use api::{RequestData, RestApi};
 use errors::*;
 use i18n::*;
 
 /// Rocket.Chat REST API v1
 pub mod v1;
 
+const MIN_MAJOR_VERSION: i32 = 0;
+const MIN_MINOR_VERSION: i32 = 60;
+
 /// A Rocket.Chat REST API endpoint.
-pub trait Endpoint {
+pub trait Endpoint<T: Into<Body>> {
     /// HTTP Method
     fn method(&self) -> Method;
     /// The URL of the endpoint
     fn url(&self) -> String;
     /// Payload that is sent to the server
-    fn payload(&self) -> Result<String>;
+    fn payload(&self) -> Result<RequestData<T>>;
     /// Headers that are sent to the server
     fn headers(&self) -> Option<Headers>;
     /// The query parameters that are used when sending the request
@@ -94,6 +98,8 @@ pub trait RocketchatApi {
     fn login(&self, username: &str, password: &str) -> Result<(String, String)>;
     /// Post a chat message
     fn post_chat_message(&self, text: &str, room_id: &str) -> Result<()>;
+    /// Post a message with an attchment
+    fn post_file_message(&self, file: Vec<u8>, filename: &str, mime_type: Mime, room_id: &str) -> Result<()>;
     /// Get information like user_id, status, etc. about a user
     fn users_info(&self, username: &str) -> Result<User>;
     /// Set credentials that are used for all API calls that need authentication
@@ -113,7 +119,7 @@ impl RocketchatApi {
         let url = base_url.clone() + "/api/info";
         let params = HashMap::new();
 
-        let (body, status_code) = match RestApi::call(&Method::Get, &url, "", &params, None) {
+        let (body, status_code) = match RestApi::call(&Method::Get, &url, RequestData::Body(""), &params, None) {
             Ok((body, status_code)) => (body, status_code),
             Err(err) => {
                 debug!(logger, "{}", err);
@@ -148,12 +154,12 @@ impl RocketchatApi {
         let major: i32 = versions.next().unwrap_or("0").parse().unwrap_or(0);
         let minor: i32 = versions.next().unwrap_or("0").parse().unwrap_or(0);
 
-        if major == 0 && minor >= 49 {
+        if major == MIN_MAJOR_VERSION && minor >= MIN_MINOR_VERSION {
             let rocketchat_api = v1::RocketchatApi::new(base_url, logger);
             return Ok(Box::new(rocketchat_api));
         }
 
-        let min_version = "0.49".to_string();
+        let min_version = format!("{}.{}", MIN_MAJOR_VERSION, MIN_MINOR_VERSION);
         Err(Error {
             error_chain: ErrorKind::UnsupportedRocketchatApiVersion(min_version.clone(), version.clone()).into(),
             user_message: Some(

@@ -1,12 +1,14 @@
 use std::collections::HashMap;
-use std::io::Read;
+use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 
 use reqwest::header::{ContentType, Headers};
+use reqwest::mime::Mime;
+use reqwest::multipart::{Form, Part};
 use reqwest::{Method, StatusCode};
 use serde_json;
 use slog::Logger;
 
-use api::RestApi;
+use api::{RequestData, RestApi};
 use api::rocketchat::{Attachment as RocketchatAttachment, Channel, Endpoint, User};
 use errors::*;
 use i18n::*;
@@ -25,6 +27,8 @@ pub const DIRECT_MESSAGES_LIST_PATH: &str = "/api/v1/dm.list";
 pub const GET_CHAT_MESSAGE_PATH: &str = "/api/v1/chat.getMessage";
 /// Post chat message endpoint path
 pub const POST_CHAT_MESSAGE_PATH: &str = "/api/v1/chat.postMessage";
+/// Upload a file endpoint path
+pub const UPLOAD_PATH: &str = "/api/v1/rooms.upload";
 
 /// A single Message on the Rocket.Chat server.
 #[derive(Deserialize, Debug, Serialize)]
@@ -98,7 +102,7 @@ pub struct GetWithAuthEndpoint<'a> {
     query_params: HashMap<&'static str, &'a str>,
 }
 
-impl<'a> Endpoint for GetWithAuthEndpoint<'a> {
+impl<'a> Endpoint<String> for GetWithAuthEndpoint<'a> {
     fn method(&self) -> Method {
         Method::Get
     }
@@ -107,8 +111,8 @@ impl<'a> Endpoint for GetWithAuthEndpoint<'a> {
         self.base_url.clone() + self.path
     }
 
-    fn payload(&self) -> Result<String> {
-        Ok("".to_string())
+    fn payload(&self) -> Result<RequestData<String>> {
+        Ok(RequestData::Body("".to_string()))
     }
 
     fn headers(&self) -> Option<Headers> {
@@ -133,7 +137,7 @@ pub struct GetFileWithAuthEndpoint<'a> {
     query_params: HashMap<&'static str, &'a str>,
 }
 
-impl<'a> Endpoint for GetFileWithAuthEndpoint<'a> {
+impl<'a> Endpoint<String> for GetFileWithAuthEndpoint<'a> {
     fn method(&self) -> Method {
         Method::Get
     }
@@ -142,8 +146,8 @@ impl<'a> Endpoint for GetFileWithAuthEndpoint<'a> {
         self.base_url.clone() + self.path
     }
 
-    fn payload(&self) -> Result<String> {
-        Ok("".to_string())
+    fn payload(&self) -> Result<RequestData<String>> {
+        Ok(RequestData::Body("".to_string()))
     }
 
     fn headers(&self) -> Option<Headers> {
@@ -171,7 +175,7 @@ pub struct LoginPayload<'a> {
     password: &'a str,
 }
 
-impl<'a> Endpoint for LoginEndpoint<'a> {
+impl<'a> Endpoint<String> for LoginEndpoint<'a> {
     fn method(&self) -> Method {
         Method::Post
     }
@@ -180,10 +184,10 @@ impl<'a> Endpoint for LoginEndpoint<'a> {
         self.base_url.clone() + LOGIN_PATH
     }
 
-    fn payload(&self) -> Result<String> {
+    fn payload(&self) -> Result<RequestData<String>> {
         let payload = serde_json::to_string(&self.payload)
             .chain_err(|| ErrorKind::InvalidJSON("Could not serialize login payload".to_string()))?;
-        Ok(payload)
+        Ok(RequestData::Body(payload))
     }
 
     fn headers(&self) -> Option<Headers> {
@@ -206,7 +210,7 @@ pub struct PostChatMessagePayload<'a> {
     text: Option<&'a str>,
 }
 
-impl<'a> Endpoint for PostChatMessageEndpoint<'a> {
+impl<'a> Endpoint<String> for PostChatMessageEndpoint<'a> {
     fn method(&self) -> Method {
         Method::Post
     }
@@ -215,15 +219,59 @@ impl<'a> Endpoint for PostChatMessageEndpoint<'a> {
         self.base_url.clone() + POST_CHAT_MESSAGE_PATH
     }
 
-    fn payload(&self) -> Result<String> {
+    fn payload(&self) -> Result<RequestData<String>> {
         let payload = serde_json::to_string(&self.payload)
             .chain_err(|| ErrorKind::InvalidJSON("Could not serialize post chat message payload".to_string()))?;
-        Ok(payload)
+        Ok(RequestData::Body(payload))
     }
 
     fn headers(&self) -> Option<Headers> {
         let mut headers = Headers::new();
         headers.set(ContentType::json());
+        headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
+        headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
+        Some(headers)
+    }
+}
+
+/// V1 endpoint to post a messag with an attachement
+pub struct PostFileMessageEndpoint<'a> {
+    base_url: String,
+    user_id: String,
+    auth_token: String,
+    payload: PostFileMessagePayload<'a>,
+    room_id: &'a str,
+}
+
+/// Payload of the post chat message endpoint
+pub struct PostFileMessagePayload<'a> {
+    file: Vec<u8>,
+    filename: &'a str,
+    mime_type: Mime,
+}
+
+impl<'a> Endpoint<String> for PostFileMessageEndpoint<'a> {
+    fn method(&self) -> Method {
+        Method::Post
+    }
+
+    fn url(&self) -> String {
+        self.base_url.clone() + UPLOAD_PATH + "/" + self.room_id
+    }
+
+    fn payload(&self) -> Result<RequestData<String>> {
+        let mut c = Cursor::new(Vec::new());
+        c.write_all(&self.payload.file).unwrap();
+        c.seek(SeekFrom::Start(0)).unwrap();
+
+        let part = Part::reader(c).file_name(self.payload.filename.to_owned()).mime(self.payload.mime_type.clone());
+        let form = Form::new().part("file", part);
+        Ok(RequestData::MultipartForm(form))
+    }
+
+    fn headers(&self) -> Option<Headers> {
+        let mut headers = Headers::new();
+        headers.set(ContentType::form_url_encoded());
         headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
         headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
         Some(headers)
@@ -493,6 +541,29 @@ impl super::RocketchatApi for RocketchatApi {
         let (body, status_code) = RestApi::call_rocketchat(&post_chat_message_endpoint)?;
         if !status_code.is_success() {
             return Err(build_error(&post_chat_message_endpoint.url(), &body, &status_code));
+        }
+
+        Ok(())
+    }
+
+    fn post_file_message(&self, file: Vec<u8>, filename: &str, mime_type: Mime, room_id: &str) -> Result<()> {
+        debug!(self.logger, "Uploading file to room {}", room_id);
+
+        let post_file_message_endpoint = PostFileMessageEndpoint {
+            base_url: self.base_url.clone(),
+            user_id: self.user_id.clone(),
+            auth_token: self.auth_token.clone(),
+            payload: PostFileMessagePayload {
+                file: file,
+                filename: filename,
+                mime_type: mime_type,
+            },
+            room_id: room_id,
+        };
+
+        let (body, status_code) = RestApi::call_rocketchat(&post_file_message_endpoint)?;
+        if !status_code.is_success() {
+            return Err(build_error(&post_file_message_endpoint.url(), &body, &status_code));
         }
 
         Ok(())

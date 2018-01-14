@@ -759,6 +759,25 @@ impl Handler for MatrixCreateContentHandler {
     }
 }
 
+pub struct MatrixGetContentHandler {
+    pub files: HashMap<String, Vec<u8>>,
+}
+
+impl Handler for MatrixGetContentHandler {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        debug!(DEFAULT_LOGGER, "Matrix mock server got get content request");
+
+        let params = request.extensions.get::<Router>().unwrap().clone();
+        let url_filename = params.find("media_id").unwrap();
+        let filename = percent_decode(url_filename.as_bytes()).decode_utf8().unwrap();
+
+        match self.files.get(&*filename) {
+            Some(file) => Ok(Response::with((status::Ok, file.to_owned()))),
+            None => Ok(Response::with((status::NotFound, "".to_string()))),
+        }
+    }
+}
+
 fn build_member_events_from_user_ids(users: &Vec<(UserId, MembershipState)>, room_id: RoomId) -> Vec<MemberEvent> {
     let mut member_events = Vec::new();
     for &(ref user, membership_state) in users.iter() {
@@ -1085,7 +1104,7 @@ pub struct EmptyJson {}
 
 impl Handler for EmptyJson {
     fn handle(&self, request: &mut Request) -> IronResult<Response> {
-        debug!(DEFAULT_LOGGER, "Matrix mock server got empty json request for URL {}", request.url);
+        debug!(DEFAULT_LOGGER, "Server got empty json request for URL {}", request.url);
         Ok(Response::with((status::Ok, "{}")))
     }
 }

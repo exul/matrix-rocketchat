@@ -4,10 +4,19 @@ use std::io::Read;
 use url;
 use reqwest::{Body, Client, Method, Response, StatusCode, Url};
 use reqwest::header::Headers;
+use reqwest::multipart::Form;
 use ruma_client_api::Method as RumaHttpMethod;
 
 use errors::*;
 use api::rocketchat::Endpoint;
+
+/// Request data types.
+pub enum RequestData<T: Into<Body>> {
+    /// Any type that can be converted into a body.
+    Body(T),
+    /// A multipart form
+    MultipartForm(Form),
+}
 
 /// REST API
 pub struct RestApi {}
@@ -27,30 +36,43 @@ impl RestApi {
             RumaHttpMethod::Put => Method::Put,
         };
 
-        RestApi::call(&method, url, payload, params, None)
+        let data = RequestData::Body(payload.into());
+        RestApi::call(&method, url, data, params, None)
+    }
+
+    /// Get a file that was uploaded to a Matrix homeserver
+    pub fn get_matrix_file<'a, T: Into<Body>>(
+        method: &RumaHttpMethod,
+        url: &str,
+        payload: T,
+        params: &HashMap<&str, &'a str>,
+    ) -> Result<Response> {
+        let method = match *method {
+            RumaHttpMethod::Delete => Method::Delete,
+            RumaHttpMethod::Get => Method::Get,
+            RumaHttpMethod::Post => Method::Post,
+            RumaHttpMethod::Put => Method::Put,
+        };
+
+        let data = RequestData::Body(payload.into());
+        RestApi::call_raw(&method, url, data, params, None)
     }
 
     /// Call a Rocket.Chat API endpoint
-    pub fn call_rocketchat(endpoint: &Endpoint) -> Result<(String, StatusCode)> {
+    pub fn call_rocketchat<T: Into<Body>>(endpoint: &Endpoint<T>) -> Result<(String, StatusCode)> {
         RestApi::call(&endpoint.method(), &endpoint.url(), endpoint.payload()?, &endpoint.query_params(), endpoint.headers())
     }
 
     /// Get a file that was uploaded to Rocket.Chat
-    pub fn get_rocketchat_file(endpoint: &Endpoint) -> Result<Response> {
-        RestApi::call_raw(
-            &endpoint.method(),
-            &endpoint.url(),
-            endpoint.payload()?,
-            &endpoint.query_params(),
-            endpoint.headers(),
-        )
+    pub fn get_rocketchat_file<T: Into<Body>>(endpoint: &Endpoint<T>) -> Result<Response> {
+        RestApi::call_raw(&endpoint.method(), &endpoint.url(), endpoint.payload()?, &endpoint.query_params(), endpoint.headers())
     }
 
     /// Call a REST API endpoint
     pub fn call<'a, T: Into<Body>>(
         method: &Method,
         url: &str,
-        payload: T,
+        payload: RequestData<T>,
         params: &HashMap<&str, &'a str>,
         headers: Option<Headers>,
     ) -> Result<(String, StatusCode)> {
@@ -64,7 +86,7 @@ impl RestApi {
     fn call_raw<'a, T: Into<Body>>(
         method: &Method,
         url: &str,
-        payload: T,
+        data: RequestData<T>,
         params: &HashMap<&str, &'a str>,
         headers: Option<Headers>,
     ) -> Result<Response> {
@@ -85,7 +107,10 @@ impl RestApi {
             req.headers(headers);
         }
 
-        req.body(payload);
+        match data {
+            RequestData::Body(body) => req.body(body),
+            RequestData::MultipartForm(form) => req.multipart(form),
+        };
 
         let resp = req.send().chain_err(|| ErrorKind::ApiCallFailed(url.to_owned()))?;
 

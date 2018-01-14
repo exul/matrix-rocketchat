@@ -24,6 +24,8 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn delete_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<()>;
     /// Forget a room.
     fn forget_room(&self, room_id: RoomId, user_id: UserId) -> Result<()>;
+    /// Get content from the content repository.
+    fn get_content(&self, server_name: String, media_id: String) -> Result<Vec<u8>>;
     /// Get the display name for a Matrix user ID. Returns `None` if the user doesn't exist.
     fn get_display_name(&self, user_id: UserId) -> Result<Option<String>>;
     /// Get all rooms a user joined.

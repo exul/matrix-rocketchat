@@ -19,7 +19,7 @@ addons:
       - kalakris-cmake
 
 rust:
-  - nightly
+  - nightly-2017-12-03
 
 before_script:
   - export PATH=$HOME/.cargo/bin:$PATH

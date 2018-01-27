@@ -1,4 +1,6 @@
 sudo: required
+dist: trusty
+group: deprecated-2017Q4
 
 language: rust
 
@@ -6,29 +8,19 @@ cache:
   - apt
   - cargo
 
-# Dependencies of kcov, used by coverage
 addons:
   apt:
     packages:
-      - libcurl4-openssl-dev
-      - libelf-dev
-      - libdw-dev
-      - binutils-dev
-      - cmake
-    sources:
-      - kalakris-cmake
+      - libssl-dev
 
 rust:
-  - nightly
-
-before_script:
-  - export PATH=$HOME/.cargo/bin:$PATH
-  - cargo install cargo-travis || echo "cargo-travis already installed"
+  - nightly-2017-12-03
 
 script:
-  - |
-      cargo build &&
-      cargo test
+- cargo clean
+- cargo build
+- cargo test
 
-after_success:
-  - cargo coveralls --exclude-pattern src/bin/,target/,tests/
+after_success: |
+  bash <(curl https://raw.githubusercontent.com/xd009642/tarpaulin/master/travis-install.sh)
+  cargo tarpaulin --ignore-tests --ciserver travis-ci --coveralls $TRAVIS_JOB_ID

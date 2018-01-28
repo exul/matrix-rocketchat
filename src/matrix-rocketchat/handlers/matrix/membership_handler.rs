@@ -59,6 +59,7 @@ impl<'a> MembershipHandler<'a> {
             MembershipState::Join if addressed_to_matrix_bot => {
                 debug!(self.logger, "Received join event for bot user {} and room {}", matrix_bot_user_id, self.room.id);
 
+                //TODO: This doesn't seem to work anymore, because the inviter is not part of the unsigned json object anymore
                 let unsigned: HashMap<String, Value> =
                     serde_json::from_value(event.unsigned.clone().unwrap_or_default()).unwrap_or_default();
                 let inviter_id = match unsigned.get("prev_sender") {

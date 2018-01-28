@@ -1,5 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use ruma_identifiers::UserId;
 use diesel::sqlite::SqliteConnection;
 use slog::Logger;
 
@@ -11,6 +12,7 @@ use errors::*;
 use log;
 use models::{Channel, RocketchatServer, Room, UserOnRocketchatServer, VirtualUser};
 
+const IMAGE_MESSAGE_TEXT: &str = "Uploaded an image";
 const RESEND_THRESHOLD_IN_SECONDS: i64 = 3;
 
 /// Forwards messages from Rocket.Chat to Matrix
@@ -75,7 +77,11 @@ impl<'a> Forwarder<'a> {
             }
         }
 
-        self.matrix_api.send_text_message_event(room.id.clone(), sender_id, message.text.clone())
+        if message.text == IMAGE_MESSAGE_TEXT {
+            self.forward_image(server, message, &room, &sender_id)
+        } else {
+            self.matrix_api.send_text_message_event(room.id.clone(), sender_id, message.text.clone())
+        }
     }
 
     fn is_sendable_message(&self, rocketchat_user_id: String, server_id: String) -> Result<bool> {
@@ -254,5 +260,39 @@ impl<'a> Forwarder<'a> {
         }
 
         Ok(None)
+    }
+
+    fn forward_image(&self, server: &RocketchatServer, message: &Message, room: &Room, sender_id: &UserId) -> Result<()> {
+        debug!(self.logger, "Forwarding image, room {}", room.id);
+
+        let users = room.logged_in_users(self.connection, server.id.clone())?;
+
+        // This chooses an arbitrary user from the room to use the credentials to be able to retreive the image from the
+        // Rocket.Chat server.
+        let user = match users.first() {
+            Some(user) => user,
+            None => {
+                warn!(
+                    self.logger,
+                    "No logged in user in bridged room {} found, cannot retreive image from Rocket.Chat server", room.id
+                );
+                return Ok(());
+            }
+        };
+
+        let rocketchat_api = RocketchatApi::new(server.rocketchat_url.clone(), self.logger.clone())?.with_credentials(
+            user.rocketchat_user_id.clone().unwrap_or_default(),
+            user.rocketchat_auth_token.clone().unwrap_or_default(),
+        );
+
+        let files = rocketchat_api.get_attachments(&message.message_id)?;
+
+        for file in files {
+            let image_url = self.matrix_api.upload(file.data, file.content_type)?;
+            debug!(self.logger, "Uploaded image, URL is {}", image_url);
+            self.matrix_api.send_image_message_event(room.id.clone(), sender_id.clone(), file.title, image_url)?;
+        }
+
+        Ok(())
     }
 }

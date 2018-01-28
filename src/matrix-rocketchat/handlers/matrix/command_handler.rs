@@ -337,7 +337,6 @@ impl<'a> CommandHandler<'a> {
             );
         }
 
-        self.matrix_api.put_canonical_room_alias(room_id.clone(), None)?;
         self.matrix_api.delete_room_alias(canonical_alias_id)?;
 
         for user_id in user_ids {

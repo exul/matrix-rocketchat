@@ -5,16 +5,19 @@ use std::convert::TryFrom;
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, MutexGuard};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Mutex;
 
 use iron::prelude::*;
 use iron::url::Url;
 use iron::url::percent_encoding::percent_decode;
 use iron::{status, BeforeMiddleware, Chain, Handler};
+use matrix_rocketchat::api::rocketchat::v1::Message as RocketchatMessage;
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
 use persistent::Write;
 use router::Router;
 use ruma_client_api::r0::alias::get_alias;
 use ruma_client_api::r0::account::register;
+use ruma_client_api::r0::media::create_content;
 use ruma_client_api::r0::membership::invite_user;
 use ruma_client_api::r0::profile::{get_display_name, set_display_name};
 use ruma_client_api::r0::room::create_room;
@@ -169,7 +172,34 @@ impl Handler for RocketchatDirectMessagesList {
     }
 }
 
+pub struct RocketchatMessageResponder {
+    pub message: Arc<Mutex<Option<RocketchatMessage>>>,
+}
 
+impl Handler for RocketchatMessageResponder {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        debug!(DEFAULT_LOGGER, "Rocket.Chat mock server got get message request");
+
+        let url: Url = request.url.clone().into();
+        let mut query_pairs = url.query_pairs();
+        let (_, msg_id_param) = query_pairs.find(|&(ref key, _)| key == "msgId").unwrap_or_default();
+
+        let msg = self.message.lock().unwrap();
+
+        match *msg {
+            Some(ref msg) if msg.id == msg_id_param => {
+                let message = serde_json::to_string(msg).unwrap();
+                let payload = "{ \"message\": ".to_string() + &message + "}";
+
+                Ok(Response::with((status::Ok, payload)))
+            }
+            _ => {
+                debug!(DEFAULT_LOGGER, "No message attached to responder");
+                Ok(Response::with((status::NotFound, "".to_string())))
+            }
+        }
+    }
+}
 
 pub struct RocketchatUsersInfo {}
 
@@ -226,6 +256,25 @@ impl Handler for RocketchatErrorResponder {
         };
         let payload = serde_json::to_string(&error_response).unwrap();
         Ok(Response::with((self.status, payload)))
+    }
+}
+
+pub struct RocketchatFileResponder {
+    pub files: HashMap<String, Vec<u8>>,
+}
+
+impl Handler for RocketchatFileResponder {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        debug!(DEFAULT_LOGGER, "Rocket.Chat mock server got file handle request");
+
+        let params = request.extensions.get::<Router>().unwrap().clone();
+        let url_filename = params.find("filename").unwrap();
+        let filename = percent_decode(url_filename.as_bytes()).decode_utf8().unwrap();
+
+        match self.files.get(&*filename) {
+            Some(file) => Ok(Response::with((status::Ok, file.to_owned()))),
+            None => Ok(Response::with((status::NotFound, "".to_string()))),
+        }
     }
 }
 
@@ -420,7 +469,9 @@ impl MatrixCreateRoom {
     /// Create a `MatrixCreateRoom` handler with a message forwarder middleware.
     pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
-        let mut chain = Chain::new(MatrixCreateRoom { as_url: as_url });
+        let mut chain = Chain::new(MatrixCreateRoom {
+            as_url: as_url,
+        });
         chain.link_before(message_forwarder);
         (chain, receiver)
     }
@@ -498,7 +549,9 @@ impl Handler for MatrixCreateRoom {
 
         helpers::send_join_event_from_matrix(&self.as_url, room_id.clone(), user_id, None);
 
-        let response = create_room::Response { room_id: room_id };
+        let response = create_room::Response {
+            room_id: room_id,
+        };
         let payload = serde_json::to_string(&response).unwrap();
 
         Ok(Response::with((status::Ok, payload)))
@@ -599,7 +652,6 @@ impl Handler for SendRoomState {
             _ => panic!("JSON type not covered"),
         }
 
-
         let mut values = serde_json::Map::new();
         let event_id = EventId::new("localhost").unwrap();
         values.insert("event_id".to_string(), serde_json::Value::String(event_id.to_string()));
@@ -608,7 +660,6 @@ impl Handler for SendRoomState {
         Ok(Response::with((status::Ok, payload)))
     }
 }
-
 
 pub struct RoomMembers {}
 
@@ -673,6 +724,57 @@ impl Handler for StaticRoomMembers {
         };
         let payload = serde_json::to_string(&response).unwrap();
         Ok(Response::with((status::Ok, payload)))
+    }
+}
+
+pub struct MatrixCreateContentHandler {
+    pub uploaded_files: Arc<Mutex<Vec<String>>>,
+}
+
+impl MatrixCreateContentHandler {
+    pub fn with_forwarder(uploaded_files: Arc<Mutex<Vec<String>>>) -> (Chain, Receiver<String>) {
+        let (message_forwarder, receiver) = MessageForwarder::new();
+        let mut chain = Chain::new(MatrixCreateContentHandler {
+            uploaded_files: uploaded_files,
+        });
+        chain.link_before(message_forwarder);;
+        (chain, receiver)
+    }
+}
+
+impl Handler for MatrixCreateContentHandler {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        debug!(DEFAULT_LOGGER, "Matrix mock server got upload request");
+
+        let file_id: String = thread_rng().gen_ascii_chars().take(24).collect();
+        let response = create_content::Response {
+            content_uri: format!("mxc://localhost/{}", &file_id),
+        };
+
+        let mut uploaded_files = self.uploaded_files.lock().unwrap();
+        uploaded_files.push(file_id);
+
+        let payload = serde_json::to_string(&response).unwrap();
+        Ok(Response::with((status::Ok, payload)))
+    }
+}
+
+pub struct MatrixGetContentHandler {
+    pub files: HashMap<String, Vec<u8>>,
+}
+
+impl Handler for MatrixGetContentHandler {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        debug!(DEFAULT_LOGGER, "Matrix mock server got get content request");
+
+        let params = request.extensions.get::<Router>().unwrap().clone();
+        let url_filename = params.find("media_id").unwrap();
+        let filename = percent_decode(url_filename.as_bytes()).decode_utf8().unwrap();
+
+        match self.files.get(&*filename) {
+            Some(file) => Ok(Response::with((status::Ok, file.to_owned()))),
+            None => Ok(Response::with((status::NotFound, "".to_string()))),
+        }
     }
 }
 
@@ -873,9 +975,7 @@ impl Handler for MatrixJoinRoom {
                 None => {
                     debug!(
                         DEFAULT_LOGGER,
-                        "Matrix mock server: Join failed, because user {} is not invited to room {}",
-                        user_id,
-                        room_id
+                        "Matrix mock server: Join failed, because user {} is not invited to room {}", user_id, room_id
                     );
 
                     let payload = r#"{
@@ -914,7 +1014,9 @@ pub struct MatrixInviteUser {
 impl MatrixInviteUser {
     pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
-        let mut chain = Chain::new(MatrixInviteUser { as_url: as_url });
+        let mut chain = Chain::new(MatrixInviteUser {
+            as_url: as_url,
+        });
         chain.link_before(message_forwarder);;
         (chain, receiver)
     }
@@ -960,7 +1062,9 @@ pub struct MatrixLeaveRoom {
 impl MatrixLeaveRoom {
     pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
-        let mut chain = Chain::new(MatrixLeaveRoom { as_url: as_url });
+        let mut chain = Chain::new(MatrixLeaveRoom {
+            as_url: as_url,
+        });
         chain.link_before(message_forwarder);;
         (chain, receiver)
     }
@@ -1000,7 +1104,7 @@ pub struct EmptyJson {}
 
 impl Handler for EmptyJson {
     fn handle(&self, request: &mut Request) -> IronResult<Response> {
-        debug!(DEFAULT_LOGGER, "Matrix mock server got empty json request for URL {}", request.url);
+        debug!(DEFAULT_LOGGER, "Server got empty json request for URL {}", request.url);
         Ok(Response::with((status::Ok, "{}")))
     }
 }
@@ -1337,7 +1441,6 @@ fn add_alias_to_room(request: &mut Request, room_id: RoomId, room_alias: RoomAli
             return Err("Alias already taken");
         }
     }
-
 
     if !room_alias_map.contains_key(&room_id) {
         room_alias_map.insert(room_id.clone(), Vec::new());

@@ -10,15 +10,17 @@ extern crate ruma_identifiers;
 extern crate serde_json;
 
 use std::convert::TryFrom;
+use std::collections::HashMap;
 
 use iron::status;
 use matrix_rocketchat::api::MatrixApi;
-use matrix_rocketchat::api::rocketchat::v1::POST_CHAT_MESSAGE_PATH;
+use matrix_rocketchat::api::rocketchat::v1::{POST_CHAT_MESSAGE_PATH, UPLOAD_PATH};
 use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use router::Router;
 use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
+use ruma_client_api::r0::media::get_content::Endpoint as GetContentEndpoint;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json::to_string;
 
@@ -26,7 +28,7 @@ use serde_json::to_string;
 fn successfully_forwards_a_text_message_from_matrix_to_rocketchat() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = test.default_matrix_routes();
+    let mut rocketchat_router = Router::new();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
     let test = test.with_rocketchat_mock()
@@ -49,10 +51,84 @@ fn successfully_forwards_a_text_message_from_matrix_to_rocketchat() {
 }
 
 #[test]
+fn successfully_forwards_an_image_message_from_matrix_to_rocketchat() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    let mut files = HashMap::new();
+    files.insert("spec_id".to_string(), b"image".to_vec());
+    matrix_router.get(
+        GetContentEndpoint::router_path(),
+        handlers::MatrixGetContentHandler {
+            files: files,
+        },
+        "get_file",
+    );
+    let mut rocketchat_router = Router::new();
+    rocketchat_router.post(format!("{}{}", UPLOAD_PATH, "/:channel_id"), message_forwarder, "upload");
+
+    let test = test.with_rocketchat_mock()
+        .with_matrix_routes(matrix_router)
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    helpers::send_image_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "spec_image.png".to_string(),
+        "mxc://localhost/spec_id".to_string(),
+    );
+
+    let message_received_by_rocketchat = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_rocketchat.contains("image"));
+}
+
+#[test]
+fn no_message_is_forwarded_when_the_image_cannot_be_found() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let (upload_forwarder, upload_receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.get(
+        GetContentEndpoint::router_path(),
+        handlers::MatrixGetContentHandler {
+            files: HashMap::new(),
+        },
+        "get_file",
+    );
+    let mut rocketchat_router = Router::new();
+    rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
+    rocketchat_router.post(format!("{}{}", UPLOAD_PATH, "/:channel_id"), upload_forwarder, "upload");
+
+    let test = test.with_rocketchat_mock()
+        .with_matrix_routes(matrix_router)
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", "spec_user"))
+        .run();
+
+    helpers::send_image_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "non_existing_image.png".to_string(),
+        "mxc://localhost/spec_id".to_string(),
+    );
+
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
+    assert!(upload_receiver.recv_timeout(default_timeout()).is_err());
+}
+
+#[test]
 fn do_not_forward_messages_from_the_bot_user_to_avoid_loops() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = test.default_matrix_routes();
+    let mut rocketchat_router = Router::new();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
     let test = test.with_rocketchat_mock()
@@ -76,7 +152,7 @@ fn do_not_forward_messages_from_the_bot_user_to_avoid_loops() {
 fn do_not_forward_messages_from_virtual_user_to_avoid_loops() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = test.default_matrix_routes();
+    let mut rocketchat_router = Router::new();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
     let test = test.with_rocketchat_mock()
@@ -113,7 +189,7 @@ fn do_not_forward_messages_from_virtual_user_to_avoid_loops() {
 fn ignore_messages_from_unbridged_rooms() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = test.default_matrix_routes();
+    let mut rocketchat_router = Router::new();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
     let test = test.with_rocketchat_mock()
@@ -177,7 +253,7 @@ fn ignore_messages_from_rooms_with_empty_room_canonical_alias() {
 fn ignore_messages_with_a_message_type_that_is_not_supported() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = test.default_matrix_routes();
+    let mut rocketchat_router = Router::new();
     rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
 
     let test = test.with_rocketchat_mock()

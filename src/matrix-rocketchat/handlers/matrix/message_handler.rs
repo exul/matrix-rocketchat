@@ -44,7 +44,7 @@ impl<'a> MessageHandler<'a> {
         if room.is_admin_room()? {
             CommandHandler::new(self.config, self.connection, self.logger, matrix_api, &room).process(event)?;
         } else if let Some((server, channel_id)) = self.get_rocketchat_server_with_room(&room)? {
-            Forwarder::new(self.connection, self.logger).process(event, server, &channel_id)?;
+            Forwarder::new(self.connection, self.logger, matrix_api).process(event, server, &channel_id)?;
         } else {
             debug!(self.logger, "Skipping event, because the room {} is not bridged", &event.room_id);
         }

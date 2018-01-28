@@ -13,7 +13,7 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use iron::status;
-use matrix_rocketchat::api::{MatrixApi, RestApi};
+use matrix_rocketchat::api::{MatrixApi, RequestData, RestApi};
 use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH};
 use matrix_rocketchat::models::{RocketchatServer, UserOnRocketchatServer};
 use matrix_rocketchat::models::Credentials;
@@ -191,7 +191,7 @@ fn sucessfully_login_via_rest_api() {
     let (response, status_code) = RestApi::call(
         &Method::Post,
         &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
-        &payload,
+        RequestData::Body(payload),
         &HashMap::new(),
         None,
     ).unwrap();
@@ -234,7 +234,7 @@ fn wrong_password_when_logging_in_via_rest_api() {
     let (response, status_code) = RestApi::call(
         &Method::Post,
         &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
-        &payload,
+        RequestData::Body(payload),
         &HashMap::new(),
         None,
     ).unwrap();
@@ -287,7 +287,7 @@ fn login_multiple_times_via_rest_message() {
         let (response, status_code) = RestApi::call(
             &Method::Post,
             &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
-            &payload,
+            RequestData::Body(payload.clone()),
             &HashMap::new(),
             None,
         ).unwrap();
@@ -322,7 +322,7 @@ fn login_via_rest_api_with_invalid_payload() {
     let (response, status_code) = RestApi::call(
         &Method::Post,
         &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
-        "not json",
+        RequestData::Body("not json".to_string()),
         &HashMap::new(),
         None,
     ).unwrap();
@@ -345,7 +345,7 @@ fn login_via_rest_api_with_a_non_existing_rocketchat_server() {
     let (response, status_code) = RestApi::call(
         &Method::Post,
         &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
-        &payload,
+        RequestData::Body(payload),
         &HashMap::new(),
         None,
     ).unwrap();

@@ -358,6 +358,21 @@ error_chain!{
             display("Deleting record from the database failed")
         }
 
+        UnknownContentType(content_type: String) {
+            description("The content type of the file is unknown")
+            display("Don't know how to handle content type {}", content_type)
+        }
+
+        UnknownMimeType(mime_type: String) {
+            description("The mime type of the file is unknown")
+            display("Don't know how to handle mime type {}", mime_type)
+        }
+
+        MissingMimeType {
+            description("The mime type of the file is missing")
+            display("The mime type of the file is missing")
+        }
+
         InternalServerError {
             description("An internal error")
             display("An internal error occurred")

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use reqwest::header::ContentType;
 use ruma_client_api::Endpoint;
 use ruma_client_api::unversioned::get_supported_versions::{Endpoint as GetSupportedVersionsEndpoint,
                                                            Response as GetSupportedVersionsResponse};
@@ -23,6 +24,8 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn delete_room_alias(&self, matrix_room_alias_id: RoomAliasId) -> Result<()>;
     /// Forget a room.
     fn forget_room(&self, room_id: RoomId, user_id: UserId) -> Result<()>;
+    /// Get content from the content repository.
+    fn get_content(&self, server_name: String, media_id: String) -> Result<Vec<u8>>;
     /// Get the display name for a Matrix user ID. Returns `None` if the user doesn't exist.
     fn get_display_name(&self, user_id: UserId) -> Result<Option<String>>;
     /// Get all rooms a user joined.
@@ -53,6 +56,8 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn register(&self, user_id_local_part: String) -> Result<()>;
     /// Send a text message to a room.
     fn send_text_message_event(&self, room_id: RoomId, user_id: UserId, body: String) -> Result<()>;
+    /// Send an image message to a room.
+    fn send_image_message_event(&self, room_id: RoomId, user_id: UserId, body: String, url: String) -> Result<()>;
     /// Set the default power levels for a room. Only the bot will be able to control the room.
     /// The power levels for invite, kick, ban, and redact are all set to 50.
     fn set_default_powerlevels(&self, room_id: RoomId, room_creator_user_id: UserId) -> Result<()>;
@@ -62,6 +67,8 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn set_room_name(&self, room_id: RoomId, name: String) -> Result<()>;
     /// Set the topic for a room.
     fn set_room_topic(&self, room_id: RoomId, topic: String) -> Result<()>;
+    /// Upload a file to the media storage
+    fn upload(&self, data: Vec<u8>, content_type: ContentType) -> Result<String>;
 }
 
 /// Helper trait because Clone cannot be part of the `MatrixApi` trait since that would cause the

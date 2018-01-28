@@ -256,7 +256,8 @@ impl<'a> CommandHandler<'a> {
         };
 
         let username = rocketchat_api.current_username()?;
-        if !rocketchat_channel.usernames.iter().any(|u| u == &username) {
+        let users = rocketchat_api.members(&rocketchat_channel.id)?;
+        if !users.iter().any(|u| u.username == username) {
             bail_error!(
                 ErrorKind::RocketchatJoinFirst(channel_name.to_string()),
                 t!(["errors", "rocketchat_join_first"]).with_vars(vec![("channel_name", channel_name.to_string())])
@@ -270,13 +271,16 @@ impl<'a> CommandHandler<'a> {
                 room.bridge_for_user(event.user_id.clone(), channel_name.to_string())?;
                 room_id
             }
-            None => channel.bridge(
-                rocketchat_api.as_ref(),
-                &Some(channel_name.to_string()),
-                &rocketchat_channel.usernames,
-                &bot_user_id,
-                &event.user_id,
-            )?,
+            None => {
+                let usernames: Vec<String> = users.into_iter().map(|u| u.username).collect();
+                channel.bridge(
+                    rocketchat_api.as_ref(),
+                    &Some(channel_name.to_string()),
+                    &usernames,
+                    &bot_user_id,
+                    &event.user_id,
+                )?
+            }
         };
 
         let message = t!(["admin_room", "room_successfully_bridged"]).with_vars(vec![
@@ -373,10 +377,11 @@ impl<'a> CommandHandler<'a> {
 
         let mut channel_list = "".to_string();
         for c in channels {
-            let channel = Channel::new(self.config, self.logger, self.matrix_api, c.id, rocketchat_server_id);
+            let channel = Channel::new(self.config, self.logger, self.matrix_api, c.id.clone(), rocketchat_server_id);
+            let users = rocketchat_api.members(&c.id)?;
             let formatter = if channel.is_bridged_for_user(user_id)? {
                 "**"
-            } else if c.usernames.iter().any(|username| username == &display_name) {
+            } else if users.iter().any(|u| u.username == display_name) {
                 "*"
             } else {
                 ""

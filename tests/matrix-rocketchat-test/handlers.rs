@@ -11,6 +11,7 @@ use iron::prelude::*;
 use iron::url::Url;
 use iron::url::percent_encoding::percent_decode;
 use iron::{status, BeforeMiddleware, Chain, Handler};
+use matrix_rocketchat::api::rocketchat::User;
 use matrix_rocketchat::api::rocketchat::v1::Message as RocketchatMessage;
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
 use persistent::Write;
@@ -102,7 +103,7 @@ impl Handler for RocketchatMe {
 }
 
 pub struct RocketchatChannelsList {
-    pub channels: HashMap<&'static str, Vec<&'static str>>,
+    pub channels: Vec<&'static str>,
     pub status: status::Status,
 }
 
@@ -112,14 +113,11 @@ impl Handler for RocketchatChannelsList {
 
         let mut channels: Vec<String> = Vec::new();
 
-        for (channel_name, user_names) in self.channels.iter() {
+        for channel_name in self.channels.iter() {
             let channel = r#"{
                 "_id": "CHANNEL_NAME_id",
                 "name": "CHANNEL_NAME",
                 "t": "c",
-                "usernames": [
-                    "CHANNEL_USERNAMES"
-                ],
                 "msgs": 0,
                 "u": {
                     "_id": "spec_user_id",
@@ -129,12 +127,55 @@ impl Handler for RocketchatChannelsList {
                 "ro": false,
                 "sysMes": true,
                 "_updatedAt": "2017-02-12T13:20:22.092Z"
-            }"#.replace("CHANNEL_NAME", channel_name)
-                .replace("CHANNEL_USERNAMES", &user_names.join("\",\""));
+            }"#.replace("CHANNEL_NAME", channel_name);
             channels.push(channel);
         }
 
         let payload = "{ \"channels\": [".to_string() + &channels.join(",") + "], \"success\": true }";
+
+        Ok(Response::with((self.status, payload)))
+    }
+}
+
+pub struct RocketchatRoomMembers {
+    pub channels: HashMap<&'static str, Vec<&'static str>>,
+    pub status: status::Status,
+}
+
+impl Handler for RocketchatRoomMembers {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        debug!(DEFAULT_LOGGER, "Rocket.Chat mock server got room members request");
+
+        let url: Url = request.url.clone().into();
+        let mut query_pairs = url.query_pairs();
+        let (_, room_id_param) = query_pairs.find(|&(ref key, _)| key == "roomId").unwrap().to_owned();
+        // convert id to room name, because the list consists of room names and in the tests the room id
+        // is constructed by appending _id
+        let room_name = room_id_param.replace("_id", "");
+        let room_name_ref: &str = room_name.as_ref();
+
+        debug!(DEFAULT_LOGGER, "Looking up room {}", room_name_ref);
+        let payload = match self.channels.get(room_name_ref) {
+            Some(user_names) => {
+                let mut users = Vec::new();
+                for user_name in user_names {
+                    let user = User {
+                        id: format!("{}_id", user_name),
+                        username: user_name.to_string(),
+                    };
+                    users.push(user);
+                }
+
+                let members = serde_json::to_string(&users).unwrap();
+                format!(
+                    "{{\"members\": {}, \"count\": {}, \"offset\": 0,\"total\": {}, \"success\": true}}",
+                    members,
+                    members.len(),
+                    members.len()
+                )
+            }
+            None => "foo".to_string(),
+        };
 
         Ok(Response::with((self.status, payload)))
     }

@@ -373,6 +373,11 @@ error_chain!{
             display("The mime type of the file is missing")
         }
 
+        TooManyRequests(endpoint: String) {
+            description("Too many requests to API endpoint")
+            display("Too many requests to API endpoint {}", endpoint)
+        }
+
         InternalServerError {
             description("An internal error")
             display("An internal error occurred")

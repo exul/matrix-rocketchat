@@ -14,6 +14,7 @@ use i18n::*;
 /// Rocket.Chat REST API v1
 pub mod v1;
 
+const MAX_REQUESTS_PER_ENDPOINT_CALL: i32 = 1000;
 const MIN_MAJOR_VERSION: i32 = 0;
 const MIN_MINOR_VERSION: i32 = 60;
 
@@ -51,8 +52,6 @@ pub struct Channel {
     pub id: String,
     /// Name of the Rocket.Chat room
     pub name: Option<String>,
-    /// List of users in the room
-    pub usernames: Vec<String>,
 }
 
 /// A Rocket.Chat message
@@ -75,7 +74,7 @@ pub struct Message {
 }
 
 /// A Rocket.Chat user
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Clone, Deserialize, Debug, Serialize)]
 pub struct User {
     /// ID of the Rocket.Chat user
     #[serde(rename = "_id")]
@@ -96,9 +95,11 @@ pub trait RocketchatApi {
     fn get_attachments(&self, message_id: &str) -> Result<Vec<Attachment>>;
     /// Login a user on the Rocket.Chat server
     fn login(&self, username: &str, password: &str) -> Result<(String, String)>;
+    /// Get all members of a channel
+    fn members(&self, room_id: &str) -> Result<Vec<User>>;
     /// Post a chat message
     fn post_chat_message(&self, text: &str, room_id: &str) -> Result<()>;
-    /// Post a message with an attchment
+    /// Post a message with an attachment
     fn post_file_message(&self, file: Vec<u8>, filename: &str, mime_type: Mime, room_id: &str) -> Result<()>;
     /// Get information like user_id, status, etc. about a user
     fn users_info(&self, username: &str) -> Result<User>;

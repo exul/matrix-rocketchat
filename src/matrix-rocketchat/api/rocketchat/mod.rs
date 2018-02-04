@@ -45,7 +45,7 @@ pub struct Attachment {
 }
 
 /// A Rocket.Chat channel
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct Channel {
     /// ID of the Rocket.Chat room
     #[serde(rename = "_id")]
@@ -93,6 +93,8 @@ pub trait RocketchatApi {
     fn direct_messages_list(&self) -> Result<Vec<Channel>>;
     /// Get the url of an image that is attached to a message.
     fn get_attachments(&self, message_id: &str) -> Result<Vec<Attachment>>;
+    /// Get all the channels that the user of the request has joiend.
+    fn get_joined_channels(&self) -> Result<Vec<Channel>>;
     /// Login a user on the Rocket.Chat server
     fn login(&self, username: &str, password: &str) -> Result<(String, String)>;
     /// Get all members of a channel

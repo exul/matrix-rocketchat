@@ -29,6 +29,8 @@ pub const GET_CHAT_MESSAGE_PATH: &str = "/api/v1/chat.getMessage";
 pub const POST_CHAT_MESSAGE_PATH: &str = "/api/v1/chat.postMessage";
 /// Room members endpoint path
 pub const GET_ROOM_MEMBERS_PATH: &str = "/api/v1/channels.members";
+/// Joined rooms endpoint path
+pub const GET_JOINED_CHANNELS_PATH: &str = "/api/v1/channels.list.joined";
 /// Upload a file endpoint path
 pub const UPLOAD_PATH: &str = "/api/v1/rooms.upload";
 
@@ -325,6 +327,49 @@ impl<'a> Endpoint<String> for GetRoomMembersEndpoint<'a> {
     }
 }
 
+/// V1 get joined rooms endpoint
+pub struct GetJoinedChannelsEndpoint<'a> {
+    base_url: String,
+    user_id: String,
+    auth_token: String,
+    query_params: HashMap<&'static str, &'a str>,
+}
+
+/// Response payload from the Rocket.Chat joind channels endpoint.
+#[derive(Deserialize)]
+pub struct GetJoinedChannelsResponse {
+    channels: Vec<super::Channel>,
+    count: i32,
+    offset: i32,
+    total: i32,
+}
+
+impl<'a> Endpoint<String> for GetJoinedChannelsEndpoint<'a> {
+    fn method(&self) -> Method {
+        Method::Get
+    }
+
+    fn url(&self) -> String {
+        self.base_url.clone() + GET_JOINED_CHANNELS_PATH
+    }
+
+    fn payload(&self) -> Result<RequestData<String>> {
+        Ok(RequestData::Body("".to_string()))
+    }
+
+    fn headers(&self) -> Option<Headers> {
+        let mut headers = Headers::new();
+        headers.set(ContentType::json());
+        headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
+        headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
+        Some(headers)
+    }
+
+    fn query_params(&self) -> HashMap<&'static str, &str> {
+        self.query_params.clone()
+    }
+}
+
 /// Response payload from the Rocket.Chat channels.list endpoint.
 #[derive(Deserialize)]
 pub struct ChannelsListResponse {
@@ -550,6 +595,29 @@ impl super::RocketchatApi for RocketchatApi {
         Ok(files)
     }
 
+    fn get_joined_channels(&self) -> Result<Vec<super::Channel>> {
+        debug!(self.logger, "Getting joined channels for user {} from Rocket.Chat server", self.user_id);
+
+        let mut channels = Vec::new();
+        let mut offset = 0;
+        for i in 0..super::MAX_REQUESTS_PER_ENDPOINT_CALL {
+            if i == super::MAX_REQUESTS_PER_ENDPOINT_CALL {
+                bail_error!(ErrorKind::TooManyRequests(GET_JOINED_CHANNELS_PATH.to_string()))
+            }
+
+            let mut channels_response = get_joined_channels(&self, offset)?;
+            channels.append(&mut channels_response.channels);
+            let subtotal = channels_response.count + channels_response.offset;
+            if subtotal == channels_response.total {
+                break;
+            }
+
+            offset = subtotal;
+        }
+
+        Ok(channels)
+    }
+
     fn login(&self, username: &str, password: &str) -> Result<(String, String)> {
         debug!(self.logger, "Logging in user with username {} on Rocket.Chat server {}", username, &self.base_url);
 
@@ -672,6 +740,28 @@ impl super::RocketchatApi for RocketchatApi {
         self.auth_token = auth_token;
         self
     }
+}
+
+fn get_joined_channels(rocketchat_api: &RocketchatApi, offset: i32) -> Result<GetJoinedChannelsResponse> {
+    let offset_param = offset.to_string();
+    let mut query_params = HashMap::new();
+    query_params.insert("offset", offset_param.as_ref());
+    let get_joined_channels_endpoint = GetJoinedChannelsEndpoint {
+        base_url: rocketchat_api.base_url.clone(),
+        user_id: rocketchat_api.user_id.clone(),
+        auth_token: rocketchat_api.auth_token.clone(),
+        query_params: query_params,
+    };
+
+    let (body, status_code) = RestApi::call_rocketchat(&get_joined_channels_endpoint)?;
+    if !status_code.is_success() {
+        return Err(build_error(&get_joined_channels_endpoint.url(), &body, &status_code));
+    }
+
+    let get_joined_channels_response: GetJoinedChannelsResponse = serde_json::from_str(&body).chain_err(|| {
+        ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat room members API endpoint: `{}`", body))
+    })?;
+    Ok(get_joined_channels_response)
 }
 
 fn get_members(rocketchat_api: &RocketchatApi, room_id: &str, offset: i32) -> Result<GetRoomMembersResponse> {

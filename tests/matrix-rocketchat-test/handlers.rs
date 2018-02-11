@@ -11,7 +11,7 @@ use iron::prelude::*;
 use iron::url::Url;
 use iron::url::percent_encoding::percent_decode;
 use iron::{status, BeforeMiddleware, Chain, Handler};
-use matrix_rocketchat::api::rocketchat::User;
+use matrix_rocketchat::api::rocketchat::{Channel, User};
 use matrix_rocketchat::api::rocketchat::v1::Message as RocketchatMessage;
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
 use persistent::Write;
@@ -174,10 +174,50 @@ impl Handler for RocketchatRoomMembers {
                     members.len()
                 )
             }
-            None => "foo".to_string(),
+            None => "foo".to_string(), //TODO: Wut, we merged that? Fix me
         };
 
         Ok(Response::with((self.status, payload)))
+    }
+}
+
+pub struct RocketchatJoinedRooms {
+    pub users_in_rooms: HashMap<&'static str, Vec<&'static str>>,
+}
+
+impl Handler for RocketchatJoinedRooms {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
+        debug!(DEFAULT_LOGGER, "Rocket.Chat mock server got joined rooms request");
+
+        let user_id_raw = request.headers.get_raw("X-User-Id").unwrap();
+        let user_id_header = (*user_id_raw).first().unwrap();
+        let user_id = String::from_utf8(user_id_header.to_vec()).unwrap();
+        let user_id_ref: &str = user_id.as_ref();
+
+        debug!(DEFAULT_LOGGER, "Looking up joined rooms for user {}", user_id);
+        let payload = match self.users_in_rooms.get(user_id_ref) {
+            Some(room_names) => {
+                let mut rooms = Vec::new();
+                for room_name in room_names {
+                    let room = Channel {
+                        id: format!("{}_id", room_name),
+                        name: Some(room_name.to_string()),
+                    };
+                    rooms.push(room);
+                }
+
+                let room_list = serde_json::to_string(&rooms).unwrap();
+                format!(
+                    "{{\"channels\": {}, \"count\": {}, \"offset\": 0,\"total\": {}, \"success\": true}}",
+                    room_list,
+                    room_list.len(),
+                    room_list.len()
+                )
+            }
+            None => r#"{"channels": [], "count": 0, "offset": 0,"total": 0, "success": true}"#.to_string(),
+        };
+
+        Ok(Response::with((status::Status::Ok, payload)))
     }
 }
 

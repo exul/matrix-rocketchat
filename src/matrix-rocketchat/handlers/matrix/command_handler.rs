@@ -372,16 +372,15 @@ impl<'a> CommandHandler<'a> {
         rocketchat_server_id: &str,
         user_id: &UserId,
     ) -> Result<String> {
-        let display_name = rocketchat_api.current_username()?;
         let channels = rocketchat_api.channels_list()?;
+        let joined_channels = rocketchat_api.get_joined_channels()?;
 
         let mut channel_list = "".to_string();
         for c in channels {
             let channel = Channel::new(self.config, self.logger, self.matrix_api, c.id.clone(), rocketchat_server_id);
-            let users = rocketchat_api.members(&c.id)?;
             let formatter = if channel.is_bridged_for_user(user_id)? {
                 "**"
-            } else if users.iter().any(|u| u.username == display_name) {
+            } else if joined_channels.iter().any(|jc| jc.id == c.id) {
                 "*"
             } else {
                 ""

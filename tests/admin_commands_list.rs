@@ -12,7 +12,7 @@ use std::convert::TryFrom;
 
 use iron::status;
 use matrix_rocketchat::api::MatrixApi;
-use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, LOGIN_PATH, ME_PATH};
+use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, GET_JOINED_CHANNELS_PATH, LOGIN_PATH, ME_PATH};
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER};
 use router::Router;
 use ruma_client_api::Endpoint;
@@ -36,6 +36,15 @@ fn sucessfully_list_rocketchat_rooms() {
             username: "spec_user".to_string(),
         },
         "me",
+    );
+    let mut users_in_rooms = HashMap::new();
+    users_in_rooms.insert("spec_user_id", vec!["joined_channel", "bridged_channel"]);
+    rocketchat_router.get(
+        GET_JOINED_CHANNELS_PATH,
+        handlers::RocketchatJoinedRooms {
+            users_in_rooms: users_in_rooms,
+        },
+        "joined_channels",
     );
 
     let test = test.with_matrix_routes(matrix_router)

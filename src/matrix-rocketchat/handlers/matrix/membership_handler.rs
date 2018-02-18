@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use diesel::sqlite::SqliteConnection;
@@ -6,7 +5,6 @@ use iron::url::Host;
 use ruma_events::room::member::{MemberEvent, MembershipState};
 use ruma_identifiers::UserId;
 use slog::Logger;
-use serde_json::{self, Value};
 
 use api::MatrixApi;
 use config::Config;
@@ -59,19 +57,7 @@ impl<'a> MembershipHandler<'a> {
             MembershipState::Join if addressed_to_matrix_bot => {
                 debug!(self.logger, "Received join event for bot user {} and room {}", matrix_bot_user_id, self.room.id);
 
-                //TODO: This doesn't seem to work anymore, because the inviter is not part of the unsigned json object anymore
-                let unsigned: HashMap<String, Value> =
-                    serde_json::from_value(event.unsigned.clone().unwrap_or_default()).unwrap_or_default();
-                let inviter_id = match unsigned.get("prev_sender") {
-                    Some(prev_sender) => {
-                        let raw_id: String = serde_json::from_value(prev_sender.clone()).unwrap_or_else(|_| "".to_string());
-                        let inviter_id = UserId::try_from(&raw_id).chain_err(|| ErrorKind::InvalidUserId(raw_id))?;
-                        Some(inviter_id)
-                    }
-                    None => None,
-                };
-
-                self.handle_bot_join(matrix_bot_user_id, inviter_id)?;
+                self.handle_bot_join(matrix_bot_user_id)?;
             }
             MembershipState::Join => {
                 debug!(self.logger, "Received join event for user {} and room {}", &state_key, &event.room_id);
@@ -111,7 +97,7 @@ impl<'a> MembershipHandler<'a> {
         Ok(())
     }
 
-    fn handle_bot_join(&self, matrix_bot_user_id: UserId, inviter_id: Option<UserId>) -> Result<()> {
+    fn handle_bot_join(&self, matrix_bot_user_id: UserId) -> Result<()> {
         let is_admin_room = match self.room.is_admin_room() {
             Ok(is_admin_room) => is_admin_room,
             Err(err) => {
@@ -125,7 +111,7 @@ impl<'a> MembershipHandler<'a> {
         };
 
         if is_admin_room {
-            self.setup_admin_room(matrix_bot_user_id.clone(), inviter_id)?;
+            self.setup_admin_room(matrix_bot_user_id.clone())?;
             return Ok(());
         }
 
@@ -137,30 +123,17 @@ impl<'a> MembershipHandler<'a> {
         Ok(())
     }
 
-    fn setup_admin_room(&self, matrix_bot_user_id: UserId, inviter_id: Option<UserId>) -> Result<()> {
+    fn setup_admin_room(&self, matrix_bot_user_id: UserId) -> Result<()> {
         debug!(self.logger, "Setting up a new admin room with id {}", self.room.id);
 
-        let inviter_id = match inviter_id {
-            Some(inviter_id) => inviter_id,
-            None => {
-                info!(self.logger, "Inviter is unknown, bot will leave and forget the room {}", self.room.id);
-                let bot_user_id = self.config.matrix_bot_user_id()?;
-                let err = user_error!(
-                    ErrorKind::InviterUnknown(self.room.id.clone(), bot_user_id.clone()),
-                    t!(["errors", "inviter_unknown"]).with_vars(vec![("bot_user_id", bot_user_id.to_string())])
-                );
-                self.handle_admin_room_setup_error(&err, matrix_bot_user_id);
-                return Ok(());
-            }
-        };
-
-        if let Err(err) = self.is_admin_room_valid(&inviter_id) {
+        let room_creator_id = self.matrix_api.get_room_creator(self.room.id.clone())?;
+        if let Err(err) = self.is_admin_room_valid() {
             info!(self.logger, "Admin room {} is not valid, bot will leave and forget the room", self.room.id);
             self.handle_admin_room_setup_error(&err, matrix_bot_user_id);
             return Ok(());
         }
 
-        match CommandHandler::build_help_message(self.conn, self.room, self.config.as_url.clone(), &inviter_id) {
+        match CommandHandler::build_help_message(self.conn, self.room, self.config.as_url.clone(), &room_creator_id) {
             Ok(body) => {
                 self.matrix_api.send_text_message_event(self.room.id.clone(), matrix_bot_user_id, body)?;
             }
@@ -203,13 +176,8 @@ impl<'a> MembershipHandler<'a> {
         Ok(self.room.id.hostname().ne(&hs_hostname))
     }
 
-    fn is_admin_room_valid(&self, inviter_id: &UserId) -> Result<()> {
+    fn is_admin_room_valid(&self) -> Result<()> {
         debug!(self.logger, "Validating admin room");
-        let room_creator_id = self.matrix_api.get_room_creator(self.room.id.clone())?;
-        if inviter_id != &room_creator_id {
-            let err = ErrorKind::OnlyRoomCreatorCanInviteBotUser(inviter_id.clone(), self.room.id.clone(), room_creator_id);
-            bail_error!(err, t!(["errors", "only_room_creator_can_invite_bot_user"]));
-        }
 
         if !self.is_private_room()? {
             bail_error!(ErrorKind::TooManyUsersInAdminRoom(self.room.id.clone()), t!(["errors", "too_many_members_in_room"]));
@@ -219,7 +187,10 @@ impl<'a> MembershipHandler<'a> {
     }
 
     fn is_private_room(&self) -> Result<bool> {
-        Ok(self.room.user_ids(None)?.len() <= 2)
+        let room_members_events = self.matrix_api.get_room_members(self.room.id.clone(), None)?;
+        let mut user_ids: Vec<&UserId> = room_members_events.iter().map(|m| &m.user_id).collect();
+        user_ids.dedup();
+        Ok(user_ids.len() <= 2)
     }
 
     fn handle_admin_room_setup_error(&self, err: &Error, matrix_bot_user_id: UserId) {

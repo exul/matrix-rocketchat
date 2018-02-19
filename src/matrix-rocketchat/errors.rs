@@ -11,7 +11,7 @@ use diesel_migrations::RunMigrationsError;
 use iron::{IronError, Response};
 use iron::modifier::Modifier;
 use iron::status::Status;
-use ruma_identifiers::{RoomId, UserId};
+use ruma_identifiers::RoomId;
 use serde_json;
 
 use i18n::*;
@@ -309,18 +309,6 @@ error_chain!{
         TooManyUsersInAdminRoom(room_id: RoomId) {
             description("Too many users in admin room")
             display("Room {} has more then two members and cannot be used as admin room", room_id)
-        }
-
-        InviterUnknown(room_id: RoomId, bot_user_id: UserId) {
-            description("Inviter for join event was not found")
-            display("Could not determine if the admin room {} is valid, because the inviter is unknown. \
-            Please invite the bot user {} to a direct chat.", room_id, bot_user_id)
-        }
-
-        OnlyRoomCreatorCanInviteBotUser(inviter_id: UserId, room_id: RoomId, creator_id: UserId) {
-            description("Only the room creator can invite the bot user")
-            display("The bot user was invited by the user {} but the room {} was created by {}, \
-                    bot user is leaving", inviter_id, room_id, creator_id)
         }
 
         ConnectionPoolExtractionError {

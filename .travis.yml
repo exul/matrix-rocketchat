@@ -1,6 +1,5 @@
 sudo: required
 dist: trusty
-group: deprecated-2017Q4
 
 language: rust
 
@@ -14,7 +13,7 @@ addons:
       - libssl-dev
 
 rust:
-  - nightly-2017-12-03
+  - nightly
 
 script:
 - cargo clean

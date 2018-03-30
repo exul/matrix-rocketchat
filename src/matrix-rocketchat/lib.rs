@@ -10,6 +10,7 @@ extern crate diesel;
 extern crate diesel_migrations;
 #[macro_use]
 extern crate error_chain;
+extern crate hyper_native_tls;
 extern crate iron;
 #[macro_use]
 extern crate lazy_static;

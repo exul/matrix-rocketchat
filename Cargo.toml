@@ -13,6 +13,7 @@ clap = "2.2"
 diesel = { version = "1.0", default-features = false, features = ["sqlite"] }
 diesel_migrations = { version = "1.0", default-features = false, features = ["sqlite"] }
 error-chain = "0.11"
+hyper-native-tls = "0.2"
 iron = "0.6"
 lazy_static = "1.0"
 num_cpus = "1.8"

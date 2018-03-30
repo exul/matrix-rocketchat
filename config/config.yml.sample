@@ -10,18 +10,18 @@ as_token: "as_secret_token"
 # application service without a reverse proxy, this has to be a public IP
 # address of your server. You can choose any IP/port that is available on your
 # server. 0.0.0.0 binds to all interfaces.
-as_address: "0.0.0.0:8088"
+as_address: "0.0.0.0:8822"
 # The URL which can be used to access the application service. If you type this
 # URL in your browser after you started the application service you should see
 # "Your Rocket.Chat <-> Matrix application service is running".
 # It can be a domain that points to the public IP address of your server or the
 # IP address itself.
 # This has to match the parameter `url` in your  rocketchat_registration.yaml.
-as_url: "https://example.com:8088"
+as_url: "https://example.com:8822"
 # The URL which can be used to access your homeserver. If the homeserver is
 # running on the same machine you can use the non SSL port 8008. If the
 # homeserver is running on another machine, use the servername with the SSL
-# port (e.g. https://example.org:8448).
+# port (e.g. https://example.org:8822).
 hs_url: "http://127.0.0.1:8008"
 # The domain of the homeserver. It is used to create the usernames (the part
 # after the colon).
@@ -50,14 +50,14 @@ log_file_path: "/path/to/file.log"
 # Which means that users from other homeservers can use this Rocket.Chat bridge
 # if the flag is set to true.
 accept_remote_invites: false
-# Flag that indicates if the application service should use SSL. It's highly
-# recommended that you use SSL if you expose the application service directly
+# Flag that indicates if the application service should use HTTPS. It's highly
+# recommended that you use HTTPS if you expose the application service directly
 # (bind it to a public IP address). If you run the application service behind
-# a reverse-proxy you can run it on localhost and let the proxy handle SSL.
-use_ssl: true
-# Path to the SSL certificate (this is only mandatory if you run the
+# a reverse-proxy you can run it on localhost and let the proxy handle HTTPS.
+use_https: true
+# Path to the PKCS 12 file (this is only mandatory if you run the
 # application service with SSL).
-ssl_certificate_path: "/etc/letsencrypt/live/example.com/fullchain.pem"
-# Path to the SSL key (this is only mandatory if you run the application
-# service with SSL).
-ssl_key_path: "/etc/letsencrypt/live/example.com/privkey.pem"
+pkcs12_path: "/etc/letsencrypt/live/example.com/file.pk12"
+# The password to decrypt the PKCS 12 file (this is only mandatory if you run the
+# application service with SSL).
+pkcs12_password: "secret"

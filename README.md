@@ -53,6 +53,71 @@ sudo apt-get install libssl-dev
 sudo pacman -S openssl
 ```
 
+## HTTPS
+
+It's strongly recommended to use HTTPS when running the service!
+
+The HTTPS configuration can either be done as part of the application service or a reverse proxy can be used.
+
+### Application Service
+
+The service can be exposed via HTTPS by providing a PKCS 12 file and a password to decrypt the file.
+
+To convert a certificate and a private key into a PKCS 12 file, the following command can be used:
+
+```
+openssl pkcs12 -export -in fullchain.pem -inkey privkey.pem -out cert.p12
+```
+
+The command will prompt for a password.
+
+Configuration parameters:
+
+```
+as_address: "0.0.0.0:8822"
+as_url: "https://matrix-rocketchat.example.org:8822"
+use_https: true
+pkcs12_path: "/pass/to/cert.p12
+pkcs12_password: "p12password"
+```
+
+### Reverse Proxy
+
+The application service can be run behind a reverse proxy and let the reverse proxy handle the HTTPS.
+
+In this case, it's important to bind the application service only to localhost!
+
+NGINX example config:
+
+```
+http {
+  ssl_certificate       /etc/letsencrypt/live/example.org/fullchain.pem;
+  ssl_certificate_key   /etc/letsencrypt/live/example.org/privkey.pem;
+  ssl_protocols         TLSv1.2 TLSv1.1;
+  ssl_ciphers           EECDH+AESGCM:EDH+AESGCM:AES256+EECDH:AES256+EDH;
+
+  server {
+    server_name  matrix-rocketchat.example.org;
+    listen       443 ssl;
+    location / {
+      proxy_pass          http://localhost:8822/;
+      proxy_set_header    Host            $host;
+      proxy_set_header    X-Real-IP       $remote_addr;
+      proxy_set_header    X-Forwarded-for $remote_addr;
+      port_in_redirect    off;
+    }
+  }
+}
+```
+
+Configuration parameters:
+
+```
+as_address: "127.0.0.1:8822"
+as_url: "https://matrix-rocketchat.example.org"
+use_https: false
+```
+
 ## Acknowledgement
 
 I learned a lot by reading the code of the following projects:

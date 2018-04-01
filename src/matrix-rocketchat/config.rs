@@ -39,11 +39,11 @@ pub struct Config {
     /// Path to the log file (this is only mandatory if logging to a file is enabled)
     pub log_file_path: String,
     /// Flag to indicate if the application service should use HTTPS
-    pub use_ssl: bool,
-    /// Path to the SSL certificate (only needed if SSL is used)
-    pub ssl_certificate_path: Option<String>,
-    /// Path to the SSL key (only needed if SSL is used)
-    pub ssl_key_path: Option<String>,
+    pub use_https: bool,
+    /// Path to the PKCS 12 file
+    pub pkcs12_path: Option<String>,
+    /// Password to decrypt the PKCS 12 file
+    pub pkcs12_password: Option<String>,
 }
 
 impl Config {

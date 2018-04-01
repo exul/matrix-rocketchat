@@ -610,9 +610,9 @@ pub fn build_test_config(temp_dir: &TempDir) -> Config {
         log_to_console: true,
         log_to_file: false,
         log_file_path: "".to_string(),
-        use_ssl: false,
-        ssl_certificate_path: None,
-        ssl_key_path: None,
+        use_https: false,
+        pkcs12_path: None,
+        pkcs12_password: None,
     }
 }
 

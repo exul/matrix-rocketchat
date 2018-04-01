@@ -1,5 +1,6 @@
 use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
+use hyper_native_tls::NativeTlsServer;
 use iron::{Chain, Iron, Listening};
 use persistent::{State, Write};
 use router::Router;
@@ -47,7 +48,19 @@ impl<'a> Server<'a> {
         info!(self.logger, "Starting server"; "address" => format!("{:?}", self.config.as_address));
         let mut server = Iron::new(chain);
         server.threads = threads;
-        server.http(self.config.as_address).chain_err(|| ErrorKind::ServerStartupError).map_err(Error::from)
+
+        let listener = if self.config.use_https {
+            let pkcs12_path = self.config.pkcs12_path.clone().unwrap_or_default();
+            let pkcs12_password = self.config.pkcs12_password.clone().unwrap_or_default();
+            info!(self.logger, "Using HTTPS"; "pkcs12_path" => &pkcs12_path);
+            let ssl = NativeTlsServer::new(pkcs12_path, &pkcs12_password).chain_err(|| ErrorKind::ServerStartupError).map_err(Error::from)?;
+            server.https(self.config.as_address, ssl)
+        } else {
+            info!(self.logger, "Using HTTP");
+            server.http(self.config.as_address)
+        };
+
+        listener.chain_err(|| ErrorKind::ServerStartupError).map_err(Error::from)
     }
 
     fn setup_routes(&self, matrix_api: Box<MatrixApi>) -> Router {

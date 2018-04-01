@@ -14,8 +14,8 @@ use tempdir::TempDir;
 fn read_config_from_file() {
     let config_data = r#"hs_token: "hs_token"
                         as_token: "as_token"
-                        as_address: "127.0.0.1:8088"
-                        as_url: "http://localhost:8088"
+                        as_address: "127.0.0.1:8822"
+                        as_url: "http://localhost:8822"
                         hs_url: "http://localhost:8008"
                         hs_domain: "matrix.local"
                         sender_localpart: "rocketchat"
@@ -25,7 +25,7 @@ fn read_config_from_file() {
                         log_to_console: true
                         log_to_file: true
                         log_file_path: "matrix-rocketchat.log"
-                        use_ssl: false"#.replace("  ", ""); // hacky way to remove the whitespaces before the keys
+                        use_https: false"#.replace("  ", ""); // hacky way to remove the whitespaces before the keys
     let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
     let config_path = temp_dir.path().join("test.config");
 
@@ -34,8 +34,8 @@ fn read_config_from_file() {
     let config = Config::read_from_file(config_path.to_str().unwrap()).unwrap();
     assert_eq!(config.hs_token, "hs_token".to_string());
     assert_eq!(config.as_token, "as_token".to_string());
-    assert_eq!(config.as_address, "127.0.0.1:8088".to_socket_addrs().unwrap().next().unwrap());
-    assert_eq!(config.as_url, "http://localhost:8088");
+    assert_eq!(config.as_address, "127.0.0.1:8822".to_socket_addrs().unwrap().next().unwrap());
+    assert_eq!(config.as_url, "http://localhost:8822");
     assert_eq!(config.hs_url, "http://localhost:8008");
     assert_eq!(config.hs_domain, "matrix.local");
     assert_eq!(config.sender_localpart, "rocketchat");
@@ -45,5 +45,5 @@ fn read_config_from_file() {
     assert_eq!(config.log_to_console, true);
     assert_eq!(config.log_to_file, true);
     assert_eq!(config.log_file_path, "matrix-rocketchat.log");
-    assert_eq!(config.use_ssl, false);
+    assert_eq!(config.use_https, false);
 }

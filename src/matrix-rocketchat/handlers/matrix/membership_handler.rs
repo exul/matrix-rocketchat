@@ -45,7 +45,8 @@ impl<'a> MembershipHandler<'a> {
     /// Handles room membership changes
     pub fn process(&self, event: &MemberEvent) -> Result<()> {
         let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
-        let state_key = UserId::try_from(&event.state_key).chain_err(|| ErrorKind::InvalidUserId(event.state_key.clone()))?;
+        let state_key =
+            UserId::try_from(event.state_key.as_ref()).chain_err(|| ErrorKind::InvalidUserId(event.state_key.clone()))?;
         let addressed_to_matrix_bot = state_key == matrix_bot_user_id;
 
         match event.content.membership {

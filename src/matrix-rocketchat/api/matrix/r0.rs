@@ -3,12 +3,12 @@ use std::convert::TryFrom;
 use std::io::Read;
 
 use pulldown_cmark::{html, Options, Parser};
-use reqwest::{Method, StatusCode};
 use reqwest::header::{ContentType, Headers};
+use reqwest::{Method, StatusCode};
 use ruma_client_api::Endpoint;
-use ruma_client_api::r0::alias::get_alias::{self, Endpoint as GetAliasEndpoint};
-use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
 use ruma_client_api::r0::account::register::{self, Endpoint as RegisterEndpoint};
+use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
+use ruma_client_api::r0::alias::get_alias::{self, Endpoint as GetAliasEndpoint};
 use ruma_client_api::r0::media::create_content::{self, Endpoint as CreateContentEndpoint};
 use ruma_client_api::r0::media::get_content::{self, Endpoint as GetContentEndpoint};
 use ruma_client_api::r0::membership::forget_room::{self, Endpoint as ForgetRoomEndpoint};
@@ -20,10 +20,10 @@ use ruma_client_api::r0::profile::set_display_name::{self, Endpoint as SetDispla
 use ruma_client_api::r0::room::create_room::{self, Endpoint as CreateRoomEndpoint, RoomPreset};
 use ruma_client_api::r0::send::send_message_event::{self, Endpoint as SendMessageEventEndpoint};
 use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint as SendStateEventForEmptyKeyEndpoint};
-use ruma_client_api::r0::sync::sync_events::Endpoint as SyncEventsEndpoint;
 use ruma_client_api::r0::sync::get_member_events::{self, Endpoint as GetMemberEventsEndpoint};
 use ruma_client_api::r0::sync::get_state_events::{self, Endpoint as GetStateEvents};
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKeyEndpoint};
+use ruma_client_api::r0::sync::sync_events::Endpoint as SyncEventsEndpoint;
 use ruma_events::EventType;
 use ruma_events::collections::all::Event;
 use ruma_events::room::member::MemberEvent;
@@ -284,7 +284,7 @@ impl super::MatrixApi for MatrixApi {
             return Ok(None);
         }
 
-        let room_canonical_alias = RoomAliasId::try_from(&alias).chain_err(|| ErrorKind::InvalidRoomAliasId(alias))?;
+        let room_canonical_alias = RoomAliasId::try_from(alias.as_ref()).chain_err(|| ErrorKind::InvalidRoomAliasId(alias))?;
         Ok(Some(room_canonical_alias))
     }
 
@@ -309,7 +309,7 @@ impl super::MatrixApi for MatrixApi {
         })?;
 
         let room_creator = room_create["creator"].to_string().replace("\"", "");
-        let user_id = UserId::try_from(&room_creator).chain_err(|| ErrorKind::InvalidUserId(room_creator))?;
+        let user_id = UserId::try_from(room_creator.as_ref()).chain_err(|| ErrorKind::InvalidUserId(room_creator))?;
         Ok(user_id)
     }
 

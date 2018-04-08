@@ -2,35 +2,35 @@ use rand::{thread_rng, Rng};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
 use std::sync::{Arc, MutexGuard};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::Mutex;
 
+use super::{extract_payload, helpers, Message, MessageForwarder, PendingInvites, RoomAliasMap, RoomsStatesMap, TestError,
+            UserList, UsersInRooms, AS_TOKEN, DEFAULT_LOGGER};
 use iron::prelude::*;
 use iron::url::Url;
 use iron::url::percent_encoding::percent_decode;
 use iron::{status, BeforeMiddleware, Chain, Handler};
-use matrix_rocketchat::api::rocketchat::{Channel, User};
 use matrix_rocketchat::api::rocketchat::v1::Message as RocketchatMessage;
+use matrix_rocketchat::api::rocketchat::{Channel, User};
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
 use persistent::Write;
 use router::Router;
-use ruma_client_api::r0::alias::get_alias;
 use ruma_client_api::r0::account::register;
+use ruma_client_api::r0::alias::get_alias;
 use ruma_client_api::r0::media::create_content;
 use ruma_client_api::r0::membership::invite_user;
 use ruma_client_api::r0::profile::{get_display_name, set_display_name};
 use ruma_client_api::r0::room::create_room;
 use ruma_client_api::r0::sync::get_member_events;
-use ruma_events::collections::only::StateEvent;
 use ruma_events::EventType;
-use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
+use ruma_events::collections::only::StateEvent;
 use ruma_events::room::aliases::{AliasesEvent, AliasesEventContent};
+use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
 use ruma_identifiers::{EventId, RoomAliasId, RoomId, UserId};
 use serde_json::{self, Map, Value};
-use super::{extract_payload, helpers, Message, MessageForwarder, PendingInvites, RoomAliasMap, RoomsStatesMap, TestError,
-            UserList, UsersInRooms, AS_TOKEN, DEFAULT_LOGGER};
 
 #[derive(Serialize)]
 pub struct RocketchatInfo {
@@ -455,7 +455,7 @@ impl Handler for MatrixRegister {
         let mutex = request.get::<Write<UserList>>().unwrap();
         let mut user_list = mutex.lock().unwrap();
 
-        let user_id = UserId::try_from(&format!("@{}:localhost", register_payload.username.unwrap())).unwrap();
+        let user_id = UserId::try_from(format!("@{}:localhost", register_payload.username.unwrap()).as_ref()).unwrap();
         if user_list.contains_key(&user_id) {
             let error_response = MatrixErrorResponse {
                 errcode: "M_USER_IN_USE".to_string(),
@@ -572,7 +572,7 @@ impl Handler for MatrixCreateRoom {
             .collect();
         let test_room_id = format!("!{}_id:localhost", &room_id_local_part);
 
-        let mut room_id = RoomId::try_from(&test_room_id).unwrap();
+        let mut room_id = RoomId::try_from(test_room_id.as_ref()).unwrap();
         let user_id = user_id_from_request(request);
 
         // scope to release the mutex
@@ -582,7 +582,7 @@ impl Handler for MatrixCreateRoom {
             let users_in_rooms = users_in_rooms_mutex.lock().unwrap();
             if users_in_rooms.get(&room_id).is_some() {
                 let next_room_id = format!("!{}_next_id:localhost", &room_id_local_part);
-                room_id = RoomId::try_from(&next_room_id).unwrap();
+                room_id = RoomId::try_from(next_room_id.as_ref()).unwrap();
             }
         }
 
@@ -605,7 +605,7 @@ impl Handler for MatrixCreateRoom {
         }
 
         if let Some(room_alias_name) = create_room_payload.room_alias_name {
-            let room_alias_id = RoomAliasId::try_from(&format!("#{}:localhost", room_alias_name)).unwrap();
+            let room_alias_id = RoomAliasId::try_from(format!("#{}:localhost", room_alias_name).as_ref()).unwrap();
 
             if let Err(err) = add_alias_to_room(request, room_id.clone(), room_alias_id.clone()) {
                 debug!(DEFAULT_LOGGER, "{}", err);
@@ -709,7 +709,7 @@ impl Handler for SendRoomState {
                 let value = v.to_string().trim_matches('"').to_string();
 
                 if let Some(EventType::RoomAliases) = event_type {
-                    let room_alias_id = RoomAliasId::try_from(&value).unwrap();
+                    let room_alias_id = RoomAliasId::try_from(value.as_ref()).unwrap();
 
                     if let Err(err) = add_alias_to_room(request, room_id.clone(), room_alias_id) {
                         debug!(DEFAULT_LOGGER, "{}", err);

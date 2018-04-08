@@ -109,7 +109,8 @@ impl<'a> Channel<'a> {
     pub fn build_room_alias_id(&self) -> Result<RoomAliasId> {
         let alias_name = self.build_room_alias_name();
         let alias_id = format!("#{}:{}", alias_name, self.config.hs_domain);
-        let room_alias_id = RoomAliasId::try_from(&alias_id).chain_err(|| ErrorKind::InvalidRoomAliasId(alias_id.clone()))?;
+        let room_alias_id =
+            RoomAliasId::try_from(alias_id.as_ref()).chain_err(|| ErrorKind::InvalidRoomAliasId(alias_id.clone()))?;
         Ok(room_alias_id)
     }
 

@@ -60,7 +60,7 @@ impl Config {
     /// Matrix id of the bot user.
     pub fn matrix_bot_user_id(&self) -> Result<UserId> {
         let user_id = format!("@{}:{}", &self.sender_localpart, &self.hs_domain);
-        UserId::try_from(&user_id).chain_err(|| ErrorKind::InvalidUserId(user_id)).map_err(Error::from)
+        UserId::try_from(user_id.as_ref()).chain_err(|| ErrorKind::InvalidUserId(user_id)).map_err(Error::from)
     }
 
     /// Check if the user ID is part of the application service namespace

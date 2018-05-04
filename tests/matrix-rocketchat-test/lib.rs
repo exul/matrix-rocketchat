@@ -43,23 +43,22 @@ use std::thread;
 use std::time::Duration;
 
 use diesel::sqlite::SqliteConnection;
-use iron::{status, Chain, Iron, Listening};
 use iron::prelude::*;
 use iron::typemap::Key;
-use matrix_rocketchat::{Config, Server};
+use iron::{status, Chain, Iron, Listening};
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, GET_ROOM_MEMBERS_PATH, LOGIN_PATH, ME_PATH, USERS_INFO_PATH};
 use matrix_rocketchat::models::ConnectionPool;
+use matrix_rocketchat::{Config, Server};
 use persistent::Write;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 use router::Router;
-use ruma_identifiers::{RoomAliasId, RoomId, UserId};
 use ruma_client_api::Endpoint;
-use ruma_client_api::r0::alias::get_alias::Endpoint as GetAliasEndpoint;
-use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
-use ruma_client_api::r0::membership::invite_user::Endpoint as InviteUserEndpoint;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
+use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
+use ruma_client_api::r0::alias::get_alias::Endpoint as GetAliasEndpoint;
+use ruma_client_api::r0::membership::invite_user::Endpoint as InviteUserEndpoint;
 use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinRoomByIdEndpoint;
 use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
 use ruma_client_api::r0::profile::get_display_name::Endpoint as GetDisplaynameEndpoint;
@@ -71,6 +70,7 @@ use ruma_client_api::r0::sync::get_state_events::Endpoint as GetStateEventsEndpo
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::Endpoint as GetStateEventsForEmptyKeyEndpoint;
 use ruma_client_api::r0::sync::sync_events::Endpoint as SyncEventsEndpoint;
 use ruma_events::room::member::MembershipState;
+use ruma_identifiers::{RoomAliasId, RoomId, UserId};
 use slog::{Drain, FnValue, Level, LevelFilter, Record};
 use tempdir::TempDir;
 
@@ -109,10 +109,12 @@ lazy_static! {
 
 #[macro_export]
 macro_rules! assert_error_kind {
-    ($err:expr, $kind:pat) => (match *$err.error_chain.kind() {
-        $kind => assert!(true, "{:?} is of kind {:?}", $err, stringify!($kind)),
-        _     => assert!(false, "{:?} is NOT of kind {:?}", $err, stringify!($kind))
-    });
+    ($err:expr, $kind:pat) => {
+        match *$err.error_chain.kind() {
+            $kind => assert!(true, "{:?} is of kind {:?}", $err, stringify!($kind)),
+            _ => assert!(false, "{:?} is NOT of kind {:?}", $err, stringify!($kind)),
+        }
+    };
 }
 
 /// Helpers to forward messages from iron handlers
@@ -489,7 +491,7 @@ impl Test {
 
         helpers::join(
             &self.config,
-            RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap(),
+            RoomId::try_from(format!("!{}_id:localhost", room_name).as_ref()).unwrap(),
             UserId::try_from("@spec_user:localhost").unwrap(),
         );
     }

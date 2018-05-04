@@ -64,7 +64,7 @@ impl<'a> VirtualUser<'a> {
     pub fn build_user_id(&self, rocketchat_user_id: &str, rocketchat_server_id: &str) -> Result<UserId> {
         let user_id_local_part = format!("{}_{}_{}", self.config.sender_localpart, rocketchat_server_id, rocketchat_user_id);
         let user_id = format!("@{}:{}", user_id_local_part, self.config.hs_domain);
-        Ok(UserId::try_from(&user_id).chain_err(|| ErrorKind::InvalidUserId(user_id))?)
+        Ok(UserId::try_from(user_id.as_ref()).chain_err(|| ErrorKind::InvalidUserId(user_id))?)
     }
 
     /// Extracts the Rocket.Chat server and the users Rocket.Chat user ID from the Matrix User ID.

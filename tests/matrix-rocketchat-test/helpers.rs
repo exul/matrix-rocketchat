@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
+use super::{DEFAULT_LOGGER, HS_TOKEN};
 use diesel::sqlite::SqliteConnection;
 use matrix_rocketchat::Config;
 use matrix_rocketchat::api::{MatrixApi, RequestData, RestApi};
@@ -17,7 +18,6 @@ use ruma_events::room::message::{ImageMessageEventContent, MessageEvent, Message
                                  TextMessageEventContent};
 use ruma_identifiers::{EventId, RoomAliasId, RoomId, UserId};
 use serde_json::{self, to_string, Map, Value};
-use super::{DEFAULT_LOGGER, HS_TOKEN};
 
 pub fn invite(config: &Config, room_id: RoomId, user_id: UserId, sender_id: UserId) {
     let matrix_api = MatrixApi::new(config, DEFAULT_LOGGER.clone()).unwrap();
@@ -33,7 +33,7 @@ pub fn create_room(config: &Config, room_name: &str, sender_id: UserId, user_id:
     let matrix_api = MatrixApi::new(&config, DEFAULT_LOGGER.clone()).unwrap();
     matrix_api.create_room(Some(room_name.to_string()), None, &sender_id).unwrap();
 
-    let room_id = RoomId::try_from(&format!("!{}_id:localhost", room_name)).unwrap();
+    let room_id = RoomId::try_from(format!("!{}_id:localhost", room_name).as_ref()).unwrap();
     invite(&config, room_id, user_id, sender_id);
 }
 

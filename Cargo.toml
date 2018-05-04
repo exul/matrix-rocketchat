@@ -9,9 +9,9 @@ name = "matrix_rocketchat"
 path = "src/matrix-rocketchat/lib.rs"
 
 [dependencies]
-clap = "2.2"
-diesel = { version = "1.0", default-features = false, features = ["sqlite"] }
-diesel_migrations = { version = "1.0", default-features = false, features = ["sqlite"] }
+clap = "2.3"
+diesel = { version = "1.2", default-features = false, features = ["sqlite"] }
+diesel_migrations = { version = "1.2", default-features = false, features = ["sqlite"] }
 error-chain = "0.11"
 hyper-native-tls = "0.2"
 iron = "0.6"
@@ -30,12 +30,12 @@ serde = "1.0"
 serde_derive = "1.0"
 serde_json = "1.0"
 serde_yaml = "0.7"
-slog = "2.1"
-slog-async = "2.2"
+slog = "2.2"
+slog-async = "2.3"
 slog-json = "2.2"
-slog-term = "2.3"
+slog-term = "2.4"
 slog-stream = "1.2"
-url = "1.6"
+url = "1.7"
 yaml-rust = "0.4"
 
 [dev-dependencies]

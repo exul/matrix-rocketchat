@@ -95,7 +95,7 @@ impl<'a> Room<'a> {
             match member_event.content.membership {
                 MembershipState::Join => {
                     let state_key = member_event.state_key.clone();
-                    let user_id = UserId::try_from(&state_key).chain_err(|| ErrorKind::InvalidUserId(state_key))?;
+                    let user_id = UserId::try_from(state_key.as_ref()).chain_err(|| ErrorKind::InvalidUserId(state_key))?;
                     user_ids.push(user_id)
                 }
                 _ => continue,

@@ -1,17 +1,18 @@
-use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
+use diesel::Connection;
 use ruma_events::room::message::MessageEvent;
 use ruma_events::room::message::MessageEventContent;
 use ruma_identifiers::{RoomAliasId, UserId};
 use slog::Logger;
 
-use MAX_ROCKETCHAT_SERVER_ID_LENGTH;
 use api::{MatrixApi, RocketchatApi};
 use config::Config;
 use errors::*;
 use i18n::*;
-use models::{Channel, Credentials, NewRocketchatServer, NewUserOnRocketchatServer, RocketchatServer, Room,
-             UserOnRocketchatServer};
+use models::{
+    Channel, Credentials, NewRocketchatServer, NewUserOnRocketchatServer, RocketchatServer, Room, UserOnRocketchatServer,
+};
+use MAX_ROCKETCHAT_SERVER_ID_LENGTH;
 
 /// Handles command messages from the admin room
 pub struct CommandHandler<'a> {
@@ -240,23 +241,33 @@ impl<'a> CommandHandler<'a> {
         );
 
         let channels = rocketchat_api.channels_list()?;
+        let groups = rocketchat_api.group_list()?;
 
         let mut command = message.split_whitespace().collect::<Vec<&str>>().into_iter();
         let channel_name = command.by_ref().nth(1).unwrap_or_default();
 
-        let rocketchat_channel = match channels.iter().find(|channel| channel.name.clone().unwrap_or_default() == channel_name)
-        {
-            Some(channel) => channel,
-            None => {
-                bail_error!(
-                    ErrorKind::RocketchatChannelNotFound(channel_name.to_string()),
-                    t!(["errors", "rocketchat_channel_not_found"]).with_vars(vec![("channel_name", channel_name.to_string())])
-                );
-            }
-        };
+        let (rocketchat_channel, users) =
+            match channels.iter().find(|channel| channel.name.clone().unwrap_or_default() == channel_name) {
+                Some(channel) => {
+                    let users = rocketchat_api.members(&channel.id)?;
+                    (channel, users)
+                }
+                None => match groups.iter().find(|group| group.name.clone().unwrap_or_default() == channel_name) {
+                    Some(group) => {
+                        let users = rocketchat_api.group_members(&group.id)?;
+                        (group, users)
+                    }
+                    None => {
+                        bail_error!(
+                            ErrorKind::RocketchatChannelNotFound(channel_name.to_string()),
+                            t!(["errors", "rocketchat_channel_not_found"])
+                                .with_vars(vec![("channel_name", channel_name.to_string())])
+                        );
+                    }
+                },
+            };
 
         let username = rocketchat_api.current_username()?;
-        let users = rocketchat_api.members(&rocketchat_channel.id)?;
         if !users.iter().any(|u| u.username == username) {
             bail_error!(
                 ErrorKind::RocketchatJoinFirst(channel_name.to_string()),
@@ -283,9 +294,10 @@ impl<'a> CommandHandler<'a> {
             }
         };
 
-        let message = t!(["admin_room", "room_successfully_bridged"]).with_vars(vec![
-            ("channel_name", rocketchat_channel.name.clone().unwrap_or_else(|| rocketchat_channel.id.clone())),
-        ]);
+        let message = t!(["admin_room", "room_successfully_bridged"]).with_vars(vec![(
+            "channel_name",
+            rocketchat_channel.name.clone().unwrap_or_else(|| rocketchat_channel.id.clone()),
+        )]);
         self.matrix_api.send_text_message_event(event.room_id.clone(), bot_user_id.clone(), message.l(DEFAULT_LANGUAGE))?;
 
         Ok(info!(self.logger, "Successfully bridged room {} to {}", &rocketchat_channel.id, &room_id))
@@ -372,8 +384,13 @@ impl<'a> CommandHandler<'a> {
         rocketchat_server_id: &str,
         user_id: &UserId,
     ) -> Result<String> {
-        let channels = rocketchat_api.channels_list()?;
-        let joined_channels = rocketchat_api.get_joined_channels()?;
+        let mut channels = rocketchat_api.channels_list()?;
+        let mut joined_channels = rocketchat_api.get_joined_channels()?;
+        let groups = rocketchat_api.group_list()?;
+
+        channels.extend(groups.iter().cloned());
+        // all groups in the list are joined, because a user can only see joined groups
+        joined_channels.extend(groups.iter().cloned());
 
         let mut channel_list = "".to_string();
         for c in channels {

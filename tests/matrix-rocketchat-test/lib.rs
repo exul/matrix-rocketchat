@@ -46,15 +46,16 @@ use diesel::sqlite::SqliteConnection;
 use iron::prelude::*;
 use iron::typemap::Key;
 use iron::{status, Chain, Iron, Listening};
+use matrix_rocketchat::api::rocketchat::v1::{
+    CHANNELS_LIST_PATH, GET_GROUP_MEMBERS_PATH, GET_ROOM_MEMBERS_PATH, GROUP_LIST_PATH, LOGIN_PATH, ME_PATH, USERS_INFO_PATH,
+};
 use matrix_rocketchat::api::MatrixApi;
-use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_PATH, GET_ROOM_MEMBERS_PATH, LOGIN_PATH, ME_PATH, USERS_INFO_PATH};
 use matrix_rocketchat::models::ConnectionPool;
 use matrix_rocketchat::{Config, Server};
 use persistent::Write;
 use r2d2::Pool;
 use r2d2_diesel::ConnectionManager;
 use router::Router;
-use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
 use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
 use ruma_client_api::r0::alias::get_alias::Endpoint as GetAliasEndpoint;
@@ -69,6 +70,7 @@ use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEnd
 use ruma_client_api::r0::sync::get_state_events::Endpoint as GetStateEventsEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::Endpoint as GetStateEventsForEmptyKeyEndpoint;
 use ruma_client_api::r0::sync::sync_events::Endpoint as SyncEventsEndpoint;
+use ruma_client_api::Endpoint;
 use ruma_events::room::member::MembershipState;
 use ruma_identifiers::{RoomAliasId, RoomId, UserId};
 use slog::{Drain, FnValue, Level, LevelFilter, Record};
@@ -177,6 +179,8 @@ impl Error for TestError {
 pub struct Test {
     /// The application service listening server
     pub as_listening: Option<Listening>,
+    /// Group that is bridged and the user that bridged it
+    pub bridged_group: Option<(&'static str, &'static str)>,
     /// Room that is bridged and the user that bridged it
     pub bridged_room: Option<(&'static str, &'static str)>,
     /// A list of Rocket.Chat channels that are returned when querying the Rocket.Chat mock
@@ -186,6 +190,9 @@ pub struct Test {
     pub config: Config,
     /// Connection pool to get connection to the test database
     pub connection_pool: Pool<ConnectionManager<SqliteConnection>>,
+    /// A list of Rocket.Chat groups that are returned when querying the Rocket.Chat mock
+    /// groups.list endpoint
+    pub groups: Option<HashMap<&'static str, Vec<&'static str>>>,
     /// The matrix homeserver mock listening server
     pub hs_listening: Option<Listening>,
     /// Routes that the homeserver mock can handle
@@ -217,10 +224,12 @@ impl Test {
         let connection_pool = ConnectionPool::create(&config.database_url).unwrap();
         Test {
             as_listening: None,
+            bridged_group: None,
             bridged_room: None,
             channels: None,
             config: config,
             connection_pool: connection_pool,
+            groups: None,
             hs_listening: None,
             with_logged_in_user: false,
             matrix_homeserver_mock_router: None,
@@ -286,6 +295,13 @@ impl Test {
     /// channels.list edpoint
     pub fn with_custom_channel_list(mut self, channels: HashMap<&'static str, Vec<&'static str>>) -> Test {
         self.channels = Some(channels);
+        self
+    }
+
+    /// Set a list of Rocket.Chat groups that are returned when querying the Rocket.Chat mock
+    /// groups.list edpoint
+    pub fn with_custom_group_list(mut self, groups: HashMap<&'static str, Vec<&'static str>>) -> Test {
+        self.groups = Some(groups);
         self
     }
 
@@ -394,12 +410,22 @@ impl Test {
             None => HashMap::new(),
         };
 
+        let mut groups = match self.groups.clone() {
+            Some(groups) => groups,
+            None => HashMap::new(),
+        };
+
         if let Some(bridged_room) = self.bridged_room {
             let (room_name, user_id) = bridged_room;
             channels.insert(room_name, vec![user_id]);
         }
 
-        if channels.len() > 0 {
+        if let Some(bridged_group) = self.bridged_group {
+            let (group_name, user_id) = bridged_group;
+            groups.insert(group_name, vec![user_id]);
+        }
+
+        if channels.len() > 0 || groups.len() > 0 {
             router.get(
                 CHANNELS_LIST_PATH,
                 handlers::RocketchatChannelsList {
@@ -416,6 +442,24 @@ impl Test {
                     channels: channels,
                 },
                 "get_room_members",
+            );
+
+            router.get(
+                GROUP_LIST_PATH,
+                handlers::RocketchatGroupsList {
+                    status: status::Ok,
+                    groups: groups.keys().map(|k| *k).collect(),
+                },
+                "groups_list",
+            );
+
+            router.get(
+                GET_GROUP_MEMBERS_PATH,
+                handlers::RocketchatRoomMembers {
+                    status: status::Ok,
+                    channels: groups,
+                },
+                "get_group_members",
             );
         }
 

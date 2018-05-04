@@ -12,17 +12,17 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use iron::{status, Chain};
-use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH, USERS_INFO_PATH};
+use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::models::Room;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER};
 use router::Router;
-use ruma_client_api::Endpoint;
 use ruma_client_api::r0::alias::get_alias::Endpoint as GetAliasEndpoint;
 use ruma_client_api::r0::membership::invite_user::{self, Endpoint as InviteEndpoint};
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint as SendStateEventForEmptyKeyEndpoint};
+use ruma_client_api::Endpoint;
 use ruma_events::EventType;
 use ruma_identifiers::{RoomId, UserId};
 
@@ -110,6 +110,100 @@ fn successfully_bridge_a_rocketchat_room() {
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     let room_id = RoomId::try_from("!joined_channel_id:localhost").unwrap();
+    let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
+    let user_ids = room.user_ids(None).unwrap();
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@spec_user:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_rcid_spec_user_id:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_rcid_user_1_id:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_rcid_user_2_id:localhost").unwrap()));
+    assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat_rcid_user_3_id:localhost").unwrap()));
+}
+
+#[test]
+fn successfully_bridge_a_rocketchat_group() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let (invite_forwarder, invite_receiver) = handlers::MatrixInviteUser::with_forwarder(test.config.as_url.clone());
+    let (state_forwarder, state_receiver) = handlers::SendRoomState::with_forwarder();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(), state_forwarder, "send_state_event_for_key");
+    matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
+    matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
+
+    let mut groups = HashMap::new();
+    groups.insert("joined_group", vec!["spec_user", "user_1", "user_2", "user_3"]);
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_custom_group_list(groups)
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!admin_room_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "bridge joined_group".to_string(),
+    );
+
+    // discard admin room creation message
+    create_room_receiver.recv_timeout(default_timeout()).unwrap();
+
+    let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(create_room_message.contains("\"name\":\"joined_group\""));
+    assert!(create_room_message.contains("\"room_alias_name\":\"rocketchat#rcid#joined_group_id\""));
+
+    // discard rocketchat user invite into admin room
+    invite_receiver.recv_timeout(default_timeout()).unwrap();
+
+    let invite_spec_user = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(invite_spec_user.contains("@spec_user:localhost"));
+    let invite_virtual_spec_user = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(invite_virtual_spec_user.contains("rocketchat_rcid_spec_user_id:localhost"));
+    let invite_user_1 = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(invite_user_1.contains("@rocketchat_rcid_user_1_id:localhost"));
+    let invite_user_2 = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(invite_user_2.contains("@rocketchat_rcid_user_2_id:localhost"));
+    let invite_user_3 = invite_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(invite_user_3.contains("@rocketchat_rcid_user_3_id:localhost"));
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_matrix.contains("joined_group is now bridged."));
+
+    let set_room_name_received_by_matrix = state_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(set_room_name_received_by_matrix.contains("Admin Room (Rocket.Chat)"));
+
+    let topic_received_by_matrix = state_receiver.recv_timeout(default_timeout()).unwrap();
+    let topic_message = format!("\"topic\":\"{}\"", test.rocketchat_mock_url.clone().unwrap());
+    assert!(topic_received_by_matrix.contains(&topic_message));
+
+    // only moderators and admins can invite other users
+    let power_levels_received_by_matrix = state_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(power_levels_received_by_matrix.contains("\"invite\":50"));
+    assert!(power_levels_received_by_matrix.contains("\"kick\":50"));
+    assert!(power_levels_received_by_matrix.contains("\"ban\":50"));
+    assert!(power_levels_received_by_matrix.contains("\"redact\":50"));
+    assert!(power_levels_received_by_matrix.contains("@rocketchat:localhost"));
+
+    helpers::join(
+        &test.config,
+        RoomId::try_from("!joined_group_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    let room_id = RoomId::try_from("!joined_group_id:localhost").unwrap();
     let room = Room::new(&test.config, &DEFAULT_LOGGER, &(*matrix_api), room_id);
     let user_ids = room.user_ids(None).unwrap();
     assert!(user_ids.iter().any(|id| id == &UserId::try_from("@rocketchat:localhost").unwrap()));

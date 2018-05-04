@@ -45,7 +45,7 @@ pub struct Attachment {
 }
 
 /// A Rocket.Chat channel
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct Channel {
     /// ID of the Rocket.Chat room
     #[serde(rename = "_id")]
@@ -95,6 +95,10 @@ pub trait RocketchatApi {
     fn get_attachments(&self, message_id: &str) -> Result<Vec<Attachment>>;
     /// Get all the channels that the user of the request has joiend.
     fn get_joined_channels(&self) -> Result<Vec<Channel>>;
+    /// List of al private groups the authenticated user has joined on the Rocket.Chat server
+    fn group_list(&self) -> Result<Vec<Channel>>;
+    /// Get all members of a group
+    fn group_members(&self, room_id: &str) -> Result<Vec<User>>;
     /// Login a user on the Rocket.Chat server
     fn login(&self, username: &str, password: &str) -> Result<(String, String)>;
     /// Get all members of a channel

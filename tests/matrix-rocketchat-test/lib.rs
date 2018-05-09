@@ -47,7 +47,7 @@ use iron::prelude::*;
 use iron::typemap::Key;
 use iron::{status, Chain, Iron, Listening};
 use matrix_rocketchat::api::rocketchat::v1::{
-    CHANNELS_LIST_PATH, GET_GROUP_MEMBERS_PATH, GET_ROOM_MEMBERS_PATH, GROUP_LIST_PATH, LOGIN_PATH, ME_PATH, USERS_INFO_PATH,
+    CHANNELS_LIST_PATH, CHANNELS_MEMBERS_PATH, GROUPS_LIST_PATH, GROUPS_MEMBERS_PATH, LOGIN_PATH, ME_PATH, USERS_INFO_PATH,
 };
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::models::ConnectionPool;
@@ -436,7 +436,7 @@ impl Test {
             );
 
             router.get(
-                GET_ROOM_MEMBERS_PATH,
+                CHANNELS_MEMBERS_PATH,
                 handlers::RocketchatRoomMembers {
                     status: status::Ok,
                     channels: channels,
@@ -445,7 +445,7 @@ impl Test {
             );
 
             router.get(
-                GROUP_LIST_PATH,
+                GROUPS_LIST_PATH,
                 handlers::RocketchatGroupsList {
                     status: status::Ok,
                     groups: groups.keys().map(|k| *k).collect(),
@@ -454,7 +454,7 @@ impl Test {
             );
 
             router.get(
-                GET_GROUP_MEMBERS_PATH,
+                GROUPS_MEMBERS_PATH,
                 handlers::RocketchatRoomMembers {
                     status: status::Ok,
                     channels: groups,

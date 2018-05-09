@@ -1,8 +1,8 @@
-use iron::{status, Handler};
 use iron::prelude::*;
+use iron::{status, Handler};
 
+use api::rocketchat::WebhookMessage;
 use api::MatrixApi;
-use api::rocketchat::Message;
 use config::Config;
 use handlers::rocketchat::Forwarder;
 use log::{self, IronLogger};
@@ -37,7 +37,7 @@ impl Handler for Rocketchat {
         let logger = IronLogger::from_request(request)?;
         let connection = ConnectionPool::from_request(request)?;
 
-        let message = request.extensions.get::<Message>().expect("Middleware ensures the presence of a message");
+        let message = request.extensions.get::<WebhookMessage>().expect("Middleware ensures the presence of a message");
         let server = request.extensions.get::<RocketchatServer>().expect("Middleware ensures the presence of a server");
 
         let virtual_user = VirtualUser::new(&self.config, &logger, self.matrix_api.as_ref());

@@ -3,7 +3,7 @@ use std::io::Read;
 use iron::{BeforeMiddleware, IronResult, Request};
 use serde_json;
 
-use api::rocketchat::Message;
+use api::rocketchat::WebhookMessage;
 use errors::*;
 use log::*;
 use models::{ConnectionPool, RocketchatServer};
@@ -16,7 +16,7 @@ impl BeforeMiddleware for RocketchatToken {
         let logger = IronLogger::from_request(request)?;
         let mut payload = String::new();
         request.body.read_to_string(&mut payload).chain_err(|| ErrorKind::InternalServerError).map_err(Error::from)?;
-        let message = match serde_json::from_str::<Message>(&payload) {
+        let message = match serde_json::from_str::<WebhookMessage>(&payload) {
             Ok(message) => message,
             Err(err) => {
                 let msg = format!("Could not deserialize message that was sent to the rocketchat endpoint: `{}`", payload);
@@ -45,7 +45,7 @@ impl BeforeMiddleware for RocketchatToken {
             }
         };
 
-        request.extensions.insert::<Message>(message);
+        request.extensions.insert::<WebhookMessage>(message);
         request.extensions.insert::<RocketchatServer>(server);
 
         Ok(())

@@ -1,6 +1,6 @@
 use diesel::sqlite::SqliteConnection;
-use ruma_events::room::message::{MessageEvent, MessageEventContent};
 use reqwest::mime::Mime;
+use ruma_events::room::message::{MessageEvent, MessageEventContent};
 use slog::Logger;
 use url::Url;
 
@@ -42,7 +42,7 @@ impl<'a> Forwarder<'a> {
                     user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
                     user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
                 );
-                rocketchat_api.post_chat_message(&text_content.body, channel_id)?;
+                rocketchat_api.chat_post_message(&text_content.body, channel_id)?;
             }
             MessageEventContent::Image(ref image_content) => {
                 let url = Url::parse(&image_content.url).chain_err(|| ErrorKind::InternalServerError)?;
@@ -57,7 +57,7 @@ impl<'a> Forwarder<'a> {
 
                 let info = image_content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?;
                 let mime_type: Mime = info.mimetype.parse().chain_err(|| ErrorKind::UnknownMimeType(info.mimetype.clone()))?;
-                rocketchat_api.post_file_message(image, &image_content.body, mime_type, channel_id)?;
+                rocketchat_api.rooms_upload(image, &image_content.body, mime_type, channel_id)?;
             }
             _ => info!(self.logger, "Forwarding the type {} is not implemented.", event.event_type),
         }

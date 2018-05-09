@@ -97,6 +97,7 @@ impl Handler for RocketchatMe {
         debug!(DEFAULT_LOGGER, "Rocket.Chat mock server got me request");
 
         let payload = r#"{
+            "_id": "USERNAME_id",
             "username": "USERNAME"
         }"#.replace("USERNAME", &self.username);
 

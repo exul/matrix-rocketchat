@@ -1,14 +1,14 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use ruma_identifiers::UserId;
 use diesel::sqlite::SqliteConnection;
+use ruma_identifiers::UserId;
 use slog::Logger;
 
-use i18n::*;
+use api::rocketchat::WebhookMessage;
 use api::{MatrixApi, RocketchatApi};
-use api::rocketchat::Message;
 use config::Config;
 use errors::*;
+use i18n::*;
 use log;
 use models::{Channel, RocketchatServer, Room, UserOnRocketchatServer, VirtualUser};
 
@@ -48,7 +48,7 @@ impl<'a> Forwarder<'a> {
     }
 
     /// Send a message to the Matrix channel.
-    pub fn send(&self, server: &RocketchatServer, message: &Message) -> Result<()> {
+    pub fn send(&self, server: &RocketchatServer, message: &WebhookMessage) -> Result<()> {
         if !self.is_sendable_message(message.user_id.clone(), server.id.clone())? {
             debug!(
                 self.logger,
@@ -97,7 +97,7 @@ impl<'a> Forwarder<'a> {
         }
     }
 
-    fn prepare_room(&self, server: &RocketchatServer, message: &Message) -> Result<Option<Room>> {
+    fn prepare_room(&self, server: &RocketchatServer, message: &WebhookMessage) -> Result<Option<Room>> {
         let is_direct_message_room = message.channel_id.contains(&message.user_id);
         if is_direct_message_room {
             self.prepare_dm_room(server, message)
@@ -106,7 +106,7 @@ impl<'a> Forwarder<'a> {
         }
     }
 
-    fn prepare_dm_room(&self, server: &RocketchatServer, message: &Message) -> Result<Option<Room>> {
+    fn prepare_dm_room(&self, server: &RocketchatServer, message: &WebhookMessage) -> Result<Option<Room>> {
         let receiver = match self.find_matching_user_for_direct_message(server, message)? {
             Some(receiver) => receiver,
             None => {
@@ -127,7 +127,7 @@ impl<'a> Forwarder<'a> {
         &self,
         server: &RocketchatServer,
         receiver: &UserOnRocketchatServer,
-        message: &Message,
+        message: &WebhookMessage,
     ) -> Result<Option<Room>> {
         if let Some(room) = self.lookup_existing_direct_message_room(server, receiver, message)? {
             self.invite_user_into_direct_message_room(&room, receiver)?;
@@ -141,7 +141,7 @@ impl<'a> Forwarder<'a> {
         &self,
         server: &RocketchatServer,
         receiver: &UserOnRocketchatServer,
-        message: &Message,
+        message: &WebhookMessage,
     ) -> Result<Option<Room>> {
         let sender_id = self.virtual_user.build_user_id(&message.user_id, &server.id)?;
 
@@ -172,7 +172,7 @@ impl<'a> Forwarder<'a> {
         Ok(())
     }
 
-    fn prepare_room_for_channel(&self, server: &RocketchatServer, message: &Message) -> Result<Option<Room>> {
+    fn prepare_room_for_channel(&self, server: &RocketchatServer, message: &WebhookMessage) -> Result<Option<Room>> {
         let channel = Channel::new(self.config, self.logger, self.matrix_api, message.channel_id.clone(), &server.id);
         let room_id = match channel.matrix_id()? {
             Some(room_id) => room_id,
@@ -193,7 +193,7 @@ impl<'a> Forwarder<'a> {
         &self,
         server: &RocketchatServer,
         receiver: &UserOnRocketchatServer,
-        message: &Message,
+        message: &WebhookMessage,
     ) -> Result<Option<Room>> {
         debug!(
             self.logger,
@@ -206,7 +206,7 @@ impl<'a> Forwarder<'a> {
             receiver.rocketchat_auth_token.clone().unwrap_or_default(),
         );
 
-        if rocketchat_api.direct_messages_list()?.iter().any(|dm| dm.id == message.channel_id) {
+        if rocketchat_api.dm_list()?.iter().any(|dm| dm.id == message.channel_id) {
             let sender_id = self.virtual_user.find_or_register(&server.id, &message.user_id, &message.user_name)?;
 
             let room_display_name_suffix = t!(["defaults", "direct_message_room_display_name_suffix"]).l(DEFAULT_LANGUAGE);
@@ -243,7 +243,7 @@ impl<'a> Forwarder<'a> {
     fn find_matching_user_for_direct_message(
         &self,
         server: &RocketchatServer,
-        message: &Message,
+        message: &WebhookMessage,
     ) -> Result<Option<UserOnRocketchatServer>> {
         for user_on_rocketchatserver in server.logged_in_users_on_rocketchat_server(self.connection)? {
             if let Some(rocketchat_user_id) = user_on_rocketchatserver.rocketchat_user_id.clone() {
@@ -262,7 +262,13 @@ impl<'a> Forwarder<'a> {
         Ok(None)
     }
 
-    fn forward_image(&self, server: &RocketchatServer, message: &Message, room: &Room, sender_id: &UserId) -> Result<()> {
+    fn forward_image(
+        &self,
+        server: &RocketchatServer,
+        message: &WebhookMessage,
+        room: &Room,
+        sender_id: &UserId,
+    ) -> Result<()> {
         debug!(self.logger, "Forwarding image, room {}", room.id);
 
         let users = room.logged_in_users(self.connection, server.id.clone())?;
@@ -285,7 +291,7 @@ impl<'a> Forwarder<'a> {
             user.rocketchat_auth_token.clone().unwrap_or_default(),
         );
 
-        let files = rocketchat_api.get_attachments(&message.message_id)?;
+        let files = rocketchat_api.attachments(&message.message_id)?;
 
         for file in files {
             let image_url = self.matrix_api.upload(file.data, file.content_type)?;

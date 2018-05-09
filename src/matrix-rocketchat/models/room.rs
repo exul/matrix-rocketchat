@@ -212,7 +212,7 @@ impl<'a> Room<'a> {
         // It is safe to check if a direct channel ID contains the virtual users ID, because a user
         // can only have one direct message room with another user. Which means when the virtual user
         // ID is part of the channel name, the direct message channel with that user is found.
-        let direct_message_channels = rocketchat_api.direct_messages_list()?;
+        let direct_message_channels = rocketchat_api.dm_list()?;
         for direct_message_channel in direct_message_channels {
             if direct_message_channel.id.to_lowercase().contains(&virtual_user_id) {
                 return Ok(Some((server, direct_message_channel.id.clone())));

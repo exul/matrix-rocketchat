@@ -241,7 +241,7 @@ impl<'a> CommandHandler<'a> {
         );
 
         let channels = rocketchat_api.channels_list()?;
-        let groups = rocketchat_api.group_list()?;
+        let groups = rocketchat_api.groups_list()?;
 
         let mut command = message.split_whitespace().collect::<Vec<&str>>().into_iter();
         let channel_name = command.by_ref().nth(1).unwrap_or_default();
@@ -249,12 +249,12 @@ impl<'a> CommandHandler<'a> {
         let (rocketchat_channel, users) =
             match channels.iter().find(|channel| channel.name.clone().unwrap_or_default() == channel_name) {
                 Some(channel) => {
-                    let users = rocketchat_api.members(&channel.id)?;
+                    let users = rocketchat_api.channels_members(&channel.id)?;
                     (channel, users)
                 }
                 None => match groups.iter().find(|group| group.name.clone().unwrap_or_default() == channel_name) {
                     Some(group) => {
-                        let users = rocketchat_api.group_members(&group.id)?;
+                        let users = rocketchat_api.groups_members(&group.id)?;
                         (group, users)
                     }
                     None => {
@@ -267,7 +267,7 @@ impl<'a> CommandHandler<'a> {
                 },
             };
 
-        let username = rocketchat_api.current_username()?;
+        let username = rocketchat_api.me()?.username;
         if !users.iter().any(|u| u.username == username) {
             bail_error!(
                 ErrorKind::RocketchatJoinFirst(channel_name.to_string()),
@@ -385,8 +385,8 @@ impl<'a> CommandHandler<'a> {
         user_id: &UserId,
     ) -> Result<String> {
         let mut channels = rocketchat_api.channels_list()?;
-        let mut joined_channels = rocketchat_api.get_joined_channels()?;
-        let groups = rocketchat_api.group_list()?;
+        let mut joined_channels = rocketchat_api.channels_list_joined()?;
+        let groups = rocketchat_api.groups_list()?;
 
         channels.extend(groups.iter().cloned());
         // all groups in the list are joined, because a user can only see joined groups

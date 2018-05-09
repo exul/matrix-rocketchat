@@ -13,17 +13,17 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use iron::status;
-use matrix_rocketchat::api::MatrixApi;
-use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH};
+use matrix_rocketchat::api::rocketchat::WebhookMessage;
+use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
-use ruma_client_api::Endpoint;
+use router::Router;
 use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
+use ruma_client_api::Endpoint;
 use ruma_events::EventType;
 use ruma_identifiers::{RoomAliasId, RoomId, UserId};
-use router::Router;
 use serde_json::to_string;
 
 #[test]
@@ -41,7 +41,7 @@ fn successfully_unbridge_a_rocketchat_room() {
         .run();
 
     // send message to create a virtual user
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "bridged_channel_id".to_string(),
@@ -222,7 +222,7 @@ fn do_not_allow_to_unbridge_a_channel_with_remaining_room_aliases() {
         .run();
 
     // send message to create a virtual user
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "bridged_channel_id".to_string(),

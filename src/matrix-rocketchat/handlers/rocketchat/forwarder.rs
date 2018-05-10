@@ -49,7 +49,8 @@ impl<'a> Forwarder<'a> {
 
     /// Send a message to the Matrix channel.
     pub fn send(&self, server: &RocketchatServer, message: &WebhookMessage) -> Result<()> {
-        if !self.is_sendable_message(message.user_id.clone(), server.id.clone())? {
+        let is_direct_message = message.channel_id.contains(&message.user_id);
+        if !is_direct_message && !self.is_sendable_message(message.user_id.clone(), server.id.clone())? {
             debug!(
                 self.logger,
                 "Skipping message, because the message was just posted by the user Matrix and echoed back from Rocket.Chat"
@@ -252,7 +253,7 @@ impl<'a> Forwarder<'a> {
     ) -> Result<Option<UserOnRocketchatServer>> {
         for user_on_rocketchatserver in server.logged_in_users_on_rocketchat_server(self.connection)? {
             if let Some(rocketchat_user_id) = user_on_rocketchatserver.rocketchat_user_id.clone() {
-                if message.channel_id.contains(&rocketchat_user_id) {
+                if message.channel_id.contains(&rocketchat_user_id) && rocketchat_user_id != message.user_id {
                     debug!(
                         self.logger,
                         "Matching user with rocketchat_user_id `{}` for channel_id `{}` found.",

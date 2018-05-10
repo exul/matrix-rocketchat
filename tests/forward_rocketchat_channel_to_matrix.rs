@@ -22,7 +22,6 @@ use matrix_rocketchat::api::{MatrixApi, RequestData, RestApi};
 use matrix_rocketchat::models::Room;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use reqwest::{Method, StatusCode};
-use router::Router;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
 use ruma_client_api::r0::media::create_content::Endpoint as CreateContentEndpoint;
 use ruma_client_api::r0::membership::invite_user::Endpoint as InviteUserEndpoint;
@@ -275,7 +274,7 @@ fn successfully_forwards_a_image_from_rocketchat_to_matrix_when_the_user_is_not_
     let rocketchat_message_responder = handlers::RocketchatMessageResponder {
         message: rocketchat_message,
     };
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("image.png".to_string(), b"image".to_vec());
@@ -357,7 +356,7 @@ fn do_not_forward_an_image_message_when_there_are_no_attachments() {
     let rocketchat_message_responder = handlers::RocketchatMessageResponder {
         message: rocketchat_message,
     };
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("image.png".to_string(), b"image".to_vec());
@@ -418,7 +417,7 @@ fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_m
         message: "Could not get image".to_string(),
         status: status::InternalServerError,
     };
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_error_responder, "get_chat_message");
 
     let test = test.with_matrix_routes(matrix_router)
@@ -491,7 +490,7 @@ fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_f
     let rocketchat_message_responder = handlers::RocketchatMessageResponder {
         message: rocketchat_message,
     };
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("image.png".to_string(), b"image".to_vec());

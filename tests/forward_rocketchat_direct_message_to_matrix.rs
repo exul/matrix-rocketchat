@@ -6,6 +6,7 @@ extern crate matrix_rocketchat_test;
 extern crate reqwest;
 extern crate router;
 extern crate ruma_client_api;
+extern crate ruma_events;
 extern crate ruma_identifiers;
 extern crate serde_json;
 
@@ -16,13 +17,12 @@ use std::sync::{Arc, Mutex};
 
 use iron::{status, Chain};
 use matrix_rocketchat::api::rocketchat::v1::{
-    Attachment, Message as RocketchatMessage, UserInfo, CHAT_GET_MESSAGE_PATH, DM_LIST_PATH,
+    Attachment, Message as RocketchatMessage, UserInfo, CHAT_GET_MESSAGE_PATH, DM_LIST_PATH, LOGIN_PATH, ME_PATH,
 };
 use matrix_rocketchat::api::rocketchat::WebhookMessage;
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::models::{Room, UserOnRocketchatServer};
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
-use router::Router;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
 use ruma_client_api::r0::media::create_content::Endpoint as CreateContentEndpoint;
 use ruma_client_api::r0::membership::forget_room::Endpoint as ForgetRoomEndpoint;
@@ -31,8 +31,10 @@ use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
 use ruma_client_api::r0::profile::get_display_name::{self, Endpoint as GetDisplaynameEndpoint};
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
+use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
 use ruma_client_api::r0::sync::sync_events::Endpoint as SyncEventsEndpoint;
 use ruma_client_api::Endpoint;
+use ruma_events::EventType;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json::to_string;
 
@@ -48,7 +50,7 @@ fn successfully_forwards_a_direct_message_to_matrix() {
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
     matrix_router.post(RegisterEndpoint::router_path(), register_forwarder, "register");
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
     let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
@@ -170,7 +172,7 @@ fn successfully_forwards_an_image_in_a_direct_message_to_matrix() {
     let rocketchat_message_responder = handlers::RocketchatMessageResponder {
         message: rocketchat_message,
     };
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("image.png".to_string(), b"image".to_vec());
@@ -252,7 +254,7 @@ fn successfully_forwards_an_image_in_a_direct_message_to_matrix() {
 fn the_virtual_user_stays_in_the_direct_message_room_if_the_user_leaves() {
     let test = Test::new();
 
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
     let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
@@ -322,7 +324,7 @@ fn the_virtual_user_stays_in_the_direct_message_room_if_the_user_leaves() {
 fn successfully_forwards_a_direct_message_to_a_matrix_room_that_was_bridged_before() {
     let test = Test::new();
 
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
     let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
@@ -415,12 +417,175 @@ fn successfully_forwards_a_direct_message_to_a_matrix_room_that_was_bridged_befo
 }
 
 #[test]
+fn do_use_two_different_dm_rooms_when_both_users_are_on_matrix() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
+    let admin_room_creator_handler = handlers::RoomStateCreate {
+        creator: UserId::try_from("@other_user:localhost").unwrap(),
+    };
+    let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
+        room_id: RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
+        event_type: EventType::RoomCreate.to_string(),
+    };
+    matrix_router.get(
+        GetStateEventsForEmptyKey::request_path(admin_room_creator_params),
+        admin_room_creator_handler,
+        "get_room_creator_admin_room",
+    );
+
+    let mut rocketchat_router = test.default_rocketchat_routes();
+    let mut direct_messages = HashMap::new();
+    direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
+    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
+        direct_messages: direct_messages,
+        status: status::Ok,
+    };
+    rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+    let login_user_id = Arc::new(Mutex::new(Some("spec_user_id".to_string())));
+    rocketchat_router.post(
+        LOGIN_PATH,
+        handlers::RocketchatLogin {
+            successful: true,
+            rocketchat_user_id: Arc::clone(&login_user_id),
+        },
+        "login",
+    );
+    let me_username = Arc::new(Mutex::new("spec_user".to_string()));
+    rocketchat_router.get(
+        ME_PATH,
+        handlers::RocketchatMe {
+            username: Arc::clone(&me_username),
+        },
+        "me",
+    );
+
+    let test = test.with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .run();
+
+    let other_user_sender_direct_message = WebhookMessage {
+        message_id: "spec_id_1".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_user_id_other_user_id".to_string(),
+        channel_name: None,
+        user_id: "other_user_id".to_string(),
+        user_name: "other_user".to_string(),
+        text: "Hey there".to_string(),
+    };
+    let other_user_sender_direct_message_payload = to_string(&other_user_sender_direct_message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &other_user_sender_direct_message_payload);
+
+    // discard admin room creation message
+    create_room_receiver.recv_timeout(default_timeout()).unwrap();
+
+    let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(create_room_message.contains("\"name\":\"other_user (DM Rocket.Chat)\""));
+
+    helpers::join(
+        &test.config,
+        RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+    );
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let other_user_sender_direct_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(other_user_sender_direct_message_received_by_matrix.contains("Hey there"));
+
+    {
+        let mut new_login_user_id = login_user_id.lock().unwrap();
+        *new_login_user_id = Some("other_user_id".to_string());
+        let mut new_me_username = me_username.lock().unwrap();
+        *new_me_username = "other_user".to_string();
+    }
+
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    matrix_api.register("other_user".to_string()).unwrap();
+
+    // create other admin room
+    let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
+    matrix_api
+        .create_room(Some("other_admin_room".to_string()), None, &UserId::try_from("@other_user:localhost").unwrap())
+        .unwrap();
+    helpers::invite(
+        &test.config,
+        RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
+        UserId::try_from("@rocketchat:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+    );
+
+    // connect other admin room
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+        format!("connect {}", test.rocketchat_mock_url.clone().unwrap()),
+    );
+
+    // login other user
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+        "login other_user secret".to_string(),
+    );
+
+    let spec_user_sender_direct_message = WebhookMessage {
+        message_id: "spec_id_2".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_user_id_other_user_id".to_string(),
+        channel_name: None,
+        user_id: "spec_user_id".to_string(),
+        user_name: "spec_user".to_string(),
+        text: "Hey you".to_string(),
+    };
+    let spec_user_sender_direct_message_payload = to_string(&spec_user_sender_direct_message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &spec_user_sender_direct_message_payload);
+
+    // discard other admin room creation message
+    create_room_receiver.recv_timeout(default_timeout()).unwrap();
+
+    let create_room_message = create_room_receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(create_room_message.contains("\"name\":\"spec_user (DM Rocket.Chat)\""));
+
+    helpers::join(
+        &test.config,
+        RoomId::try_from("!spec_userDMRocketChat_id:localhost").unwrap(),
+        UserId::try_from("@other_user:localhost").unwrap(),
+    );
+
+    // discard other welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard other connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard other login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let spec_user_sender_direct_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(spec_user_sender_direct_message_received_by_matrix.contains("Hey you"));
+}
+
+#[test]
 fn do_not_forward_a_direct_message_if_the_receiver_is_the_senders_virtual_user() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::with_path_filter("other_userDMRocketChat_id:localhost");
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
     let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
@@ -479,7 +644,7 @@ fn do_not_forward_a_direct_message_if_the_receiver_is_the_senders_virtual_user()
 fn do_not_forwards_a_direct_message_to_a_room_if_the_user_is_no_longer_logged_in_on_the_rocketchat_server() {
     let test = Test::new();
 
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
     let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
@@ -569,7 +734,7 @@ fn no_room_is_created_when_the_user_doesn_not_have_access_to_the_matching_direct
     let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
         direct_messages: HashMap::new(),
         status: status::Ok,
@@ -637,7 +802,7 @@ fn no_room_is_created_when_getting_the_direct_message_list_failes() {
     let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(
         DM_LIST_PATH,
         handlers::RocketchatErrorResponder {
@@ -685,7 +850,7 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_failes() {
     };
     matrix_router.get(SyncEventsEndpoint::router_path(), error_responder, "sync");
 
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
     let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
@@ -753,7 +918,7 @@ fn no_room_is_created_when_getting_the_displayname_failes() {
     let mut get_display_name_with_error = Chain::new(get_display_name);
     get_display_name_with_error.link_before(error_responder);
     matrix_router.get(GetDisplaynameEndpoint::router_path(), get_display_name_with_error, "get_displayname");
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
     let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
@@ -796,7 +961,7 @@ fn no_room_is_created_when_the_direct_message_list_response_cannot_be_deserializ
     let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(
         DM_LIST_PATH,
         handlers::InvalidJsonResponse {
@@ -845,7 +1010,7 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_response_cannot_b
         "sync",
     );
 
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
     let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
@@ -911,7 +1076,7 @@ fn no_room_is_created_when_getting_the_displayname_respones_cannot_be_deserializ
         status: status::Ok,
     };
     matrix_router.get(get_display_name_path, invalid_json_responder, "get_displayname_invalid_json");
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
     let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {

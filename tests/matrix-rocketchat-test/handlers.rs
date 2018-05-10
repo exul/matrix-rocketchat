@@ -53,7 +53,7 @@ impl Handler for RocketchatInfo {
 
 pub struct RocketchatLogin {
     pub successful: bool,
-    pub rocketchat_user_id: Option<String>,
+    pub rocketchat_user_id: Arc<Mutex<Option<String>>>,
 }
 
 impl Handler for RocketchatLogin {
@@ -62,8 +62,11 @@ impl Handler for RocketchatLogin {
 
         let (status, payload) = match self.successful {
             true => {
-                let user_id: String =
-                    self.rocketchat_user_id.clone().unwrap_or(thread_rng().gen_ascii_chars().take(10).collect());
+                let user_id: String = self.rocketchat_user_id
+                    .lock()
+                    .unwrap()
+                    .clone()
+                    .unwrap_or(thread_rng().gen_ascii_chars().take(10).collect());
                 (
                     status::Ok,
                     r#"{
@@ -89,7 +92,7 @@ impl Handler for RocketchatLogin {
 }
 
 pub struct RocketchatMe {
-    pub username: String,
+    pub username: Arc<Mutex<String>>,
 }
 
 impl Handler for RocketchatMe {
@@ -99,14 +102,14 @@ impl Handler for RocketchatMe {
         let payload = r#"{
             "_id": "USERNAME_id",
             "username": "USERNAME"
-        }"#.replace("USERNAME", &self.username);
+        }"#.replace("USERNAME", &self.username.lock().unwrap());
 
         Ok(Response::with((status::Ok, payload)))
     }
 }
 
 pub struct RocketchatChannelsList {
-    pub channels: Vec<&'static str>,
+    pub channels: Arc<Mutex<HashMap<&'static str, Vec<&'static str>>>>,
     pub status: status::Status,
 }
 
@@ -116,7 +119,7 @@ impl Handler for RocketchatChannelsList {
 
         let mut channels: Vec<String> = Vec::new();
 
-        for channel_name in self.channels.iter() {
+        for channel_name in self.channels.lock().unwrap().keys().map(|k| *k) {
             let channel = r#"{
                 "_id": "CHANNEL_NAME_id",
                 "name": "CHANNEL_NAME",
@@ -141,7 +144,7 @@ impl Handler for RocketchatChannelsList {
 }
 
 pub struct RocketchatRoomMembers {
-    pub channels: HashMap<&'static str, Vec<&'static str>>,
+    pub channels: Arc<Mutex<HashMap<&'static str, Vec<&'static str>>>>,
     pub status: status::Status,
 }
 
@@ -158,7 +161,7 @@ impl Handler for RocketchatRoomMembers {
         let room_name_ref: &str = room_name.as_ref();
 
         debug!(DEFAULT_LOGGER, "Looking up room {}", room_name_ref);
-        let payload = match self.channels.get(room_name_ref) {
+        let payload = match self.channels.lock().unwrap().get(room_name_ref) {
             Some(user_names) => {
                 let mut users = Vec::new();
                 for user_name in user_names {
@@ -185,7 +188,7 @@ impl Handler for RocketchatRoomMembers {
 }
 
 pub struct RocketchatGroupsList {
-    pub groups: Vec<&'static str>,
+    pub groups: Arc<Mutex<HashMap<&'static str, Vec<&'static str>>>>,
     pub status: status::Status,
 }
 
@@ -195,7 +198,7 @@ impl Handler for RocketchatGroupsList {
 
         let mut groups: Vec<String> = Vec::new();
 
-        for group_name in self.groups.iter() {
+        for group_name in self.groups.lock().unwrap().keys().map(|k| *k) {
             let channel = r#"{
                 "_id": "GROUP_NAME_id",
                 "name": "GROUP_NAME",

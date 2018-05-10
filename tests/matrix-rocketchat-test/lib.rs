@@ -39,6 +39,7 @@ use std::mem;
 use std::net::SocketAddr;
 use std::net::TcpListener;
 use std::sync::mpsc::channel;
+use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::Duration;
 
@@ -185,14 +186,14 @@ pub struct Test {
     pub bridged_room: Option<(&'static str, &'static str)>,
     /// A list of Rocket.Chat channels that are returned when querying the Rocket.Chat mock
     /// channels.list endpoint
-    pub channels: Option<HashMap<&'static str, Vec<&'static str>>>,
+    pub channels: Arc<Mutex<HashMap<&'static str, Vec<&'static str>>>>,
     /// Configuration that is used during the test
     pub config: Config,
     /// Connection pool to get connection to the test database
     pub connection_pool: Pool<ConnectionManager<SqliteConnection>>,
     /// A list of Rocket.Chat groups that are returned when querying the Rocket.Chat mock
     /// groups.list endpoint
-    pub groups: Option<HashMap<&'static str, Vec<&'static str>>>,
+    pub groups: Arc<Mutex<HashMap<&'static str, Vec<&'static str>>>>,
     /// The matrix homeserver mock listening server
     pub hs_listening: Option<Listening>,
     /// Routes that the homeserver mock can handle
@@ -226,10 +227,10 @@ impl Test {
             as_listening: None,
             bridged_group: None,
             bridged_room: None,
-            channels: None,
+            channels: Arc::new(Mutex::new(HashMap::new())),
             config: config,
             connection_pool: connection_pool,
-            groups: None,
+            groups: Arc::new(Mutex::new(HashMap::new())),
             hs_listening: None,
             with_logged_in_user: false,
             matrix_homeserver_mock_router: None,
@@ -293,20 +294,6 @@ impl Test {
 
     pub fn with_bridged_group(mut self, bridged_group: (&'static str, &'static str)) -> Test {
         self.bridged_group = Some(bridged_group);
-        self
-    }
-
-    /// Set a list of Rocket.Chat channels that are returned when querying the Rocket.Chat mock
-    /// channels.list edpoint
-    pub fn with_custom_channel_list(mut self, channels: HashMap<&'static str, Vec<&'static str>>) -> Test {
-        self.channels = Some(channels);
-        self
-    }
-
-    /// Set a list of Rocket.Chat groups that are returned when querying the Rocket.Chat mock
-    /// groups.list edpoint
-    pub fn with_custom_group_list(mut self, groups: HashMap<&'static str, Vec<&'static str>>) -> Test {
-        self.groups = Some(groups);
         self
     }
 
@@ -381,96 +368,19 @@ impl Test {
         let (tx, rx) = channel::<Listening>();
         let socket_addr = get_free_socket_addr();
 
-        let mut router = match mem::replace(&mut self.rocketchat_mock_router, None) {
+        let router = match mem::replace(&mut self.rocketchat_mock_router, None) {
             Some(router) => router,
-            None => Router::new(),
-        };
-
-        router.get(
-            "/api/info",
-            handlers::RocketchatInfo {
-                version: DEFAULT_ROCKETCHAT_VERSION,
-            },
-            "info",
-        );
-        router.post("*", handlers::EmptyJson {}, "default_post");
-        router.put("*", handlers::EmptyJson {}, "default_put");
-
-        if self.with_logged_in_user {
-            router.post(
-                LOGIN_PATH,
-                handlers::RocketchatLogin {
-                    successful: true,
-                    rocketchat_user_id: Some("spec_user_id".to_string()),
-                },
-                "login",
-            );
-            router.get(
-                ME_PATH,
-                handlers::RocketchatMe {
-                    username: "spec_user".to_string(),
-                },
-                "me",
-            );
-            router.get(USERS_INFO_PATH, handlers::RocketchatUsersInfo {}, "users_info");
-        }
-
-        let mut channels = match self.channels.clone() {
-            Some(channels) => channels,
-            None => HashMap::new(),
-        };
-
-        let mut groups = match self.groups.clone() {
-            Some(groups) => groups,
-            None => HashMap::new(),
+            None => self.default_rocketchat_routes(),
         };
 
         if let Some(bridged_room) = self.bridged_room {
             let (room_name, user_id) = bridged_room;
-            channels.insert(room_name, vec![user_id]);
+            self.channels.lock().unwrap().insert(room_name, vec![user_id]);
         }
 
         if let Some(bridged_group) = self.bridged_group {
             let (group_name, user_id) = bridged_group;
-            groups.insert(group_name, vec![user_id]);
-        }
-
-        if channels.len() > 0 || groups.len() > 0 {
-            router.get(
-                CHANNELS_LIST_PATH,
-                handlers::RocketchatChannelsList {
-                    status: status::Ok,
-                    channels: channels.keys().map(|k| *k).collect(),
-                },
-                "channels_list",
-            );
-
-            router.get(
-                CHANNELS_MEMBERS_PATH,
-                handlers::RocketchatRoomMembers {
-                    status: status::Ok,
-                    channels: channels,
-                },
-                "get_room_members",
-            );
-
-            router.get(
-                GROUPS_LIST_PATH,
-                handlers::RocketchatGroupsList {
-                    status: status::Ok,
-                    groups: groups.keys().map(|k| *k).collect(),
-                },
-                "groups_list",
-            );
-
-            router.get(
-                GROUPS_MEMBERS_PATH,
-                handlers::RocketchatRoomMembers {
-                    status: status::Ok,
-                    channels: groups,
-                },
-                "get_group_members",
-            );
+            self.groups.lock().unwrap().insert(group_name, vec![user_id]);
         }
 
         thread::spawn(move || {
@@ -625,6 +535,91 @@ impl Test {
         router.put("*", handlers::EmptyJson {}, "default_put");
 
         router
+    }
+
+    /// The default Rocket.Chat routes that the Rocket.Chat mock server needs to work. They can be used a
+    /// a staring point to add more routes.
+    pub fn default_rocketchat_routes(&self) -> Router {
+        let mut router = Router::new();
+
+        router.get(
+            "/api/info",
+            handlers::RocketchatInfo {
+                version: DEFAULT_ROCKETCHAT_VERSION,
+            },
+            "info",
+        );
+
+        let login_user_id = Arc::new(Mutex::new(Some("spec_user_id".to_string())));
+        router.post(
+            LOGIN_PATH,
+            handlers::RocketchatLogin {
+                successful: true,
+                rocketchat_user_id: Arc::clone(&login_user_id),
+            },
+            "login",
+        );
+
+        let me_username = Arc::new(Mutex::new("spec_user".to_string()));
+        router.get(
+            ME_PATH,
+            handlers::RocketchatMe {
+                username: Arc::clone(&me_username),
+            },
+            "me",
+        );
+        router.get(USERS_INFO_PATH, handlers::RocketchatUsersInfo {}, "users_info");
+
+        router.get(
+            CHANNELS_LIST_PATH,
+            handlers::RocketchatChannelsList {
+                status: status::Ok,
+                channels: Arc::clone(&self.channels),
+            },
+            "channels_list",
+        );
+
+        router.get(
+            CHANNELS_MEMBERS_PATH,
+            handlers::RocketchatRoomMembers {
+                status: status::Ok,
+                channels: Arc::clone(&self.channels),
+            },
+            "get_room_members",
+        );
+
+        router.get(
+            GROUPS_LIST_PATH,
+            handlers::RocketchatGroupsList {
+                status: status::Ok,
+                groups: Arc::clone(&self.groups),
+            },
+            "groups_list",
+        );
+
+        router.get(
+            GROUPS_MEMBERS_PATH,
+            handlers::RocketchatRoomMembers {
+                status: status::Ok,
+                channels: Arc::clone(&self.groups),
+            },
+            "get_group_members",
+        );
+
+        router.post("*", handlers::EmptyJson {}, "default_post");
+        router.put("*", handlers::EmptyJson {}, "default_put");
+
+        router
+    }
+
+    /// Get a list of channels that is used by the Rocket.Chat mock.
+    pub fn channel_list(&self) -> Arc<Mutex<HashMap<&'static str, Vec<&'static str>>>> {
+        Arc::clone(&self.channels)
+    }
+
+    /// Get a list of groups that is used by the Rocket.Chat mock.
+    pub fn group_list(&self) -> Arc<Mutex<HashMap<&'static str, Vec<&'static str>>>> {
+        Arc::clone(&self.groups)
     }
 }
 

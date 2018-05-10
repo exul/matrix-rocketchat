@@ -8,15 +8,13 @@ extern crate ruma_client_api;
 extern crate ruma_events;
 extern crate ruma_identifiers;
 
-use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use iron::{status, Chain};
-use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH, USERS_INFO_PATH};
+use matrix_rocketchat::api::rocketchat::v1::USERS_INFO_PATH;
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::models::Room;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER};
-use router::Router;
 use ruma_client_api::r0::alias::get_alias::Endpoint as GetAliasEndpoint;
 use ruma_client_api::r0::membership::invite_user::{self, Endpoint as InviteEndpoint};
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
@@ -39,15 +37,11 @@ fn successfully_bridge_a_rocketchat_room() {
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
 
-    let mut channels = HashMap::new();
-    channels.insert("joined_channel", vec!["spec_user", "user_1", "user_2", "user_3"]);
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("joined_channel", vec!["spec_user", "user_1", "user_2", "user_3"]);
 
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -133,15 +127,11 @@ fn successfully_bridge_a_rocketchat_group() {
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
 
-    let mut groups = HashMap::new();
-    groups.insert("joined_group", vec!["spec_user", "user_1", "user_2", "user_3"]);
+    let groups = test.group_list();
+    groups.lock().unwrap().insert("joined_group", vec!["spec_user", "user_1", "user_2", "user_3"]);
 
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_group_list(groups)
-        .run();
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -230,44 +220,14 @@ fn successfully_bridge_a_rocketchat_room_that_an_other_user_already_bridged() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
 
-    let mut rocketchat_router = Router::new();
-    rocketchat_router.post(
-        LOGIN_PATH,
-        handlers::RocketchatLogin {
-            successful: true,
-            rocketchat_user_id: None,
-        },
-        "login",
-    );
-    rocketchat_router.get(
-        ME_PATH,
-        handlers::RocketchatMe {
-            username: "spec_user".to_string(),
-        },
-        "me",
-    );
-    rocketchat_router.get(USERS_INFO_PATH, handlers::RocketchatUsersInfo {}, "users_info");
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("joined_channel", vec!["spec_user", "other_user"]);
 
-    let mut channels = HashMap::new();
-    channels.insert("joined_channel", vec!["spec_user", "other_user"]);
-
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_custom_rocketchat_routes(rocketchat_router)
-        .with_connected_admin_room()
-        .with_custom_channel_list(channels)
-        .run();
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     matrix_api.register("other_user".to_string()).unwrap();
-
-    // login spec user
-    helpers::send_room_message_from_matrix(
-        &test.config.as_url,
-        admin_room_id.clone(),
-        spec_user_id.clone(),
-        "login spec_user secret".to_string(),
-    );
 
     // create other admin room
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
@@ -430,16 +390,12 @@ fn successfully_bridge_two_different_rocketchat_rooms() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let mut channels = HashMap::new();
-    channels.insert("first_channel", vec!["spec_user", "other_user"]);
-    channels.insert("second_channel", vec!["spec_user", "other_user"]);
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("first_channel", vec!["spec_user", "other_user"]);
+    channels.lock().unwrap().insert("second_channel", vec!["spec_user", "other_user"]);
 
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -509,15 +465,11 @@ fn do_not_allow_to_bridge_channels_that_the_user_has_not_joined_on_the_rocketcha
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let mut channels = HashMap::new();
-    channels.insert("normal_channel", Vec::new());
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("normal_channel", Vec::new());
 
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -546,14 +498,10 @@ fn attempting_to_bridge_a_non_existing_channel_returns_an_error() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let mut channels = HashMap::new();
-    channels.insert("normal_channel", Vec::new());
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("normal_channel", Vec::new());
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -579,14 +527,10 @@ fn attempting_to_bridge_an_already_bridged_channel_returns_an_error() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let mut channels = HashMap::new();
-    channels.insert("joined_channel", vec!["spec_user"]);
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("joined_channel", vec!["spec_user"]);
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -639,14 +583,10 @@ fn the_room_is_not_bridged_when_setting_the_canonical_room_alias_failes() {
         "put_room_canonical_room_alias",
     );
 
-    let mut channels = HashMap::new();
-    channels.insert("joined_channel", vec!["spec_user"]);
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("joined_channel", vec!["spec_user"]);
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -685,14 +625,10 @@ fn the_user_gets_a_message_when_creating_the_room_failes() {
     create_room_with_error.link_before(conditional_error);
 
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_with_error, "create_room");
-    let mut channels = HashMap::new();
-    channels.insert("joined_channel", vec!["spec_user"]);
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("joined_channel", vec!["spec_user"]);
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -731,14 +667,10 @@ fn the_user_gets_a_message_when_setting_the_powerlevels_failes() {
         },
         "set_power_levels",
     );
-    let mut channels = HashMap::new();
-    channels.insert("joined_channel", vec!["spec_user"]);
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("joined_channel", vec!["spec_user"]);
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -775,14 +707,10 @@ fn the_user_gets_a_message_when_inviting_the_user_failes() {
         },
         "invite",
     );
-    let mut channels = HashMap::new();
-    channels.insert("joined_channel", vec!["spec_user"]);
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("joined_channel", vec!["spec_user"]);
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -808,25 +736,10 @@ fn the_user_gets_a_message_when_getting_the_users_info_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let mut channels = HashMap::new();
-    channels.insert("joined_channel", vec!["spec_user"]);
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("joined_channel", vec!["spec_user"]);
 
-    let mut rocketchat_router = test.default_matrix_routes();
-    rocketchat_router.post(
-        LOGIN_PATH,
-        handlers::RocketchatLogin {
-            successful: true,
-            rocketchat_user_id: None,
-        },
-        "login",
-    );
-    rocketchat_router.get(
-        ME_PATH,
-        handlers::RocketchatMe {
-            username: "spec_user".to_string(),
-        },
-        "me",
-    );
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(
         USERS_INFO_PATH,
         handlers::RocketchatErrorResponder {
@@ -840,15 +753,8 @@ fn the_user_gets_a_message_when_getting_the_users_info_failes() {
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
-        .with_custom_channel_list(channels)
+        .with_logged_in_user()
         .run();
-
-    helpers::send_room_message_from_matrix(
-        &test.config.as_url,
-        RoomId::try_from("!admin_room_id:localhost").unwrap(),
-        UserId::try_from("@spec_user:localhost").unwrap(),
-        "login spec_user secret".to_string(),
-    );
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
@@ -882,14 +788,10 @@ fn the_user_gets_a_message_when_getting_the_room_alias_failes() {
         },
         "get_room_alias",
     );
-    let mut channels = HashMap::new();
-    channels.insert("joined_channel", vec!["spec_user"]);
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("joined_channel", vec!["spec_user"]);
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -926,14 +828,10 @@ fn the_user_gets_a_message_when_the_create_room_response_cannot_be_deserialized(
     create_room_with_invalid_error_responder.link_before(conditional_invalid_json_responder);
 
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_with_invalid_error_responder, "create_room");
-    let mut channels = HashMap::new();
-    channels.insert("joined_channel", vec!["spec_user"]);
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("joined_channel", vec!["spec_user"]);
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -959,25 +857,10 @@ fn the_user_gets_a_message_when_the_users_info_response_cannot_be_deserialized()
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let mut channels = HashMap::new();
-    channels.insert("joined_channel", vec!["spec_user"]);
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("joined_channel", vec!["spec_user"]);
 
-    let mut rocketchat_router = Router::new();
-    rocketchat_router.post(
-        LOGIN_PATH,
-        handlers::RocketchatLogin {
-            successful: true,
-            rocketchat_user_id: None,
-        },
-        "login",
-    );
-    rocketchat_router.get(
-        ME_PATH,
-        handlers::RocketchatMe {
-            username: "spec_user".to_string(),
-        },
-        "me",
-    );
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(
         USERS_INFO_PATH,
         handlers::InvalidJsonResponse {
@@ -990,7 +873,6 @@ fn the_user_gets_a_message_when_the_users_info_response_cannot_be_deserialized()
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
-        .with_custom_channel_list(channels)
         .run();
 
     helpers::send_room_message_from_matrix(
@@ -1031,14 +913,10 @@ fn the_user_gets_a_message_when_getting_the_room_alias_response_cannot_be_deseri
         },
         "get_room_alias",
     );
-    let mut channels = HashMap::new();
-    channels.insert("joined_channel", vec!["spec_user"]);
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("joined_channel", vec!["spec_user"]);
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();

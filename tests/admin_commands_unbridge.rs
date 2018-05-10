@@ -9,15 +9,12 @@ extern crate ruma_events;
 extern crate ruma_identifiers;
 extern crate serde_json;
 
-use std::collections::HashMap;
 use std::convert::TryFrom;
 
 use iron::status;
-use matrix_rocketchat::api::rocketchat::v1::{LOGIN_PATH, ME_PATH};
 use matrix_rocketchat::api::rocketchat::WebhookMessage;
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
-use router::Router;
 use ruma_client_api::r0::alias::delete_alias::Endpoint as DeleteAliasEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
@@ -135,7 +132,6 @@ fn successfully_unbridge_a_private_group() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    println!("MSG: {}", message_received_by_matrix);
     assert!(message_received_by_matrix.contains("bridged_group is now unbridged."));
 }
 
@@ -158,26 +154,8 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
         "get_room_creator_admin_room",
     );
 
-    let mut rocketchat_router = Router::new();
-    rocketchat_router.post(
-        LOGIN_PATH,
-        handlers::RocketchatLogin {
-            successful: true,
-            rocketchat_user_id: None,
-        },
-        "login",
-    );
-    rocketchat_router.get(
-        ME_PATH,
-        handlers::RocketchatMe {
-            username: "spec_user".to_string(),
-        },
-        "me",
-    );
-
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
-        .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
         .with_bridged_room(("bridged_channel", "spec_user"))
@@ -283,26 +261,8 @@ fn do_not_allow_to_unbridge_a_private_group_with_other_matrix_users() {
         "get_room_creator_admin_room",
     );
 
-    let mut rocketchat_router = Router::new();
-    rocketchat_router.post(
-        LOGIN_PATH,
-        handlers::RocketchatLogin {
-            successful: true,
-            rocketchat_user_id: None,
-        },
-        "login",
-    );
-    rocketchat_router.get(
-        ME_PATH,
-        handlers::RocketchatMe {
-            username: "spec_user".to_string(),
-        },
-        "me",
-    );
-
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
-        .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
         .with_bridged_group(("bridged_group", "spec_user"))
@@ -462,14 +422,10 @@ fn attempting_to_unbridge_a_non_existing_channel_returns_an_error() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let mut channels = HashMap::new();
-    channels.insert("normal_channel", Vec::new());
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("normal_channel", Vec::new());
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();
@@ -497,14 +453,10 @@ fn attempting_to_unbridge_an_channel_that_is_not_bridged_returns_an_error() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let mut channels = HashMap::new();
-    channels.insert("normal_channel", Vec::new());
-    let test = test.with_matrix_routes(matrix_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .with_logged_in_user()
-        .with_custom_channel_list(channels)
-        .run();
+    let channels = test.channel_list();
+    channels.lock().unwrap().insert("normal_channel", Vec::new());
+    let test =
+        test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
     // discard welcome message
     receiver.recv_timeout(default_timeout()).unwrap();

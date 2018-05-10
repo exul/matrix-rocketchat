@@ -5,6 +5,7 @@ use ruma_events::room::message::MessageEventContent;
 use ruma_identifiers::{RoomAliasId, UserId};
 use slog::Logger;
 
+use api::rocketchat::Channel;
 use api::{MatrixApi, RocketchatApi};
 use config::Config;
 use errors::*;
@@ -383,14 +384,28 @@ impl<'a> CommandHandler<'a> {
         rocketchat_server_id: &str,
         user_id: &UserId,
     ) -> Result<String> {
-        let mut rocketchat_rooms = rocketchat_api.channels_list()?;
-        let mut joined_rocketchat_rooms = rocketchat_api.channels_list_joined()?;
+        let channels = rocketchat_api.channels_list()?;
         let groups = rocketchat_api.groups_list()?;
-
-        rocketchat_rooms.extend(groups.iter().cloned());
-        // all groups in the list are joined, because a user can only see joined groups
+        let mut joined_rocketchat_rooms = rocketchat_api.channels_list_joined()?;
         joined_rocketchat_rooms.extend(groups.iter().cloned());
 
+        let channel_list =
+            self.format_rocketchat_rooms_list(rocketchat_server_id, user_id, &channels, &joined_rocketchat_rooms)?;
+        let groups_list = self.format_rocketchat_rooms_list(rocketchat_server_id, user_id, &groups, &joined_rocketchat_rooms)?;
+        let channels_title = t!(["admin_room", "channels"]).l(DEFAULT_LANGUAGE);
+        let groups_title = t!(["admin_room", "groups"]).l(DEFAULT_LANGUAGE);
+        let list = format!("{}:\n{}\n{}:\n{}", channels_title, channel_list, groups_title, groups_list);
+
+        Ok(list)
+    }
+
+    fn format_rocketchat_rooms_list(
+        &self,
+        rocketchat_server_id: &str,
+        user_id: &UserId,
+        rocketchat_rooms: &Vec<Channel>,
+        joined_rocketchat_rooms: &Vec<Channel>,
+    ) -> Result<String> {
         let mut list = "".to_string();
         for r in rocketchat_rooms {
             let rocketchat_room =
@@ -403,7 +418,7 @@ impl<'a> CommandHandler<'a> {
                 ""
             };
 
-            list = list + "*   " + formatter + &r.name.unwrap_or(rocketchat_room.id) + formatter + "\n\n";
+            list = list + "*   " + formatter + &r.name.clone().unwrap_or(rocketchat_room.id) + formatter + "\n\n";
         }
 
         Ok(list)

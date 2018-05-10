@@ -65,6 +65,8 @@ en:
       ${list}
     room_successfully_bridged: "${rocketchat_room_name} is now bridged."
     room_successfully_unbridged: "${rocketchat_room_name} is now unbridged."
+    channels: "Channels"
+    groups: "Private Groups"
   defaults:
     admin_room_display_name: "Admin Room (Rocket.Chat)"
     direct_message_room_display_name_suffix: "(DM Rocket.Chat)"

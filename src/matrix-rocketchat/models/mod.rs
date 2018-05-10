@@ -1,11 +1,11 @@
 //! Models that manage data and logic used by the application service.
 
-/// A Rocket.Chat channel
-mod channel;
 /// The database connection pool
 mod connection_pool;
 /// A list of Events that are received from the Matirx homeserver.
 mod events;
+/// A Rocket.Chat channel or group
+mod rocketchat_room;
 /// `RocketchatServer` entry
 mod rocketchat_server;
 /// `Room` entry
@@ -18,8 +18,8 @@ mod user_on_rocketchat_server;
 mod virtual_user;
 
 pub use self::connection_pool::ConnectionPool;
-pub use self::channel::Channel;
 pub use self::events::Events;
+pub use self::rocketchat_room::RocketchatRoom;
 pub use self::rocketchat_server::{Credentials, NewRocketchatServer, RocketchatServer};
 pub use self::room::Room;
 pub use self::user_on_rocketchat_server::{NewUserOnRocketchatServer, UserOnRocketchatServer};

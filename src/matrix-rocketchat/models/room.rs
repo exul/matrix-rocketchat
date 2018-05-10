@@ -62,7 +62,8 @@ impl<'a> Room<'a> {
         if self.user_ids(None)?.iter().any(|id| id == &user_id) {
             bail_error!(
                 ErrorKind::RocketchatChannelAlreadyBridged(rocketchat_channel_name.clone()),
-                t!(["errors", "rocketchat_channel_already_bridged"]).with_vars(vec![("channel_name", rocketchat_channel_name)])
+                t!(["errors", "rocketchat_channel_already_bridged"])
+                    .with_vars(vec![("rocketchat_room_name", rocketchat_channel_name)])
             );
         }
 

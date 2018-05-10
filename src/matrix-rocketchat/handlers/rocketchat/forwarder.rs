@@ -10,7 +10,7 @@ use config::Config;
 use errors::*;
 use i18n::*;
 use log;
-use models::{Channel, RocketchatServer, Room, UserOnRocketchatServer, VirtualUser};
+use models::{RocketchatRoom, RocketchatServer, Room, UserOnRocketchatServer, VirtualUser};
 
 const IMAGE_MESSAGE_TEXT: &str = "Uploaded an image";
 const RESEND_THRESHOLD_IN_SECONDS: i64 = 3;
@@ -173,7 +173,7 @@ impl<'a> Forwarder<'a> {
     }
 
     fn prepare_room_for_channel(&self, server: &RocketchatServer, message: &WebhookMessage) -> Result<Option<Room>> {
-        let channel = Channel::new(self.config, self.logger, self.matrix_api, message.channel_id.clone(), &server.id);
+        let channel = RocketchatRoom::new(self.config, self.logger, self.matrix_api, message.channel_id.clone(), &server.id);
         let room_id = match channel.matrix_id()? {
             Some(room_id) => room_id,
             None => return Ok(None),

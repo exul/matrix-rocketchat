@@ -2,15 +2,15 @@
 #![allow(missing_docs)]
 
 use std::error::Error as StdError;
-use std::fmt::{Display, Formatter};
 use std::fmt::Error as FmtError;
+use std::fmt::{Display, Formatter};
 use std::result::Result as StdResult;
 
 use diesel::result::Error as DieselError;
 use diesel_migrations::RunMigrationsError;
-use iron::{IronError, Response};
 use iron::modifier::Modifier;
 use iron::status::Status;
+use iron::{IronError, Response};
 use ruma_identifiers::RoomId;
 use serde_json;
 
@@ -18,7 +18,7 @@ use i18n::*;
 
 macro_rules! simple_error {
     ($e:expr) => {
-        Error{
+        Error {
             error_chain: $e.into(),
             user_message: None,
         }
@@ -27,11 +27,11 @@ macro_rules! simple_error {
 
 macro_rules! user_error {
     ($e:expr, $u:expr) => {
-        Error{
+        Error {
             error_chain: $e.into(),
             user_message: Some($u),
         }
-    }
+    };
 }
 
 macro_rules! bail_error {
@@ -241,9 +241,9 @@ error_chain!{
             display("The token {} is already in use by another server", token)
         }
 
-        RocketchatChannelNotFound(channel_name: String) {
-            description("No channel with the given name found on the Rocket.Chat server")
-            display("The channel {} does not exist on the Rocket.Chat server", channel_name)
+        RocketchatChannelOrGroupNotFound(rocketchat_room_name: String) {
+            description("No channel or group with the given name found on the Rocket.Chat server")
+            display("The channel or group {} does not exist on the Rocket.Chat server", rocketchat_room_name)
         }
 
         RocketchatChannelAlreadyBridged(channel_name: String) {

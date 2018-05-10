@@ -57,14 +57,14 @@ en:
       `bridge rocketchatroomnname` Bridge a Rocket.Chat room
 
       `unbridge rocketchatroomnname` Unbridge a Rocket.Chat room (messages are no longer forwarded)
-    list_channels: |
+    list_rocketchat_rooms: |
       Rooms are written in *italic* when you joined them on the Rocket.Chat server, you can `bridge` such a room.
 
       Rooms are written in **bold** when they are already bridged.
 
-      ${channel_list}
-    room_successfully_bridged: "${channel_name} is now bridged."
-    room_successfully_unbridged: "${channel_name} is now unbridged."
+      ${list}
+    room_successfully_bridged: "${rocketchat_room_name} is now bridged."
+    room_successfully_unbridged: "${rocketchat_room_name} is now unbridged."
   defaults:
     admin_room_display_name: "Admin Room (Rocket.Chat)"
     direct_message_room_display_name_suffix: "(DM Rocket.Chat)"
@@ -79,19 +79,19 @@ en:
     internal: "An internal error occurred"
     no_rocketchat_server: "No Rocket.Chat server found when querying ${rocketchat_url} (version information is missing from the response)"
     other_user_joined: "Another user join the admin room, leaving, please create a new admin room."
-    rocketchat_channel_already_bridged: "The channel ${channel_name} is already bridged."
-    rocketchat_channel_not_found: "No channel with the name ${channel_name} found."
+    rocketchat_channel_already_bridged: "The channel or group ${rocketchat_room_name} is already bridged."
+    rocketchat_channel_or_group_not_found: "No channel or group with the name ${rocketchat_room_name} found."
     rocketchat_token_missing: "A token is needed to connect new Rocket.Chat servers"
     rocketchat_server_already_connected: "The Rocket.Chat server ${rocketchat_url} is already connected, connect without a token if you want to connect to the server"
     rocketchat_server_id_already_in_use: "The provided ID `${rocketchat_server_id}` is already in use, please choose another one."
     rocketchat_server_not_found: "Rocket.Chat server ${rocketchat_url} not found, it is probably not connected."
     rocketchat_server_unreachable: "Could not reach Rocket.Chat server ${rocketchat_url}"
-    rocketchat_join_first: "You have to join the channel ${channel_name} on the Rocket.Chat server before you can bridge it."
+    rocketchat_join_first: "You have to join the channel or group ${rocketchat_room_name} on the Rocket.Chat server before you can bridge it."
     room_already_connected: "This room is already connected"
-    room_assocaited_with_aliases: "Cannot unbdrige room ${channel_name}, because aliases (${aliases}) are still associated with the room. All aliases have to be removed before the room can be unbridged."
+    room_assocaited_with_aliases: "Cannot unbdrige room ${rocketchat_room_name}, because aliases (${aliases}) are still associated with the room. All aliases have to be removed before the room can be unbridged."
     room_not_connected: "This room is not connected to a Rocket.Chat server, you have to connect it first to be able to execute the command, type `help` for further instructions on how to connect this room"
-    room_not_empty: "Cannot unbdrige room ${channel_name}, because Matrix users (${users}) are still using the room. All Matrix users have to leave a room before the room can be unbridged."
+    room_not_empty: "Cannot unbdrige channel or group ${rocketchat_room_name}, because Matrix users (${users}) are still using the room. All Matrix users have to leave a room before the room can be unbridged."
     token_already_in_use: "The token ${token} is already in use, please use another token."
     too_many_members_in_room: "Admin rooms must only contain the user that invites the bot. Too many members in the room, leaving."
     unsupported_rocketchat_api_version: "No supported API version (>= ${min_version}) found for the Rocket.Chat server, found version: ${version}"
-    unbridge_of_not_bridged_room: "The channel ${channel_name} is not bridged, cannot unbridge it."
+    unbridge_of_not_bridged_room: "The channel or group ${rocketchat_room_name} is not bridged, cannot unbridge it."

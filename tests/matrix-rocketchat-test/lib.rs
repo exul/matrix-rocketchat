@@ -291,6 +291,11 @@ impl Test {
         self
     }
 
+    pub fn with_bridged_group(mut self, bridged_group: (&'static str, &'static str)) -> Test {
+        self.bridged_group = Some(bridged_group);
+        self
+    }
+
     /// Set a list of Rocket.Chat channels that are returned when querying the Rocket.Chat mock
     /// channels.list edpoint
     pub fn with_custom_channel_list(mut self, channels: HashMap<&'static str, Vec<&'static str>>) -> Test {
@@ -335,6 +340,11 @@ impl Test {
         if let Some(bridged_room) = self.bridged_room {
             let (room_name, _) = bridged_room;
             self.bridge_room(room_name);
+        }
+
+        if let Some(bridged_group) = self.bridged_group {
+            let (group_name, _) = bridged_group;
+            self.bridge_room(group_name);
         }
 
         self

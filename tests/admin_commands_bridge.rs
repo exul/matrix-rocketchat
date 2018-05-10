@@ -535,7 +535,7 @@ fn do_not_allow_to_bridge_channels_that_the_user_has_not_joined_on_the_rocketcha
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains(
-        "You have to join the channel normal_channel on the Rocket.Chat server \
+        "You have to join the channel or group normal_channel on the Rocket.Chat server \
          before you can bridge it.",
     ));
 }
@@ -570,7 +570,7 @@ fn attempting_to_bridge_a_non_existing_channel_returns_an_error() {
     );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("No channel with the name nonexisting_channel found."));
+    assert!(message_received_by_matrix.contains("No channel or group with the name nonexisting_channel found."));
 }
 
 #[test]
@@ -620,7 +620,7 @@ fn attempting_to_bridge_an_already_bridged_channel_returns_an_error() {
     );
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
-    assert!(message_received_by_matrix.contains("The channel joined_channel is already bridged."));
+    assert!(message_received_by_matrix.contains("The channel or group joined_channel is already bridged."));
 }
 
 #[test]

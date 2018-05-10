@@ -115,6 +115,11 @@ impl<'a> Forwarder<'a> {
             }
         };
 
+        if receiver.rocketchat_user_id.clone().unwrap_or_default() == message.user_id {
+            info!(self.logger, "Not forwarding direct message, because the sender is the receivers virtual user");
+            return Ok(None);
+        }
+
         let room = match self.try_to_find_or_create_direct_message_room(server, &receiver, message)? {
             Some(room) => room,
             None => return Ok(None),

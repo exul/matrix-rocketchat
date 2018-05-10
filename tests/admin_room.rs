@@ -16,9 +16,9 @@ use std::convert::TryFrom;
 use iron::status;
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::models::{Events, Room};
-use matrix_rocketchat_test::{build_test_config, default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER,
-                             TEMP_DIR_NAME};
-use ruma_client_api::Endpoint;
+use matrix_rocketchat_test::{
+    build_test_config, default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, TEMP_DIR_NAME,
+};
 use ruma_client_api::r0::membership::forget_room::Endpoint as ForgetRoomEndpoint;
 use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinEndpoint;
 use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
@@ -26,9 +26,10 @@ use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventE
 use ruma_client_api::r0::send::send_state_event_for_empty_key::Endpoint as SendStateEventForEmptyKeyEndpoint;
 use ruma_client_api::r0::sync::get_member_events::Endpoint as GetMemberEventsEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
-use ruma_events::EventType;
+use ruma_client_api::Endpoint;
 use ruma_events::collections::all::Event;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
+use ruma_events::EventType;
 use ruma_identifiers::{EventId, RoomId, UserId};
 use serde_json::to_string;
 use tempdir::TempDir;

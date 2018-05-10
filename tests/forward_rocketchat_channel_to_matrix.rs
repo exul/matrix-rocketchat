@@ -11,25 +11,25 @@ extern crate serde_json;
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::sync::Mutex;
 
 use iron::{status, Chain};
+use matrix_rocketchat::api::rocketchat::v1::{Attachment, Message as RocketchatMessage, UserInfo, CHAT_GET_MESSAGE_PATH};
+use matrix_rocketchat::api::rocketchat::WebhookMessage;
 use matrix_rocketchat::api::{MatrixApi, RequestData, RestApi};
-use matrix_rocketchat::api::rocketchat::Message;
-use matrix_rocketchat::api::rocketchat::v1::{Attachment, Message as RocketchatMessage, UserInfo, GET_CHAT_MESSAGE_PATH};
 use matrix_rocketchat::models::Room;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use reqwest::{Method, StatusCode};
 use router::Router;
-use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
+use ruma_client_api::r0::media::create_content::Endpoint as CreateContentEndpoint;
 use ruma_client_api::r0::membership::invite_user::Endpoint as InviteUserEndpoint;
 use ruma_client_api::r0::membership::join_room_by_id::Endpoint as JoinRoomByIdEndpoint;
-use ruma_client_api::r0::media::create_content::Endpoint as CreateContentEndpoint;
 use ruma_client_api::r0::profile::set_display_name::Endpoint as SetDisplayNameEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
+use ruma_client_api::Endpoint;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json::to_string;
 
@@ -55,7 +55,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
         .with_bridged_room(("spec_channel", "spec_user"))
         .run();
 
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -117,7 +117,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 
     assert_eq!(user_ids.len(), 4);
 
-    let second_message = Message {
+    let second_message = WebhookMessage {
         message_id: "spec_id_2".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -159,7 +159,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
         .with_bridged_room(("spec_channel", "spec_user"))
         .run();
 
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -219,7 +219,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     let register_message = register_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(register_message.contains("\"username\":\"rocketchat_rcid_spec_user_id\""));
 
-    let second_message = Message {
+    let second_message = WebhookMessage {
         message_id: "spec_id_2".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -250,15 +250,13 @@ fn successfully_forwards_a_image_from_rocketchat_to_matrix_when_the_user_is_not_
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(CreateContentEndpoint::router_path(), create_content_forwarder, "create_content");
 
-    let attachments = vec![
-        Attachment {
-            description: "Spec image".to_string(),
-            image_size: Some(100),
-            image_type: Some("image/png".to_string()),
-            image_url: Some("/file-upload/image.png".to_string()),
-            title: "Spec titel".to_string(),
-        },
-    ];
+    let attachments = vec![Attachment {
+        description: "Spec image".to_string(),
+        image_size: Some(100),
+        image_type: Some("image/png".to_string()),
+        image_url: Some("/file-upload/image.png".to_string()),
+        title: "Spec titel".to_string(),
+    }];
     let rocketchat_message = Arc::new(Mutex::new(Some(RocketchatMessage {
         id: "spec_id".to_string(),
         rid: "spec_rid".to_string(),
@@ -278,7 +276,7 @@ fn successfully_forwards_a_image_from_rocketchat_to_matrix_when_the_user_is_not_
         message: rocketchat_message,
     };
     let mut rocketchat_router = Router::new();
-    rocketchat_router.get(GET_CHAT_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
+    rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("image.png".to_string(), b"image".to_vec());
     rocketchat_router.get(
@@ -306,7 +304,7 @@ fn successfully_forwards_a_image_from_rocketchat_to_matrix_when_the_user_is_not_
     // discard room bridged message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -360,7 +358,7 @@ fn do_not_forward_an_image_message_when_there_are_no_attachments() {
         message: rocketchat_message,
     };
     let mut rocketchat_router = Router::new();
-    rocketchat_router.get(GET_CHAT_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
+    rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("image.png".to_string(), b"image".to_vec());
     rocketchat_router.get(
@@ -388,7 +386,7 @@ fn do_not_forward_an_image_message_when_there_are_no_attachments() {
     // discard room bridged message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -421,7 +419,7 @@ fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_m
         status: status::InternalServerError,
     };
     let mut rocketchat_router = Router::new();
-    rocketchat_router.get(GET_CHAT_MESSAGE_PATH, rocketchat_error_responder, "get_chat_message");
+    rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_error_responder, "get_chat_message");
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -440,7 +438,7 @@ fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_m
     // discard room bridged message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -468,15 +466,13 @@ fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_f
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(CreateContentEndpoint::router_path(), create_content_forwarder, "create_content");
 
-    let attachments = vec![
-        Attachment {
-            description: "Spec image".to_string(),
-            image_size: Some(100),
-            image_type: Some("image/png".to_string()),
-            image_url: Some("/file-upload/image.png".to_string()),
-            title: "Spec titel".to_string(),
-        },
-    ];
+    let attachments = vec![Attachment {
+        description: "Spec image".to_string(),
+        image_size: Some(100),
+        image_type: Some("image/png".to_string()),
+        image_url: Some("/file-upload/image.png".to_string()),
+        title: "Spec titel".to_string(),
+    }];
     let rocketchat_message = Arc::new(Mutex::new(Some(RocketchatMessage {
         id: "spec_id".to_string(),
         rid: "spec_rid".to_string(),
@@ -496,7 +492,7 @@ fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_f
         message: rocketchat_message,
     };
     let mut rocketchat_router = Router::new();
-    rocketchat_router.get(GET_CHAT_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
+    rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("image.png".to_string(), b"image".to_vec());
     rocketchat_router.get(
@@ -525,7 +521,7 @@ fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_f
     // discard room bridged message
     receiver.recv_timeout(default_timeout()).unwrap();
 
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -556,7 +552,7 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
         .with_bridged_room(("spec_channel", "spec_user"))
         .run();
 
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -574,7 +570,7 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
     let other_virtual_user_display_name_message = set_display_name_receiver.recv_timeout(default_timeout()).unwrap();
     assert!(other_virtual_user_display_name_message.contains("other virtual user"));
 
-    let second_message_with_new_username = Message {
+    let second_message_with_new_username = WebhookMessage {
         message_id: "spec_id_2".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -623,7 +619,7 @@ fn message_is_forwarded_even_if_setting_the_display_name_failes() {
 
     error_responder_active.store(true, Ordering::Relaxed);
 
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -687,7 +683,7 @@ fn no_message_is_forwarded_when_inviting_the_user_failes() {
         .with_bridged_room(("spec_channel", "spec_user"))
         .run();
 
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -723,7 +719,7 @@ fn ignore_messages_to_a_room_that_is_not_bridged() {
     let test =
         test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "not_bridged_channel_id".to_string(),
@@ -768,7 +764,7 @@ fn ignore_messages_forwarded_from_rocketchat_if_the_non_virtual_user_just_sent_a
         "message from Matrix".to_string(),
     );
 
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -820,7 +816,7 @@ fn do_not_forward_messages_when_the_channel_was_bridged_but_is_unbridged_now() {
         "unbridge spec_channel".to_string(),
     );
 
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -850,7 +846,7 @@ fn do_not_forward_messages_when_the_channel_was_bridged_but_is_unbridged_now() {
 #[test]
 fn returns_unauthorized_when_the_rs_token_is_missing() {
     let test = Test::new().run();
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: None,
         channel_id: "spec_channel_id".to_string(),
@@ -872,7 +868,7 @@ fn returns_unauthorized_when_the_rs_token_is_missing() {
 #[test]
 fn returns_forbidden_when_the_rs_token_does_not_match_a_server() {
     let test = Test::new().run();
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some("wrong_token".to_string()),
         channel_id: "spec_channel_id".to_string(),

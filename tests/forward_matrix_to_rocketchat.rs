@@ -9,18 +9,18 @@ extern crate ruma_client_api;
 extern crate ruma_identifiers;
 extern crate serde_json;
 
-use std::convert::TryFrom;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 
 use iron::status;
+use matrix_rocketchat::api::rocketchat::v1::{CHAT_POST_MESSAGE_PATH, ROOMS_UPLOAD_PATH};
+use matrix_rocketchat::api::rocketchat::WebhookMessage;
 use matrix_rocketchat::api::MatrixApi;
-use matrix_rocketchat::api::rocketchat::v1::{POST_CHAT_MESSAGE_PATH, UPLOAD_PATH};
-use matrix_rocketchat::api::rocketchat::Message;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use router::Router;
-use ruma_client_api::Endpoint;
-use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::media::get_content::Endpoint as GetContentEndpoint;
+use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
+use ruma_client_api::Endpoint;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json::to_string;
 
@@ -29,7 +29,7 @@ fn successfully_forwards_a_text_message_from_matrix_to_rocketchat() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
+    rocketchat_router.post(CHAT_POST_MESSAGE_PATH, message_forwarder, "post_text_message");
 
     let test = test.with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
@@ -65,7 +65,7 @@ fn successfully_forwards_an_image_message_from_matrix_to_rocketchat() {
         "get_file",
     );
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(format!("{}{}", UPLOAD_PATH, "/:channel_id"), message_forwarder, "upload");
+    rocketchat_router.post(format!("{}{}", ROOMS_UPLOAD_PATH, "/:channel_id"), message_forwarder, "upload");
 
     let test = test.with_rocketchat_mock()
         .with_matrix_routes(matrix_router)
@@ -101,8 +101,8 @@ fn no_message_is_forwarded_when_the_image_cannot_be_found() {
         "get_file",
     );
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
-    rocketchat_router.post(format!("{}{}", UPLOAD_PATH, "/:channel_id"), upload_forwarder, "upload");
+    rocketchat_router.post(CHAT_POST_MESSAGE_PATH, message_forwarder, "post_text_message");
+    rocketchat_router.post(format!("{}{}", ROOMS_UPLOAD_PATH, "/:channel_id"), upload_forwarder, "upload");
 
     let test = test.with_rocketchat_mock()
         .with_matrix_routes(matrix_router)
@@ -129,7 +129,7 @@ fn do_not_forward_messages_from_the_bot_user_to_avoid_loops() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
+    rocketchat_router.post(CHAT_POST_MESSAGE_PATH, message_forwarder, "post_text_message");
 
     let test = test.with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
@@ -153,7 +153,7 @@ fn do_not_forward_messages_from_virtual_user_to_avoid_loops() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
+    rocketchat_router.post(CHAT_POST_MESSAGE_PATH, message_forwarder, "post_text_message");
 
     let test = test.with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
@@ -163,7 +163,7 @@ fn do_not_forward_messages_from_virtual_user_to_avoid_loops() {
         .run();
 
     // create the virtual user by simulating a message from Rocket.Chat
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -190,7 +190,7 @@ fn ignore_messages_from_unbridged_rooms() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
+    rocketchat_router.post(CHAT_POST_MESSAGE_PATH, message_forwarder, "post_text_message");
 
     let test = test.with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
@@ -254,7 +254,7 @@ fn ignore_messages_with_a_message_type_that_is_not_supported() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut rocketchat_router = Router::new();
-    rocketchat_router.post(POST_CHAT_MESSAGE_PATH, message_forwarder, "post_chat_message");
+    rocketchat_router.post(CHAT_POST_MESSAGE_PATH, message_forwarder, "post_text_message");
 
     let test = test.with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
@@ -264,7 +264,7 @@ fn ignore_messages_with_a_message_type_that_is_not_supported() {
         .run();
 
     // create the virtual user by simulating a message from Rocket.Chat
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_channel_id".to_string(),
@@ -294,12 +294,12 @@ fn the_user_gets_a_message_when_forwarding_a_message_failes() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = Router::new();
     rocketchat_router.post(
-        POST_CHAT_MESSAGE_PATH,
+        CHAT_POST_MESSAGE_PATH,
         handlers::RocketchatErrorResponder {
             message: "Rocketh.Chat chat.postMessage error".to_string(),
             status: status::InternalServerError,
         },
-        "post_chat_message",
+        "post_text_message",
     );
 
     let test = test.with_matrix_routes(matrix_router)

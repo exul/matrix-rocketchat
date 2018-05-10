@@ -11,27 +11,28 @@ extern crate serde_json;
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::sync::{Arc, Mutex};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
 
 use iron::{status, Chain};
+use matrix_rocketchat::api::rocketchat::v1::{
+    Attachment, Message as RocketchatMessage, UserInfo, CHAT_GET_MESSAGE_PATH, DM_LIST_PATH,
+};
+use matrix_rocketchat::api::rocketchat::WebhookMessage;
 use matrix_rocketchat::api::MatrixApi;
-use matrix_rocketchat::api::rocketchat::Message;
-use matrix_rocketchat::api::rocketchat::v1::{Attachment, Message as RocketchatMessage, UserInfo, DIRECT_MESSAGES_LIST_PATH,
-                                             GET_CHAT_MESSAGE_PATH};
 use matrix_rocketchat::models::{Room, UserOnRocketchatServer};
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
 use router::Router;
-use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
+use ruma_client_api::r0::media::create_content::Endpoint as CreateContentEndpoint;
 use ruma_client_api::r0::membership::forget_room::Endpoint as ForgetRoomEndpoint;
 use ruma_client_api::r0::membership::invite_user::Endpoint as InviteEndpoint;
 use ruma_client_api::r0::membership::leave_room::Endpoint as LeaveRoomEndpoint;
-use ruma_client_api::r0::media::create_content::Endpoint as CreateContentEndpoint;
 use ruma_client_api::r0::profile::get_display_name::{self, Endpoint as GetDisplaynameEndpoint};
 use ruma_client_api::r0::room::create_room::Endpoint as CreateRoomEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::sync::sync_events::Endpoint as SyncEventsEndpoint;
+use ruma_client_api::Endpoint;
 use ruma_identifiers::{RoomId, UserId};
 use serde_json::to_string;
 
@@ -54,7 +55,7 @@ fn successfully_forwards_a_direct_message_to_matrix() {
         direct_messages: direct_messages,
         status: status::Ok,
     };
-    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+    rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -63,7 +64,7 @@ fn successfully_forwards_a_direct_message_to_matrix() {
         .with_logged_in_user()
         .run();
 
-    let first_direct_message = Message {
+    let first_direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -116,7 +117,7 @@ fn successfully_forwards_a_direct_message_to_matrix() {
     assert!(user_ids.iter().any(|id| id == &other_user_id));
     assert!(user_ids.iter().any(|id| id == &spec_user_id));
 
-    let second_direct_message = Message {
+    let second_direct_message = WebhookMessage {
         message_id: "spec_id_2".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -144,15 +145,13 @@ fn successfully_forwards_an_image_in_a_direct_message_to_matrix() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(CreateContentEndpoint::router_path(), create_content_forwarder, "create_content");
 
-    let attachments = vec![
-        Attachment {
-            description: "Spec image".to_string(),
-            image_size: Some(100),
-            image_type: Some("image/png".to_string()),
-            image_url: Some("/file-upload/image.png".to_string()),
-            title: "Spec titel".to_string(),
-        },
-    ];
+    let attachments = vec![Attachment {
+        description: "Spec image".to_string(),
+        image_size: Some(100),
+        image_type: Some("image/png".to_string()),
+        image_url: Some("/file-upload/image.png".to_string()),
+        title: "Spec titel".to_string(),
+    }];
     let rocketchat_message = Arc::new(Mutex::new(Some(RocketchatMessage {
         id: "spec_id".to_string(),
         rid: "spec_rid".to_string(),
@@ -172,7 +171,7 @@ fn successfully_forwards_an_image_in_a_direct_message_to_matrix() {
         message: rocketchat_message,
     };
     let mut rocketchat_router = Router::new();
-    rocketchat_router.get(GET_CHAT_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
+    rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("image.png".to_string(), b"image".to_vec());
     rocketchat_router.get(
@@ -188,7 +187,7 @@ fn successfully_forwards_an_image_in_a_direct_message_to_matrix() {
         direct_messages: direct_messages,
         status: status::Ok,
     };
-    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+    rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -205,7 +204,7 @@ fn successfully_forwards_an_image_in_a_direct_message_to_matrix() {
     receiver.recv_timeout(default_timeout()).unwrap();
 
     // trigger room creation
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -225,7 +224,7 @@ fn successfully_forwards_an_image_in_a_direct_message_to_matrix() {
     );
 
     // empty message, because the image was uploaded
-    let message = Message {
+    let message = WebhookMessage {
         message_id: "spec_id".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -260,7 +259,7 @@ fn the_bot_user_stays_in_the_direct_message_room_if_the_user_leaves() {
         direct_messages: direct_messages,
         status: status::Ok,
     };
-    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+    rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let mut matrix_router = test.default_matrix_routes();
     let (forget_message_forwarder, forget_receiver) = MessageForwarder::new();
@@ -275,7 +274,7 @@ fn the_bot_user_stays_in_the_direct_message_room_if_the_user_leaves() {
         .with_logged_in_user()
         .run();
 
-    let direct_message = Message {
+    let direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -330,7 +329,7 @@ fn successfully_forwards_a_direct_message_to_a_matrix_room_that_was_bridged_befo
         direct_messages: direct_messages,
         status: status::Ok,
     };
-    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+    rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let mut matrix_router = test.default_matrix_routes();
     let (message_forwarder, receiver) = MessageForwarder::new();
@@ -345,7 +344,7 @@ fn successfully_forwards_a_direct_message_to_a_matrix_room_that_was_bridged_befo
         .with_logged_in_user()
         .run();
 
-    let direct_message = Message {
+    let direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -386,7 +385,7 @@ fn successfully_forwards_a_direct_message_to_a_matrix_room_that_was_bridged_befo
         UserId::try_from("@spec_user:localhost").unwrap(),
     );
 
-    let direct_message = Message {
+    let direct_message = WebhookMessage {
         message_id: "spec_id_2".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -426,7 +425,7 @@ fn do_not_forwards_a_direct_message_to_a_room_if_the_user_is_no_longer_logged_in
         direct_messages: direct_messages,
         status: status::Ok,
     };
-    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+    rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let mut matrix_router = test.default_matrix_routes();
     let (message_forwarder, receiver) = MessageForwarder::new();
@@ -441,7 +440,7 @@ fn do_not_forwards_a_direct_message_to_a_room_if_the_user_is_no_longer_logged_in
         .with_logged_in_user()
         .run();
 
-    let direct_message = Message {
+    let direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -487,7 +486,7 @@ fn do_not_forwards_a_direct_message_to_a_room_if_the_user_is_no_longer_logged_in
     let user = UserOnRocketchatServer::find(&connection, &receier_user_id, "rcid".to_string()).unwrap();
     helpers::logout_user_from_rocketchat_server_on_bridge(&connection, "rcid".to_string(), &user.matrix_user_id);
 
-    let direct_message = Message {
+    let direct_message = WebhookMessage {
         message_id: "spec_id_2".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -514,7 +513,7 @@ fn no_room_is_created_when_the_user_doesn_not_have_access_to_the_matching_direct
         direct_messages: HashMap::new(),
         status: status::Ok,
     };
-    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+    rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -523,7 +522,7 @@ fn no_room_is_created_when_the_user_doesn_not_have_access_to_the_matching_direct
         .with_logged_in_user()
         .run();
 
-    let direct_message = Message {
+    let direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -552,7 +551,7 @@ fn no_room_is_created_when_no_matching_user_for_the_room_name_is_found() {
     let test =
         test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().with_logged_in_user().run();
 
-    let direct_message = Message {
+    let direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "no_user_matches_this_channel_id".to_string(),
@@ -579,7 +578,7 @@ fn no_room_is_created_when_getting_the_direct_message_list_failes() {
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
     let mut rocketchat_router = Router::new();
     rocketchat_router.get(
-        DIRECT_MESSAGES_LIST_PATH,
+        DM_LIST_PATH,
         handlers::RocketchatErrorResponder {
             status: status::InternalServerError,
             message: "Getting DMs failed".to_string(),
@@ -594,7 +593,7 @@ fn no_room_is_created_when_getting_the_direct_message_list_failes() {
         .with_logged_in_user()
         .run();
 
-    let direct_message = Message {
+    let direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -632,7 +631,7 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_failes() {
         direct_messages: direct_messages,
         status: status::Ok,
     };
-    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+    rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -641,7 +640,7 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_failes() {
         .with_logged_in_user()
         .run();
 
-    let first_direct_message = Message {
+    let first_direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -655,7 +654,7 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_failes() {
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &second_direct_message_payload);
 
-    let second_direct_message = Message {
+    let second_direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -700,7 +699,7 @@ fn no_room_is_created_when_getting_the_displayname_failes() {
         direct_messages: direct_messages,
         status: status::Ok,
     };
-    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+    rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -711,7 +710,7 @@ fn no_room_is_created_when_getting_the_displayname_failes() {
 
     error_responder_active.store(true, Ordering::Relaxed);
 
-    let direct_message = Message {
+    let direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -738,7 +737,7 @@ fn no_room_is_created_when_the_direct_message_list_response_cannot_be_deserializ
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
     let mut rocketchat_router = Router::new();
     rocketchat_router.get(
-        DIRECT_MESSAGES_LIST_PATH,
+        DM_LIST_PATH,
         handlers::InvalidJsonResponse {
             status: status::Ok,
         },
@@ -752,7 +751,7 @@ fn no_room_is_created_when_the_direct_message_list_response_cannot_be_deserializ
         .with_logged_in_user()
         .run();
 
-    let direct_message = Message {
+    let direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -792,7 +791,7 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_response_cannot_b
         direct_messages: direct_messages,
         status: status::Ok,
     };
-    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+    rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -801,7 +800,7 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_response_cannot_b
         .with_logged_in_user()
         .run();
 
-    let first_direct_message = Message {
+    let first_direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -815,7 +814,7 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_response_cannot_b
 
     helpers::simulate_message_from_rocketchat(&test.config.as_url, &second_direct_message_payload);
 
-    let second_direct_message = Message {
+    let second_direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),
@@ -858,7 +857,7 @@ fn no_room_is_created_when_getting_the_displayname_respones_cannot_be_deserializ
         direct_messages: direct_messages,
         status: status::Ok,
     };
-    rocketchat_router.get(DIRECT_MESSAGES_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
+    rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test.with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -867,7 +866,7 @@ fn no_room_is_created_when_getting_the_displayname_respones_cannot_be_deserializ
         .with_logged_in_user()
         .run();
 
-    let direct_message = Message {
+    let direct_message = WebhookMessage {
         message_id: "spec_id_1".to_string(),
         token: Some(RS_TOKEN.to_string()),
         channel_id: "spec_user_id_other_user_id".to_string(),

@@ -2,16 +2,18 @@ use rand::{thread_rng, Rng};
 use std::borrow::Cow;
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Receiver;
+use std::sync::Mutex;
 use std::sync::{Arc, MutexGuard};
 
-use super::{extract_payload, helpers, Message, MessageForwarder, PendingInvites, RoomAliasMap, RoomsStatesMap, TestError,
-            UserList, UsersInRooms, AS_TOKEN, DEFAULT_LOGGER};
+use super::{
+    extract_payload, helpers, Message, MessageForwarder, PendingInvites, RoomAliasMap, RoomsStatesMap, TestError, UserList,
+    UsersInRooms, AS_TOKEN, DEFAULT_LOGGER,
+};
 use iron::prelude::*;
-use iron::url::Url;
 use iron::url::percent_encoding::percent_decode;
+use iron::url::Url;
 use iron::{status, BeforeMiddleware, Chain, Handler};
 use matrix_rocketchat::api::rocketchat::v1::Message as RocketchatMessage;
 use matrix_rocketchat::api::rocketchat::{Channel, User};
@@ -25,10 +27,10 @@ use ruma_client_api::r0::membership::invite_user;
 use ruma_client_api::r0::profile::{get_display_name, set_display_name};
 use ruma_client_api::r0::room::create_room;
 use ruma_client_api::r0::sync::get_member_events;
-use ruma_events::EventType;
 use ruma_events::collections::only::StateEvent;
 use ruma_events::room::aliases::{AliasesEvent, AliasesEventContent};
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
+use ruma_events::EventType;
 use ruma_identifiers::{EventId, RoomAliasId, RoomId, UserId};
 use serde_json::{self, Map, Value};
 
@@ -95,6 +97,7 @@ impl Handler for RocketchatMe {
         debug!(DEFAULT_LOGGER, "Rocket.Chat mock server got me request");
 
         let payload = r#"{
+            "_id": "USERNAME_id",
             "username": "USERNAME"
         }"#.replace("USERNAME", &self.username);
 
@@ -176,6 +179,41 @@ impl Handler for RocketchatRoomMembers {
             }
             None => "foo".to_string(), //TODO: Wut, we merged that? Fix me
         };
+
+        Ok(Response::with((self.status, payload)))
+    }
+}
+
+pub struct RocketchatGroupsList {
+    pub groups: Vec<&'static str>,
+    pub status: status::Status,
+}
+
+impl Handler for RocketchatGroupsList {
+    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+        debug!(DEFAULT_LOGGER, "Rocket.Chat mock server got groups list request");
+
+        let mut groups: Vec<String> = Vec::new();
+
+        for group_name in self.groups.iter() {
+            let channel = r#"{
+                "_id": "GROUP_NAME_id",
+                "name": "GROUP_NAME",
+                "t": "c",
+                "msgs": 0,
+                "u": {
+                    "_id": "spec_user_id",
+                    "username": "spec_username"
+                },
+                "ts": "2017-02-12T13:20:22.092Z",
+                "ro": false,
+                "sysMes": true,
+                "_updatedAt": "2017-02-12T13:20:22.092Z"
+            }"#.replace("GROUP_NAME", group_name);
+            groups.push(channel);
+        }
+
+        let payload = "{ \"groups\": [".to_string() + &groups.join(",") + "], \"success\": true }";
 
         Ok(Response::with((self.status, payload)))
     }

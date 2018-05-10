@@ -45,7 +45,7 @@ pub struct Attachment {
 }
 
 /// A Rocket.Chat channel
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Deserialize, Debug, Serialize, Clone)]
 pub struct Channel {
     /// ID of the Rocket.Chat room
     #[serde(rename = "_id")]
@@ -55,8 +55,40 @@ pub struct Channel {
 }
 
 /// A Rocket.Chat message
-#[derive(Deserialize, Debug, Serialize)]
+#[derive(Clone, Debug)]
 pub struct Message {
+    /// The unique message identifier
+    pub id: String,
+    /// The text content of the message
+    pub msg: String,
+    /// A list of attachments that are associated with the message
+    pub attachments: Option<Vec<MessageAttachment>>,
+}
+
+/// Metadata for a file that is uploaded to Rocket.Chat
+#[derive(Clone, Debug)]
+pub struct MessageAttachment {
+    /// The content type according to RFC7231
+    pub content_type: ContentType,
+    /// URL to download the image, it's only present when the attachment is an image
+    pub image_url: Option<String>,
+    /// An optional title for the file
+    pub title: String,
+}
+
+/// A Rocket.Chat user
+#[derive(Clone, Deserialize, Debug, Serialize)]
+pub struct User {
+    /// ID of the Rocket.Chat user
+    #[serde(rename = "_id")]
+    pub id: String,
+    /// Name that is displayed in Rocket.Chat
+    pub username: String,
+}
+
+/// A Rocket.Chat message
+#[derive(Deserialize, Debug, Serialize)]
+pub struct WebhookMessage {
     /// ID of the message
     pub message_id: String,
     /// Rocket.Chat token
@@ -73,36 +105,32 @@ pub struct Message {
     pub text: String,
 }
 
-/// A Rocket.Chat user
-#[derive(Clone, Deserialize, Debug, Serialize)]
-pub struct User {
-    /// ID of the Rocket.Chat user
-    #[serde(rename = "_id")]
-    pub id: String,
-    /// Name that is displayed in Rocket.Chat
-    pub username: String,
-}
-
 /// Rocket.Chat REST API
 pub trait RocketchatApi {
+    /// Get the url of an image that is attached to a message.
+    fn attachments(&self, message_id: &str) -> Result<Vec<Attachment>>;
+    /// Get all members of a channel
+    fn channels_members(&self, room_id: &str) -> Result<Vec<User>>;
     /// List of channels on the Rocket.Chat server
     fn channels_list(&self) -> Result<Vec<Channel>>;
-    /// Get the logged in users username
-    fn current_username(&self) -> Result<String>;
-    /// List of direct messages the user is part of
-    fn direct_messages_list(&self) -> Result<Vec<Channel>>;
-    /// Get the url of an image that is attached to a message.
-    fn get_attachments(&self, message_id: &str) -> Result<Vec<Attachment>>;
     /// Get all the channels that the user of the request has joiend.
-    fn get_joined_channels(&self) -> Result<Vec<Channel>>;
+    fn channels_list_joined(&self) -> Result<Vec<Channel>>;
+    /// Get a chat message
+    fn chat_get_message(&self, message_id: &str) -> Result<Message>;
+    /// Post a chat message
+    fn chat_post_message(&self, text: &str, room_id: &str) -> Result<()>;
+    /// List of direct messages the user is part of
+    fn dm_list(&self) -> Result<Vec<Channel>>;
+    /// List of al private groups the authenticated user has joined on the Rocket.Chat server
+    fn groups_list(&self) -> Result<Vec<Channel>>;
+    /// Get all members of a group
+    fn groups_members(&self, room_id: &str) -> Result<Vec<User>>;
     /// Login a user on the Rocket.Chat server
     fn login(&self, username: &str, password: &str) -> Result<(String, String)>;
-    /// Get all members of a channel
-    fn members(&self, room_id: &str) -> Result<Vec<User>>;
-    /// Post a chat message
-    fn post_chat_message(&self, text: &str, room_id: &str) -> Result<()>;
+    /// Get current user information
+    fn me(&self) -> Result<User>;
     /// Post a message with an attachment
-    fn post_file_message(&self, file: Vec<u8>, filename: &str, mime_type: Mime, room_id: &str) -> Result<()>;
+    fn rooms_upload(&self, file: Vec<u8>, filename: &str, mime_type: Mime, room_id: &str) -> Result<()>;
     /// Get information like user_id, status, etc. about a user
     fn users_info(&self, username: &str) -> Result<User>;
     /// Set credentials that are used for all API calls that need authentication
@@ -173,6 +201,6 @@ impl RocketchatApi {
     }
 }
 
-impl Key for Message {
-    type Value = Message;
+impl Key for WebhookMessage {
+    type Value = WebhookMessage;
 }

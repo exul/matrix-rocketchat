@@ -8,11 +8,11 @@ use config::Config;
 use errors::*;
 use models::Room;
 
-/// A channel on a Rocket.Chat server.
-pub struct Channel<'a> {
-    /// The channels ID
+/// A channel or group on a Rocket.Chat server.
+pub struct RocketchatRoom<'a> {
+    /// The channel or group ID
     pub id: String,
-    /// The ID of the channels Rocket.Chat server
+    /// The ID of the channels or groups Rocket.Chat server
     pub server_id: &'a str,
     /// The application service config
     config: &'a Config,
@@ -22,16 +22,16 @@ pub struct Channel<'a> {
     matrix_api: &'a MatrixApi,
 }
 
-impl<'a> Channel<'a> {
-    /// Create a channel room model, to interact with Rocket.chat channels.
+impl<'a> RocketchatRoom<'a> {
+    /// Create a rocketchat room model, to interact with Rocket.chat channels and groups.
     pub fn new(
         config: &'a Config,
         logger: &'a Logger,
         matrix_api: &'a MatrixApi,
         id: String,
         server_id: &'a str,
-    ) -> Channel<'a> {
-        Channel {
+    ) -> RocketchatRoom<'a> {
+        RocketchatRoom {
             config: config,
             logger: logger,
             matrix_api: matrix_api,
@@ -40,7 +40,7 @@ impl<'a> Channel<'a> {
         }
     }
 
-    /// Create a new channel model based on the Rocket.Chat channel name and server.
+    /// Create a new rocketchat room model based on the Rocket.Chat channel or group name and server.
     pub fn from_name(
         config: &'a Config,
         logger: &'a Logger,
@@ -48,13 +48,15 @@ impl<'a> Channel<'a> {
         name: &'a str,
         server_id: &'a str,
         rocketchat_api: &'a RocketchatApi,
-    ) -> Result<Channel<'a>> {
-        let channel_id = rocketchat_api
-            .channels_list()?
+    ) -> Result<RocketchatRoom<'a>> {
+        let mut rocketchat_rooms = rocketchat_api.channels_list()?;
+        let groups = rocketchat_api.groups_list()?;
+        rocketchat_rooms.extend(groups.iter().cloned());
+        let id = rocketchat_rooms
             .iter()
-            .filter_map(|channel| {
-                if channel.name == Some(name.to_string()) {
-                    Some(channel.id.clone())
+            .filter_map(|rocketchat_room| {
+                if rocketchat_room.name == Some(name.to_string()) {
+                    Some(rocketchat_room.id.clone())
                 } else {
                     None
                 }
@@ -62,8 +64,8 @@ impl<'a> Channel<'a> {
             .next()
             .unwrap_or_default();
 
-        let channel = Channel::new(config, logger, matrix_api, channel_id, server_id);
-        Ok(channel)
+        let rocketchat_room = RocketchatRoom::new(config, logger, matrix_api, id, server_id);
+        Ok(rocketchat_room)
     }
 
     /// Bridges a new room between Rocket.Chat and Matrix. It creates the room on the Matrix
@@ -76,7 +78,7 @@ impl<'a> Channel<'a> {
         creator_id: &UserId,
         invited_user_id: &UserId,
     ) -> Result<RoomId> {
-        debug!(self.logger, "Briding new room, Rocket.Chat channel: {}", name.clone().unwrap_or_default());
+        debug!(self.logger, "Briding new room, Rocket.Chat channel/group: {}", name.clone().unwrap_or_default());
 
         let matrix_room_alias = self.build_room_alias_name();
         let alias = Some(matrix_room_alias);
@@ -91,7 +93,7 @@ impl<'a> Channel<'a> {
         Ok(room_id)
     }
 
-    /// Indicates if the channel is bridged for a given user.
+    /// Indicates if the channel or group is bridged for a given user.
     pub fn is_bridged_for_user(&self, user_id: &UserId) -> Result<bool> {
         let room_alias_id = self.build_room_alias_id()?;
 
@@ -119,7 +121,7 @@ impl<'a> Channel<'a> {
         format!("{}#{}#{}", self.config.sender_localpart, self.server_id, self.id)
     }
 
-    /// Gets the Matrix room ID for a Rocket.Chat channel ID and a Rocket.Chat server.
+    /// Gets the Matrix room ID for a Rocket.Chat channel or group ID and a Rocket.Chat server.
     pub fn matrix_id(&self) -> Result<Option<RoomId>> {
         let room_alias_id = self.build_room_alias_id()?;
         self.matrix_api.get_room_alias(room_alias_id)

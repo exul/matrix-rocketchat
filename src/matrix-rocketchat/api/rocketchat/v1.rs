@@ -8,31 +8,37 @@ use reqwest::{Method, StatusCode};
 use serde_json;
 use slog::Logger;
 
+use api::rocketchat::{
+    Attachment as RocketchatAttachment, Channel, Endpoint, Message as RocketchatMessage, MessageAttachment, User,
+};
 use api::{RequestData, RestApi};
-use api::rocketchat::{Attachment as RocketchatAttachment, Channel, Endpoint, User};
 use errors::*;
 use i18n::*;
 
+/// Room members endpoint path
+pub const CHANNELS_MEMBERS_PATH: &str = "/api/v1/channels.members";
+/// Channels list endpoint path
+pub const CHANNELS_LIST_PATH: &str = "/api/v1/channels.list";
+/// Joined rooms endpoint path
+pub const CHANNELS_LIST_JOINED_PATH: &str = "/api/v1/channels.list.joined";
+/// Get a chat message endpoint path
+pub const CHAT_GET_MESSAGE_PATH: &str = "/api/v1/chat.getMessage";
+/// Post chat message endpoint path
+pub const CHAT_POST_MESSAGE_PATH: &str = "/api/v1/chat.postMessage";
+/// Direct messages list endpoint path
+pub const DM_LIST_PATH: &str = "/api/v1/dm.list";
+/// Group list endpoint path
+pub const GROUPS_LIST_PATH: &str = "/api/v1/groups.list";
+/// Group members endpoint path
+pub const GROUPS_MEMBERS_PATH: &str = "/api/v1/groups.members";
 /// Login endpoint path
 pub const LOGIN_PATH: &str = "/api/v1/login";
 /// Me endpoint path
 pub const ME_PATH: &str = "/api/v1/me";
 /// Users list endpoint path
 pub const USERS_INFO_PATH: &str = "/api/v1/users.info";
-/// Channels list endpoint path
-pub const CHANNELS_LIST_PATH: &str = "/api/v1/channels.list";
-/// Direct messages list endpoint path
-pub const DIRECT_MESSAGES_LIST_PATH: &str = "/api/v1/dm.list";
-/// Get a chat message endpoint path
-pub const GET_CHAT_MESSAGE_PATH: &str = "/api/v1/chat.getMessage";
-/// Post chat message endpoint path
-pub const POST_CHAT_MESSAGE_PATH: &str = "/api/v1/chat.postMessage";
-/// Room members endpoint path
-pub const GET_ROOM_MEMBERS_PATH: &str = "/api/v1/channels.members";
-/// Joined rooms endpoint path
-pub const GET_JOINED_CHANNELS_PATH: &str = "/api/v1/channels.list.joined";
 /// Upload a file endpoint path
-pub const UPLOAD_PATH: &str = "/api/v1/rooms.upload";
+pub const ROOMS_UPLOAD_PATH: &str = "/api/v1/rooms.upload";
 
 /// A single Message on the Rocket.Chat server.
 #[derive(Deserialize, Debug, Serialize)]
@@ -133,7 +139,7 @@ impl<'a> Endpoint<String> for GetWithAuthEndpoint<'a> {
 }
 
 /// Get a file that was uploaded to Rocket.Chat and needs authentication to be downloaded
-pub struct GetFileWithAuthEndpoint<'a> {
+pub struct GetFileEndpoint<'a> {
     base_url: String,
     path: &'a str,
     user_id: String,
@@ -141,7 +147,7 @@ pub struct GetFileWithAuthEndpoint<'a> {
     query_params: HashMap<&'static str, &'a str>,
 }
 
-impl<'a> Endpoint<String> for GetFileWithAuthEndpoint<'a> {
+impl<'a> Endpoint<String> for GetFileEndpoint<'a> {
     fn method(&self) -> Method {
         Method::Get
     }
@@ -158,6 +164,40 @@ impl<'a> Endpoint<String> for GetFileWithAuthEndpoint<'a> {
         let mut headers = Headers::new();
         let cookie = "rc_uid=".to_string() + &self.user_id + "; rc_token=" + &self.auth_token;
         headers.set_raw("Cookie", vec![cookie.into_bytes()]);
+        Some(headers)
+    }
+
+    fn query_params(&self) -> HashMap<&'static str, &str> {
+        self.query_params.clone()
+    }
+}
+
+/// V1 get group members endpoint
+pub struct GroupsMembersEndpoint<'a> {
+    base_url: String,
+    user_id: String,
+    auth_token: String,
+    query_params: HashMap<&'static str, &'a str>,
+}
+
+impl<'a> Endpoint<String> for GroupsMembersEndpoint<'a> {
+    fn method(&self) -> Method {
+        Method::Get
+    }
+
+    fn url(&self) -> String {
+        self.base_url.clone() + GROUPS_MEMBERS_PATH
+    }
+
+    fn payload(&self) -> Result<RequestData<String>> {
+        Ok(RequestData::Body("".to_string()))
+    }
+
+    fn headers(&self) -> Option<Headers> {
+        let mut headers = Headers::new();
+        headers.set(ContentType::json());
+        headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
+        headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
         Some(headers)
     }
 
@@ -200,7 +240,7 @@ impl<'a> Endpoint<String> for LoginEndpoint<'a> {
 }
 
 /// V1 post chat message endpoint
-pub struct PostChatMessageEndpoint<'a> {
+pub struct ChatPostMessageEndpoint<'a> {
     base_url: String,
     user_id: String,
     auth_token: String,
@@ -215,13 +255,13 @@ pub struct PostChatMessagePayload<'a> {
     text: Option<&'a str>,
 }
 
-impl<'a> Endpoint<String> for PostChatMessageEndpoint<'a> {
+impl<'a> Endpoint<String> for ChatPostMessageEndpoint<'a> {
     fn method(&self) -> Method {
         Method::Post
     }
 
     fn url(&self) -> String {
-        self.base_url.clone() + POST_CHAT_MESSAGE_PATH
+        self.base_url.clone() + CHAT_POST_MESSAGE_PATH
     }
 
     fn payload(&self) -> Result<RequestData<String>> {
@@ -240,7 +280,7 @@ impl<'a> Endpoint<String> for PostChatMessageEndpoint<'a> {
 }
 
 /// V1 endpoint to post a messag with an attachement
-pub struct PostFileMessageEndpoint<'a> {
+pub struct RoomsUploadEndpoint<'a> {
     base_url: String,
     user_id: String,
     auth_token: String,
@@ -255,13 +295,13 @@ pub struct PostFileMessagePayload<'a> {
     mime_type: Mime,
 }
 
-impl<'a> Endpoint<String> for PostFileMessageEndpoint<'a> {
+impl<'a> Endpoint<String> for RoomsUploadEndpoint<'a> {
     fn method(&self) -> Method {
         Method::Post
     }
 
     fn url(&self) -> String {
-        self.base_url.clone() + UPLOAD_PATH + "/" + self.room_id
+        self.base_url.clone() + ROOMS_UPLOAD_PATH + "/" + self.room_id
     }
 
     fn payload(&self) -> Result<RequestData<String>> {
@@ -284,30 +324,30 @@ impl<'a> Endpoint<String> for PostFileMessageEndpoint<'a> {
 }
 
 /// V1 get room members endpoint
-pub struct GetRoomMembersEndpoint<'a> {
+pub struct ChannelsMembersEndpoint<'a> {
     base_url: String,
     user_id: String,
     auth_token: String,
     query_params: HashMap<&'static str, &'a str>,
 }
 
-/// Response payload from the Rocket.Chat room members endpoint.
+/// Response payload from the Rocket.Chat members (channel or group) endpoint.
 #[derive(Deserialize)]
 ///
-pub struct GetRoomMembersResponse {
+pub struct MembersResponse {
     members: Vec<User>,
     count: i32,
     offset: i32,
     total: i32,
 }
 
-impl<'a> Endpoint<String> for GetRoomMembersEndpoint<'a> {
+impl<'a> Endpoint<String> for ChannelsMembersEndpoint<'a> {
     fn method(&self) -> Method {
         Method::Get
     }
 
     fn url(&self) -> String {
-        self.base_url.clone() + GET_ROOM_MEMBERS_PATH
+        self.base_url.clone() + CHANNELS_MEMBERS_PATH
     }
 
     fn payload(&self) -> Result<RequestData<String>> {
@@ -328,7 +368,7 @@ impl<'a> Endpoint<String> for GetRoomMembersEndpoint<'a> {
 }
 
 /// V1 get joined rooms endpoint
-pub struct GetJoinedChannelsEndpoint<'a> {
+pub struct ChannelsListJoinedEndpoint<'a> {
     base_url: String,
     user_id: String,
     auth_token: String,
@@ -338,19 +378,19 @@ pub struct GetJoinedChannelsEndpoint<'a> {
 /// Response payload from the Rocket.Chat joind channels endpoint.
 #[derive(Deserialize)]
 pub struct GetJoinedChannelsResponse {
-    channels: Vec<super::Channel>,
+    channels: Vec<Channel>,
     count: i32,
     offset: i32,
     total: i32,
 }
 
-impl<'a> Endpoint<String> for GetJoinedChannelsEndpoint<'a> {
+impl<'a> Endpoint<String> for ChannelsListJoinedEndpoint<'a> {
     fn method(&self) -> Method {
         Method::Get
     }
 
     fn url(&self) -> String {
-        self.base_url.clone() + GET_JOINED_CHANNELS_PATH
+        self.base_url.clone() + CHANNELS_LIST_JOINED_PATH
     }
 
     fn payload(&self) -> Result<RequestData<String>> {
@@ -390,9 +430,16 @@ pub struct Credentials {
 
 /// Response payload from the Rocket.Chat im.list endpoint.
 #[derive(Deserialize)]
-pub struct DirectMessagesListResponse {
+pub struct DMListResponse {
     /// A list of direct messages that the user is part of.
     pub ims: Vec<Channel>,
+}
+
+/// Response payload from the Rocket.Chat groups.list endpoint.
+#[derive(Deserialize)]
+pub struct GroupsListResponse {
+    /// A list of groups on the Rocket.Chat server
+    pub groups: Vec<Channel>,
 }
 
 #[derive(Deserialize)]
@@ -451,6 +498,74 @@ impl RocketchatApi {
 }
 
 impl super::RocketchatApi for RocketchatApi {
+    fn attachments(&self, message_id: &str) -> Result<Vec<RocketchatAttachment>> {
+        debug!(self.logger, "Retreiving attachment {}", message_id);
+
+        let message = self.chat_get_message(message_id)?;
+
+        let mut files = Vec::new();
+
+        if let Some(attachments) = message.attachments {
+            for attachment in attachments {
+                if let Some(ref image_url) = attachment.image_url {
+                    debug!(self.logger, "Getting file {}", image_url);
+
+                    let mut get_file_endpoint = GetFileEndpoint {
+                        base_url: self.base_url.clone(),
+                        user_id: self.user_id.clone(),
+                        auth_token: self.auth_token.clone(),
+                        path: image_url,
+                        query_params: HashMap::new(),
+                    };
+
+                    let mut resp = RestApi::get_rocketchat_file(&get_file_endpoint)?;
+
+                    if !resp.status().is_success() {
+                        let mut body = String::new();
+                        resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed(image_url.to_owned()))?;
+                        return Err(build_error(&get_file_endpoint.url(), &body, &resp.status()));
+                    }
+
+                    let mut buffer = Vec::new();
+                    resp.read_to_end(&mut buffer).chain_err(|| ErrorKind::InternalServerError)?;
+                    let rocketchat_attachment = RocketchatAttachment {
+                        content_type: attachment.content_type,
+                        data: buffer,
+                        title: attachment.title,
+                    };
+                    files.push(rocketchat_attachment);
+                }
+            }
+        } else {
+            info!(self.logger, "No attachments found for message ID {}", message_id);
+        }
+
+        Ok(files)
+    }
+
+    fn channels_members(&self, room_id: &str) -> Result<Vec<User>> {
+        debug!(self.logger, "Getting rooms members for room {} from Rocket.Chat server", room_id);
+
+        let mut users = Vec::new();
+        let mut offset = 0;
+        for i in 0..super::MAX_REQUESTS_PER_ENDPOINT_CALL {
+            if i == super::MAX_REQUESTS_PER_ENDPOINT_CALL {
+                bail_error!(ErrorKind::TooManyRequests(CHANNELS_MEMBERS_PATH.to_string()))
+            }
+
+            let mut members_response = get_channel_members(&self, room_id, offset)?;
+            users.append(&mut members_response.members);
+            let subtotal = members_response.count + members_response.offset;
+            if subtotal == members_response.total {
+                break;
+            }
+
+            offset = subtotal;
+        }
+
+        Ok(users)
+    }
+
     fn channels_list(&self) -> Result<Vec<Channel>> {
         debug!(self.logger, "Getting channel list from Rocket.Chat server {}", &self.base_url);
 
@@ -478,58 +593,31 @@ impl super::RocketchatApi for RocketchatApi {
         Ok(channels_list_response.channels)
     }
 
-    fn current_username(&self) -> Result<String> {
-        debug!(self.logger, "Querying username for user_id {} on Rocket.Chat server {}", self.user_id, &self.base_url);
+    fn channels_list_joined(&self) -> Result<Vec<Channel>> {
+        debug!(self.logger, "Getting joined channels for user {} from Rocket.Chat server", self.user_id);
 
-        let me_endpoint = GetWithAuthEndpoint {
-            base_url: self.base_url.clone(),
-            user_id: self.user_id.clone(),
-            auth_token: self.auth_token.clone(),
-            path: ME_PATH,
-            query_params: HashMap::new(),
-        };
+        let mut channels = Vec::new();
+        let mut offset = 0;
+        for i in 0..super::MAX_REQUESTS_PER_ENDPOINT_CALL {
+            if i == super::MAX_REQUESTS_PER_ENDPOINT_CALL {
+                bail_error!(ErrorKind::TooManyRequests(CHANNELS_LIST_JOINED_PATH.to_string()))
+            }
 
-        let (body, status_code) = RestApi::call_rocketchat(&me_endpoint)?;
-        if !status_code.is_success() {
-            return Err(build_error(&me_endpoint.url(), &body, &status_code));
+            let mut channels_response = channels_list_joined(&self, offset)?;
+            channels.append(&mut channels_response.channels);
+            let subtotal = channels_response.count + channels_response.offset;
+            if subtotal == channels_response.total {
+                break;
+            }
+
+            offset = subtotal;
         }
 
-        let me_response: MeResponse = serde_json::from_str(&body).chain_err(|| {
-            ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat me API endpoint: `{}`", body))
-        })?;
-
-        Ok(me_response.username)
+        Ok(channels)
     }
 
-    fn direct_messages_list(&self) -> Result<Vec<Channel>> {
-        debug!(self.logger, "Getting direct messages list from Rocket.Chat server {}", &self.base_url);
-
-        let direct_messages_list_endpoint = GetWithAuthEndpoint {
-            base_url: self.base_url.clone(),
-            user_id: self.user_id.clone(),
-            auth_token: self.auth_token.clone(),
-            path: DIRECT_MESSAGES_LIST_PATH,
-            query_params: HashMap::new(),
-        };
-
-        let (body, status_code) = RestApi::call_rocketchat(&direct_messages_list_endpoint)?;
-        if !status_code.is_success() {
-            return Err(build_error(&direct_messages_list_endpoint.url(), &body, &status_code));
-        }
-
-        let direct_messages_list_response: DirectMessagesListResponse = serde_json::from_str(&body).chain_err(|| {
-            ErrorKind::InvalidJSON(format!(
-                "Could not deserialize response from Rocket.Chat dm.list API \
-                 endpoint: `{}`",
-                body
-            ))
-        })?;
-
-        Ok(direct_messages_list_response.ims)
-    }
-
-    fn get_attachments(&self, message_id: &str) -> Result<Vec<RocketchatAttachment>> {
-        debug!(self.logger, "Retreiving image URL for message {}", message_id);
+    fn chat_get_message(&self, message_id: &str) -> Result<RocketchatMessage> {
+        debug!(self.logger, "Retreiving message {}", message_id);
 
         let mut query_params = HashMap::new();
         query_params.insert("msgId", message_id);
@@ -538,7 +626,7 @@ impl super::RocketchatApi for RocketchatApi {
             base_url: self.base_url.clone(),
             user_id: self.user_id.clone(),
             auth_token: self.auth_token.clone(),
-            path: GET_CHAT_MESSAGE_PATH,
+            path: CHAT_GET_MESSAGE_PATH,
             query_params: query_params,
         };
 
@@ -554,68 +642,125 @@ impl super::RocketchatApi for RocketchatApi {
             ))
         })?;
 
-        let mut files = Vec::new();
-
+        let mut message_attachments_option: Option<Vec<MessageAttachment>> = None;
         if let Some(attachments) = message_response.message.attachments {
+            let mut message_attachments = Vec::new();
             for attachment in attachments {
-                if let Some(ref image_url) = attachment.image_url {
-                    debug!(self.logger, "Getting file {}", image_url);
-
-                    let mut get_file_endpoint = GetFileWithAuthEndpoint {
-                        base_url: self.base_url.clone(),
-                        user_id: self.user_id.clone(),
-                        auth_token: self.auth_token.clone(),
-                        path: image_url,
-                        query_params: HashMap::new(),
-                    };
-
-                    let mut resp = RestApi::get_rocketchat_file(&get_file_endpoint)?;
-
-                    if !resp.status().is_success() {
-                        let mut body = String::new();
-                        resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed(image_url.to_owned()))?;
-                        return Err(build_error(&get_file_endpoint.url(), &body, &resp.status()));
-                    }
-
-                    let mut buffer = Vec::new();
-                    resp.read_to_end(&mut buffer).chain_err(|| ErrorKind::InternalServerError)?;
-                    let content_type = attachment.content_type()?;
-                    let rocketchat_attachment = RocketchatAttachment {
-                        content_type: content_type,
-                        data: buffer,
-                        title: attachment.title,
-                    };
-                    files.push(rocketchat_attachment);
-                }
+                message_attachments.push(MessageAttachment {
+                    content_type: attachment.content_type()?,
+                    image_url: attachment.image_url,
+                    title: attachment.title,
+                })
             }
-        } else {
-            info!(self.logger, "No attachments found for message ID {}", message_id);
-        }
 
-        Ok(files)
+            message_attachments_option = Some(message_attachments)
+        };
+
+        let message = RocketchatMessage {
+            attachments: message_attachments_option,
+            id: message_response.message.id,
+            msg: message_response.message.msg,
+        };
+
+        Ok(message)
     }
 
-    fn get_joined_channels(&self) -> Result<Vec<super::Channel>> {
-        debug!(self.logger, "Getting joined channels for user {} from Rocket.Chat server", self.user_id);
+    fn chat_post_message(&self, text: &str, room_id: &str) -> Result<()> {
+        debug!(self.logger, "Forwarding message to to Rocket.Chat room {}", room_id);
 
-        let mut channels = Vec::new();
+        let chat_post_message_endpoint = ChatPostMessageEndpoint {
+            base_url: self.base_url.clone(),
+            user_id: self.user_id.clone(),
+            auth_token: self.auth_token.clone(),
+            payload: PostChatMessagePayload {
+                text: Some(text),
+                room_id: room_id,
+            },
+        };
+
+        let (body, status_code) = RestApi::call_rocketchat(&chat_post_message_endpoint)?;
+        if !status_code.is_success() {
+            return Err(build_error(&chat_post_message_endpoint.url(), &body, &status_code));
+        }
+
+        Ok(())
+    }
+
+    fn dm_list(&self) -> Result<Vec<Channel>> {
+        debug!(self.logger, "Getting direct messages list from Rocket.Chat server {}", &self.base_url);
+
+        let direct_messages_list_endpoint = GetWithAuthEndpoint {
+            base_url: self.base_url.clone(),
+            user_id: self.user_id.clone(),
+            auth_token: self.auth_token.clone(),
+            path: DM_LIST_PATH,
+            query_params: HashMap::new(),
+        };
+
+        let (body, status_code) = RestApi::call_rocketchat(&direct_messages_list_endpoint)?;
+        if !status_code.is_success() {
+            return Err(build_error(&direct_messages_list_endpoint.url(), &body, &status_code));
+        }
+
+        let direct_messages_list_response: DMListResponse = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Rocket.Chat dm.list API \
+                 endpoint: `{}`",
+                body
+            ))
+        })?;
+
+        Ok(direct_messages_list_response.ims)
+    }
+
+    fn groups_list(&self) -> Result<Vec<Channel>> {
+        debug!(self.logger, "Getting group list from Rocket.Chat server {}", &self.base_url);
+
+        let channels_list_endpoint = GetWithAuthEndpoint {
+            base_url: self.base_url.clone(),
+            user_id: self.user_id.clone(),
+            auth_token: self.auth_token.clone(),
+            path: GROUPS_LIST_PATH,
+            query_params: HashMap::new(),
+        };
+
+        let (body, status_code) = RestApi::call_rocketchat(&channels_list_endpoint)?;
+        if !status_code.is_success() {
+            return Err(build_error(&channels_list_endpoint.url(), &body, &status_code));
+        }
+
+        let channels_list_response: GroupsListResponse = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!(
+                "Could not deserialize response from Rocket.Chat groups.list API \
+                 endpoint: `{}`",
+                body
+            ))
+        })?;
+
+        Ok(channels_list_response.groups)
+    }
+
+    fn groups_members(&self, room_id: &str) -> Result<Vec<User>> {
+        debug!(self.logger, "Getting group members for group {} from Rocket.Chat server", room_id);
+
+        let mut users = Vec::new();
         let mut offset = 0;
         for i in 0..super::MAX_REQUESTS_PER_ENDPOINT_CALL {
             if i == super::MAX_REQUESTS_PER_ENDPOINT_CALL {
-                bail_error!(ErrorKind::TooManyRequests(GET_JOINED_CHANNELS_PATH.to_string()))
+                bail_error!(ErrorKind::TooManyRequests(GROUPS_MEMBERS_PATH.to_string()))
             }
 
-            let mut channels_response = get_joined_channels(&self, offset)?;
-            channels.append(&mut channels_response.channels);
-            let subtotal = channels_response.count + channels_response.offset;
-            if subtotal == channels_response.total {
+            let mut members_response = get_group_members(&self, room_id, offset)?;
+            users.append(&mut members_response.members);
+            let subtotal = members_response.count + members_response.offset;
+            if subtotal == members_response.total {
                 break;
             }
 
             offset = subtotal;
         }
 
-        Ok(channels)
+        Ok(users)
     }
 
     fn login(&self, username: &str, password: &str) -> Result<(String, String)> {
@@ -640,54 +785,33 @@ impl super::RocketchatApi for RocketchatApi {
         Ok((login_response.data.user_id, login_response.data.auth_token))
     }
 
-    fn members(&self, room_id: &str) -> Result<Vec<User>> {
-        debug!(self.logger, "Getting rooms members for room {} from Rocket.Chat server", room_id);
+    fn me(&self) -> Result<User> {
+        debug!(self.logger, "Querying username for user_id {} on Rocket.Chat server {}", self.user_id, &self.base_url);
 
-        let mut users = Vec::new();
-        let mut offset = 0;
-        for i in 0..super::MAX_REQUESTS_PER_ENDPOINT_CALL {
-            if i == super::MAX_REQUESTS_PER_ENDPOINT_CALL {
-                bail_error!(ErrorKind::TooManyRequests(GET_ROOM_MEMBERS_PATH.to_string()))
-            }
-
-            let mut members_response = get_members(&self, room_id, offset)?;
-            users.append(&mut members_response.members);
-            let subtotal = members_response.count + members_response.offset;
-            if subtotal == members_response.total {
-                break;
-            }
-
-            offset = subtotal;
-        }
-
-        Ok(users)
-    }
-
-    fn post_chat_message(&self, text: &str, room_id: &str) -> Result<()> {
-        debug!(self.logger, "Forwarding message to to Rocket.Chat room {}", room_id);
-
-        let post_chat_message_endpoint = PostChatMessageEndpoint {
+        let me_endpoint = GetWithAuthEndpoint {
             base_url: self.base_url.clone(),
             user_id: self.user_id.clone(),
             auth_token: self.auth_token.clone(),
-            payload: PostChatMessagePayload {
-                text: Some(text),
-                room_id: room_id,
-            },
+            path: ME_PATH,
+            query_params: HashMap::new(),
         };
 
-        let (body, status_code) = RestApi::call_rocketchat(&post_chat_message_endpoint)?;
+        let (body, status_code) = RestApi::call_rocketchat(&me_endpoint)?;
         if !status_code.is_success() {
-            return Err(build_error(&post_chat_message_endpoint.url(), &body, &status_code));
+            return Err(build_error(&me_endpoint.url(), &body, &status_code));
         }
 
-        Ok(())
+        let user: User = serde_json::from_str(&body).chain_err(|| {
+            ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat me API endpoint: `{}`", body))
+        })?;
+
+        Ok(user)
     }
 
-    fn post_file_message(&self, file: Vec<u8>, filename: &str, mime_type: Mime, room_id: &str) -> Result<()> {
+    fn rooms_upload(&self, file: Vec<u8>, filename: &str, mime_type: Mime, room_id: &str) -> Result<()> {
         debug!(self.logger, "Uploading file to room {}", room_id);
 
-        let post_file_message_endpoint = PostFileMessageEndpoint {
+        let post_file_message_endpoint = RoomsUploadEndpoint {
             base_url: self.base_url.clone(),
             user_id: self.user_id.clone(),
             auth_token: self.auth_token.clone(),
@@ -742,49 +866,81 @@ impl super::RocketchatApi for RocketchatApi {
     }
 }
 
-fn get_joined_channels(rocketchat_api: &RocketchatApi, offset: i32) -> Result<GetJoinedChannelsResponse> {
-    let offset_param = offset.to_string();
-    let mut query_params = HashMap::new();
-    query_params.insert("offset", offset_param.as_ref());
-    let get_joined_channels_endpoint = GetJoinedChannelsEndpoint {
-        base_url: rocketchat_api.base_url.clone(),
-        user_id: rocketchat_api.user_id.clone(),
-        auth_token: rocketchat_api.auth_token.clone(),
-        query_params: query_params,
-    };
-
-    let (body, status_code) = RestApi::call_rocketchat(&get_joined_channels_endpoint)?;
-    if !status_code.is_success() {
-        return Err(build_error(&get_joined_channels_endpoint.url(), &body, &status_code));
-    }
-
-    let get_joined_channels_response: GetJoinedChannelsResponse = serde_json::from_str(&body).chain_err(|| {
-        ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat room members API endpoint: `{}`", body))
-    })?;
-    Ok(get_joined_channels_response)
-}
-
-fn get_members(rocketchat_api: &RocketchatApi, room_id: &str, offset: i32) -> Result<GetRoomMembersResponse> {
+fn get_channel_members(rocketchat_api: &RocketchatApi, room_id: &str, offset: i32) -> Result<MembersResponse> {
     let offset_param = offset.to_string();
     let mut query_params = HashMap::new();
     query_params.insert("roomId", room_id);
     query_params.insert("offset", &offset_param);
-    let room_members_endpoint = GetRoomMembersEndpoint {
+    let channel_members_endpoint = ChannelsMembersEndpoint {
         base_url: rocketchat_api.base_url.clone(),
         user_id: rocketchat_api.user_id.clone(),
         auth_token: rocketchat_api.auth_token.clone(),
         query_params: query_params,
     };
 
-    let (body, status_code) = RestApi::call_rocketchat(&room_members_endpoint)?;
+    let (body, status_code) = RestApi::call_rocketchat(&channel_members_endpoint)?;
     if !status_code.is_success() {
-        return Err(build_error(&room_members_endpoint.url(), &body, &status_code));
+        return Err(build_error(&channel_members_endpoint.url(), &body, &status_code));
     }
 
-    let room_members_response: GetRoomMembersResponse = serde_json::from_str(&body).chain_err(|| {
-        ErrorKind::InvalidJSON(format!("Could not deserialize response from Rocket.Chat room members API endpoint: `{}`", body))
+    let channel_members_response: MembersResponse = serde_json::from_str(&body).chain_err(|| {
+        ErrorKind::InvalidJSON(format!(
+            "Could not deserialize response from Rocket.Chat channel members API endpoint: `{}`",
+            body
+        ))
     })?;
-    Ok(room_members_response)
+    Ok(channel_members_response)
+}
+
+fn get_group_members(rocketchat_api: &RocketchatApi, room_id: &str, offset: i32) -> Result<MembersResponse> {
+    let offset_param = offset.to_string();
+    let mut query_params = HashMap::new();
+    query_params.insert("roomId", room_id);
+    query_params.insert("offset", &offset_param);
+    let group_members_endpoint = GroupsMembersEndpoint {
+        base_url: rocketchat_api.base_url.clone(),
+        user_id: rocketchat_api.user_id.clone(),
+        auth_token: rocketchat_api.auth_token.clone(),
+        query_params: query_params,
+    };
+
+    let (body, status_code) = RestApi::call_rocketchat(&group_members_endpoint)?;
+    if !status_code.is_success() {
+        return Err(build_error(&group_members_endpoint.url(), &body, &status_code));
+    }
+
+    let group_members_response: MembersResponse = serde_json::from_str(&body).chain_err(|| {
+        ErrorKind::InvalidJSON(format!(
+            "Could not deserialize response from Rocket.Chat group members API endpoint: `{}`",
+            body
+        ))
+    })?;
+    Ok(group_members_response)
+}
+
+fn channels_list_joined(rocketchat_api: &RocketchatApi, offset: i32) -> Result<GetJoinedChannelsResponse> {
+    let offset_param = offset.to_string();
+    let mut query_params = HashMap::new();
+    query_params.insert("offset", offset_param.as_ref());
+    let channels_list_joined_endpoint = ChannelsListJoinedEndpoint {
+        base_url: rocketchat_api.base_url.clone(),
+        user_id: rocketchat_api.user_id.clone(),
+        auth_token: rocketchat_api.auth_token.clone(),
+        query_params: query_params,
+    };
+
+    let (body, status_code) = RestApi::call_rocketchat(&channels_list_joined_endpoint)?;
+    if !status_code.is_success() {
+        return Err(build_error(&channels_list_joined_endpoint.url(), &body, &status_code));
+    }
+
+    let channels_list_joined_response: GetJoinedChannelsResponse = serde_json::from_str(&body).chain_err(|| {
+        ErrorKind::InvalidJSON(format!(
+            "Could not deserialize response from Rocket.Chat joined channels API endpoint: `{}`",
+            body
+        ))
+    })?;
+    Ok(channels_list_joined_response)
 }
 
 fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {

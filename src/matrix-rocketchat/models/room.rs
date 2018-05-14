@@ -1,4 +1,6 @@
+use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
@@ -15,6 +17,11 @@ use models::{RocketchatServer, UserOnRocketchatServer, VirtualUser};
 
 /// The delay in milliseconds between two API requests (to not DOS the server)
 pub const API_QUERY_DELAY: u64 = 500;
+
+lazy_static! {
+    /// Direct room cache
+    static ref DM_ROOMS: Mutex<HashMap<(String, String), RoomId>> = { Mutex::new(HashMap::new()) };
+}
 
 /// A room that is managed by the application service. This can be either a bridged room or an
 /// admin room.
@@ -53,6 +60,48 @@ impl<'a> Room<'a> {
         matrix_api.invite(room_id.clone(), invited_user_id.clone(), creator_id.clone())?;
 
         Ok(room_id)
+    }
+
+    /// Get an existing direct message room.
+    pub fn get_dm(
+        config: &'a Config,
+        logger: &'a Logger,
+        matrix_api: &'a MatrixApi,
+        channel_id: String,
+        sender_id: UserId,
+        receiver_id: UserId,
+    ) -> Result<Option<Room<'a>>> {
+        // If the user does not exist yet, there is no existing direct message room
+        if matrix_api.get_display_name(sender_id.clone())?.is_none() {
+            return Ok(None);
+        }
+
+        match DM_ROOMS.lock() {
+            Ok(dm_rooms) => match dm_rooms.get(&(channel_id.clone(), receiver_id.to_string())) {
+                Some(room_id) => {
+                    debug!(logger, "Found room {} for receiver {} in cache", channel_id, receiver_id);
+                    let room = Room::new(config, logger, matrix_api, room_id.clone());
+                    return Ok(Some(room));
+                }
+                None => {
+                    debug!(logger, "Room {} for receiver {} not found in cache", channel_id, receiver_id);
+                }
+            },
+            Err(err) => {
+                warn!(logger, "Could lock DM cache to get room {} with receiver {}: {}", channel_id, receiver_id, err);
+            }
+        }
+
+        for room_id in matrix_api.get_joined_rooms(sender_id.clone())? {
+            let room = Room::new(config, logger, matrix_api, room_id);
+            let user_ids = room.user_ids(Some(sender_id.clone()))?;
+            if user_ids.iter().all(|id| id == &sender_id || id == &receiver_id) {
+                room.add_to_cache(channel_id, receiver_id);
+                return Ok(Some(room));
+            }
+        }
+
+        Ok(None)
     }
 
     /// Bridges a room that is already bridged (for other users) for a new user.
@@ -287,5 +336,20 @@ impl<'a> Room<'a> {
             .filter(|id| !self.config.is_application_service_virtual_user(id))
             .collect();
         UserOnRocketchatServer::find_by_matrix_user_ids(connection, user_ids, rocketchat_server_id)
+    }
+
+    /// Add a room to the cache.
+    /// This will speed-up future direct messages because the direct message room lookup is done via
+    /// cache instead of going through the users rooms.
+    fn add_to_cache(&self, channel_id: String, receiver_id: UserId) -> () {
+        match DM_ROOMS.lock() {
+            Ok(mut dm_rooms) => {
+                debug!(self.logger, "Adding DM room {} with receiver {} to cache", channel_id, receiver_id);
+                dm_rooms.insert((channel_id, receiver_id.to_string()), self.id.clone());
+            }
+            Err(err) => {
+                warn!(self.logger, "Could not add DM room {} with receiver {} to cache: {}", channel_id, receiver_id, err);
+            }
+        }
     }
 }

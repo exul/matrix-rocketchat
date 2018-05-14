@@ -135,37 +135,21 @@ impl<'a> Forwarder<'a> {
         receiver: &UserOnRocketchatServer,
         message: &WebhookMessage,
     ) -> Result<Option<Room>> {
-        if let Some(room) = self.lookup_existing_direct_message_room(server, receiver, message)? {
+        let sender_id = self.virtual_user.build_user_id(&message.user_id, &server.id)?;
+
+        if let Some(room) = Room::get_dm(
+            self.config,
+            self.logger,
+            self.matrix_api,
+            message.channel_id.clone(),
+            sender_id,
+            receiver.matrix_user_id.clone(),
+        )? {
             self.invite_user_into_direct_message_room(&room, receiver)?;
             return Ok(Some(room));
         }
 
         self.auto_bridge_direct_message_channel(server, receiver, message)
-    }
-
-    fn lookup_existing_direct_message_room(
-        &self,
-        server: &RocketchatServer,
-        receiver: &UserOnRocketchatServer,
-        message: &WebhookMessage,
-    ) -> Result<Option<Room>> {
-        let sender_id = self.virtual_user.build_user_id(&message.user_id, &server.id)?;
-
-        // If the user does not exist yet, there is no existing direct message room
-        if self.matrix_api.get_display_name(sender_id.clone())?.is_none() {
-            return Ok(None);
-        }
-
-        //TODO: This is highly inefficient and needs some kind of caching, but no persistent storage or alias is needed
-        for room_id in self.matrix_api.get_joined_rooms(sender_id.clone())? {
-            let room = Room::new(self.config, self.logger, self.matrix_api, room_id);
-            let user_ids = room.user_ids(Some(sender_id.clone()))?;
-            if user_ids.iter().all(|id| id == &sender_id || id == &receiver.matrix_user_id) {
-                return Ok(Some(room));
-            }
-        }
-
-        Ok(None)
     }
 
     fn invite_user_into_direct_message_room(&self, room: &Room, receiver: &UserOnRocketchatServer) -> Result<()> {

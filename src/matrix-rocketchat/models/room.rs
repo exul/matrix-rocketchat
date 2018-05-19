@@ -331,7 +331,8 @@ impl<'a> Room<'a> {
         rocketchat_server_id: String,
     ) -> Result<Vec<UserOnRocketchatServer>> {
         let room_creator = self.matrix_api.get_room_creator(self.id.clone())?;
-        let user_ids = self.user_ids(Some(room_creator))?
+        let user_ids = self
+            .user_ids(Some(room_creator))?
             .into_iter()
             .filter(|id| !self.config.is_application_service_virtual_user(id))
             .collect();

@@ -30,11 +30,12 @@ fn successfully_unbridge_a_rocketchat_room() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("bridged_channel", "spec_user"))
+        .with_bridged_room(("bridged_channel", vec!["spec_user"]))
         .run();
 
     // send message to create a virtual user
@@ -86,11 +87,12 @@ fn successfully_unbridge_a_private_group() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_group(("bridged_group", "spec_user"))
+        .with_bridged_group(("bridged_group", vec!["spec_user"]))
         .run();
 
     // send message to create a virtual user
@@ -154,11 +156,12 @@ fn do_not_allow_to_unbridge_a_channel_with_other_matrix_users() {
         "get_room_creator_admin_room",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("bridged_channel", "spec_user"))
+        .with_bridged_room(("bridged_channel", vec!["spec_user"]))
         .run();
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
@@ -261,11 +264,12 @@ fn do_not_allow_to_unbridge_a_private_group_with_other_matrix_users() {
         "get_room_creator_admin_room",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_group(("bridged_group", "spec_user"))
+        .with_bridged_group(("bridged_group", vec!["spec_user"]))
         .run();
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
@@ -356,11 +360,12 @@ fn do_not_allow_to_unbridge_a_channel_with_remaining_room_aliases() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("bridged_channel", "spec_user"))
+        .with_bridged_room(("bridged_channel", vec!["spec_user"]))
         .run();
 
     // send message to create a virtual user
@@ -490,11 +495,12 @@ fn room_is_not_unbridged_when_deleting_the_room_alias_failes() {
         },
         "delete_room_alias",
     );
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("bridged_channel", "spec_user"))
+        .with_bridged_room(("bridged_channel", vec!["spec_user"]))
         .run();
 
     helpers::leave_room(

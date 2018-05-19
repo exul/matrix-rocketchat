@@ -40,12 +40,13 @@ fn sucessfully_list_rocketchat_rooms() {
         "joined_channels",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("bridged_channel", "spec_user"))
+        .with_bridged_room(("bridged_channel", vec!["spec_user"]))
         .run();
 
     // the listing has to work even when the Matrix user's display name is different from the one on
@@ -90,7 +91,8 @@ fn the_user_gets_a_message_when_getting_room_list_failes() {
         },
         "channels_list",
     );
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -129,7 +131,8 @@ fn the_user_gets_a_message_when_the_room_list_cannot_be_deserialized() {
         },
         "channels_list",
     );
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -203,7 +206,8 @@ fn the_user_gets_a_message_when_the_me_endpoint_returns_an_error() {
     let channels = test.channel_list();
     channels.lock().unwrap().insert("spec_channel", Vec::new());
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -260,7 +264,8 @@ fn the_user_gets_a_message_when_the_me_response_cannot_be_deserialized() {
     let channels = test.channel_list();
     channels.lock().unwrap().insert("spec_channel", Vec::new());
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()

@@ -181,9 +181,9 @@ pub struct Test {
     /// The application service listening server
     pub as_listening: Option<Listening>,
     /// Group that is bridged and the user that bridged it
-    pub bridged_group: Option<(&'static str, &'static str)>,
+    pub bridged_group: Option<(&'static str, Vec<&'static str>)>,
     /// Room that is bridged and the user that bridged it
-    pub bridged_room: Option<(&'static str, &'static str)>,
+    pub bridged_room: Option<(&'static str, Vec<&'static str>)>,
     /// A list of Rocket.Chat channels that are returned when querying the Rocket.Chat mock
     /// channels.list endpoint
     pub channels: Arc<Mutex<HashMap<&'static str, Vec<&'static str>>>>,
@@ -287,12 +287,12 @@ impl Test {
     }
 
     /// Rooms that are bridged when running the tests.
-    pub fn with_bridged_room(mut self, bridged_room: (&'static str, &'static str)) -> Test {
+    pub fn with_bridged_room(mut self, bridged_room: (&'static str, Vec<&'static str>)) -> Test {
         self.bridged_room = Some(bridged_room);
         self
     }
 
-    pub fn with_bridged_group(mut self, bridged_group: (&'static str, &'static str)) -> Test {
+    pub fn with_bridged_group(mut self, bridged_group: (&'static str, Vec<&'static str>)) -> Test {
         self.bridged_group = Some(bridged_group);
         self
     }
@@ -324,12 +324,12 @@ impl Test {
             );
         }
 
-        if let Some(bridged_room) = self.bridged_room {
+        if let Some(bridged_room) = self.bridged_room.clone() {
             let (room_name, _) = bridged_room;
             self.bridge_room(room_name);
         }
 
-        if let Some(bridged_group) = self.bridged_group {
+        if let Some(bridged_group) = self.bridged_group.clone() {
             let (group_name, _) = bridged_group;
             self.bridge_room(group_name);
         }
@@ -373,14 +373,14 @@ impl Test {
             None => self.default_rocketchat_routes(),
         };
 
-        if let Some(bridged_room) = self.bridged_room {
-            let (room_name, user_id) = bridged_room;
-            self.channels.lock().unwrap().insert(room_name, vec![user_id]);
+        if let Some(bridged_room) = self.bridged_room.clone() {
+            let (room_name, user_ids) = bridged_room;
+            self.channels.lock().unwrap().insert(room_name, user_ids);
         }
 
-        if let Some(bridged_group) = self.bridged_group {
-            let (group_name, user_id) = bridged_group;
-            self.groups.lock().unwrap().insert(group_name, vec![user_id]);
+        if let Some(bridged_group) = self.bridged_group.clone() {
+            let (group_name, user_ids) = bridged_group;
+            self.groups.lock().unwrap().insert(group_name, user_ids);
         }
 
         thread::spawn(move || {

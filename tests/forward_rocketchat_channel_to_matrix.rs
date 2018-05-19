@@ -47,11 +47,12 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     matrix_router.post(JoinRoomByIdEndpoint::router_path(), join_forwarder, "join_room");
     matrix_router.put(SetDisplayNameEndpoint::router_path(), set_display_name_forwarder, "set_display_name");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     let message = WebhookMessage {
@@ -151,11 +152,12 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
     matrix_router.post(JoinRoomByIdEndpoint::router_path(), join_forwarder, "join_room");
     matrix_router.put(SetDisplayNameEndpoint::router_path(), set_display_name_forwarder, "set_display_name");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     let message = WebhookMessage {
@@ -286,12 +288,13 @@ fn successfully_forwards_a_image_from_rocketchat_to_matrix_when_the_user_is_not_
         "get_file",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     // discard welcome message
@@ -368,12 +371,13 @@ fn do_not_forward_an_image_message_when_there_are_no_attachments() {
         "get_file",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     // discard welcome message
@@ -420,12 +424,13 @@ fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_m
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_error_responder, "get_chat_message");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     // discard welcome message
@@ -503,12 +508,13 @@ fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_f
         "get_file",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     // discard welcome message
@@ -544,11 +550,12 @@ fn update_the_display_name_when_the_user_changed_it_on_the_rocketchat_server() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SetDisplayNameEndpoint::router_path(), set_display_name_forwarder, "set_display_name");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     let message = WebhookMessage {
@@ -609,11 +616,12 @@ fn message_is_forwarded_even_if_setting_the_display_name_failes() {
     set_display_name_with_error.link_before(error_responder);
     matrix_router.put(SetDisplayNameEndpoint::router_path(), set_display_name_with_error, "set_display_name");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     error_responder_active.store(true, Ordering::Relaxed);
@@ -675,11 +683,12 @@ fn no_message_is_forwarded_when_inviting_the_user_failes() {
     invite_with_error.link_before(conditional_error);
     matrix_router.post(InviteUserEndpoint::router_path(), invite_with_error, "invite_user_spec_channel");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     let message = WebhookMessage {
@@ -749,11 +758,12 @@ fn ignore_messages_forwarded_from_rocketchat_if_the_non_virtual_user_just_sent_a
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     helpers::send_room_message_from_matrix(
@@ -795,11 +805,12 @@ fn do_not_forward_messages_when_the_channel_was_bridged_but_is_unbridged_now() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     helpers::leave_room(

@@ -59,7 +59,8 @@ fn successfully_forwards_a_direct_message_to_matrix() {
     };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -191,7 +192,8 @@ fn successfully_forwards_an_image_in_a_direct_message_to_matrix() {
     };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -269,7 +271,8 @@ fn the_virtual_user_stays_in_the_direct_message_room_if_the_user_leaves() {
     matrix_router.post(LeaveRoomEndpoint::router_path(), leave_room, "leave_room");
     matrix_router.post(ForgetRoomEndpoint::router_path(), forget_message_forwarder, "forget_room");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -339,7 +342,8 @@ fn successfully_forwards_a_direct_message_to_a_matrix_room_that_was_bridged_befo
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -463,7 +467,8 @@ fn do_use_two_different_dm_rooms_when_both_users_are_on_matrix() {
         "me",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -594,7 +599,8 @@ fn do_not_forward_a_direct_message_if_the_receiver_is_the_senders_virtual_user()
     };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -659,7 +665,8 @@ fn do_not_forwards_a_direct_message_to_a_room_if_the_user_is_no_longer_logged_in
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -741,7 +748,8 @@ fn no_room_is_created_when_the_user_doesn_not_have_access_to_the_matching_direct
     };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -812,7 +820,8 @@ fn no_room_is_created_when_getting_the_direct_message_list_failes() {
         "direct_messages_list",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -859,7 +868,8 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_failes() {
     };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -927,7 +937,8 @@ fn no_room_is_created_when_getting_the_displayname_failes() {
     };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -970,7 +981,8 @@ fn no_room_is_created_when_the_direct_message_list_response_cannot_be_deserializ
         "direct_messages_list",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -1019,7 +1031,8 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_response_cannot_b
     };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -1085,7 +1098,8 @@ fn no_room_is_created_when_getting_the_displayname_respones_cannot_be_deserializ
     };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()

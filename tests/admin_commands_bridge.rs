@@ -330,11 +330,12 @@ fn susccessfully_bridge_a_rocketchat_room_that_was_unbridged_before() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(InviteEndpoint::router_path(), invite_forwarder, "invite_user");
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("joined_channel", "spec_user"))
+        .with_bridged_room(("joined_channel", vec!["spec_user"]))
         .run();
 
     helpers::leave_room(
@@ -749,7 +750,8 @@ fn the_user_gets_a_message_when_getting_the_users_info_failes() {
         "users_info",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
@@ -869,7 +871,8 @@ fn the_user_gets_a_message_when_the_users_info_response_cannot_be_deserialized()
         "users_info",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()

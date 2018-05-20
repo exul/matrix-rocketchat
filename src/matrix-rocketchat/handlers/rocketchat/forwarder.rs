@@ -49,7 +49,8 @@ impl<'a> Forwarder<'a> {
 
     /// Send a message to the Matrix channel.
     pub fn send(&self, server: &RocketchatServer, message: &WebhookMessage) -> Result<()> {
-        if !self.is_sendable_message(message.user_id.clone(), server.id.clone())? {
+        let is_direct_message = message.channel_id.contains(&message.user_id);
+        if !is_direct_message && !self.is_sendable_message(message.user_id.clone(), server.id.clone())? {
             debug!(
                 self.logger,
                 "Skipping message, because the message was just posted by the user Matrix and echoed back from Rocket.Chat"
@@ -115,6 +116,11 @@ impl<'a> Forwarder<'a> {
             }
         };
 
+        if receiver.rocketchat_user_id.clone().unwrap_or_default() == message.user_id {
+            info!(self.logger, "Not forwarding direct message, because the sender is the receivers virtual user");
+            return Ok(None);
+        }
+
         let room = match self.try_to_find_or_create_direct_message_room(server, &receiver, message)? {
             Some(room) => room,
             None => return Ok(None),
@@ -129,37 +135,21 @@ impl<'a> Forwarder<'a> {
         receiver: &UserOnRocketchatServer,
         message: &WebhookMessage,
     ) -> Result<Option<Room>> {
-        if let Some(room) = self.lookup_existing_direct_message_room(server, receiver, message)? {
+        let sender_id = self.virtual_user.build_user_id(&message.user_id, &server.id)?;
+
+        if let Some(room) = Room::get_dm(
+            self.config,
+            self.logger,
+            self.matrix_api,
+            message.channel_id.clone(),
+            sender_id,
+            receiver.matrix_user_id.clone(),
+        )? {
             self.invite_user_into_direct_message_room(&room, receiver)?;
             return Ok(Some(room));
         }
 
         self.auto_bridge_direct_message_channel(server, receiver, message)
-    }
-
-    fn lookup_existing_direct_message_room(
-        &self,
-        server: &RocketchatServer,
-        receiver: &UserOnRocketchatServer,
-        message: &WebhookMessage,
-    ) -> Result<Option<Room>> {
-        let sender_id = self.virtual_user.build_user_id(&message.user_id, &server.id)?;
-
-        // If the user does not exist yet, there is no existing direct message room
-        if self.matrix_api.get_display_name(sender_id.clone())?.is_none() {
-            return Ok(None);
-        }
-
-        //TODO: This is highly inefficient and needs some kind of caching, but no persistent storage or alias is needed
-        for room_id in self.matrix_api.get_joined_rooms(sender_id.clone())? {
-            let room = Room::new(self.config, self.logger, self.matrix_api, room_id);
-            let user_ids = room.user_ids(Some(sender_id.clone()))?;
-            if user_ids.iter().all(|id| id == &sender_id || id == &receiver.matrix_user_id) {
-                return Ok(Some(room));
-            }
-        }
-
-        Ok(None)
     }
 
     fn invite_user_into_direct_message_room(&self, room: &Room, receiver: &UserOnRocketchatServer) -> Result<()> {
@@ -247,7 +237,7 @@ impl<'a> Forwarder<'a> {
     ) -> Result<Option<UserOnRocketchatServer>> {
         for user_on_rocketchatserver in server.logged_in_users_on_rocketchat_server(self.connection)? {
             if let Some(rocketchat_user_id) = user_on_rocketchatserver.rocketchat_user_id.clone() {
-                if message.channel_id.contains(&rocketchat_user_id) {
+                if message.channel_id.contains(&rocketchat_user_id) && rocketchat_user_id != message.user_id {
                     debug!(
                         self.logger,
                         "Matching user with rocketchat_user_id `{}` for channel_id `{}` found.",

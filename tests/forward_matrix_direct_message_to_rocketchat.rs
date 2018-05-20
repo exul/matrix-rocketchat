@@ -16,7 +16,6 @@ use iron::status;
 use matrix_rocketchat::api::rocketchat::v1::{CHAT_POST_MESSAGE_PATH, DM_LIST_PATH};
 use matrix_rocketchat::api::rocketchat::WebhookMessage;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, RS_TOKEN};
-use router::Router;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::Endpoint;
 use ruma_identifiers::{RoomId, UserId};
@@ -28,7 +27,7 @@ fn successfully_forwards_a_direct_message_to_rocketchat() {
     let (matrix_message_forwarder, matrix_receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), matrix_message_forwarder, "send_message_event");
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
     let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
@@ -93,7 +92,7 @@ fn direct_messages_are_not_forwarded_if_no_matching_matrix_user_is_found() {
     let (matrix_message_forwarder, matrix_receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), matrix_message_forwarder, "send_message_event");
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
     let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
@@ -153,7 +152,7 @@ fn direct_messages_are_not_forwarded_if_no_matching_virtual_user_is_found() {
     let (matrix_message_forwarder, matrix_receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), matrix_message_forwarder, "send_message_event");
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
     let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {

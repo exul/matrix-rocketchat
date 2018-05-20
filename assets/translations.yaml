@@ -24,7 +24,7 @@ en:
 
       A sample message could look like this:
 
-      `connect https://chat.example.com z44cwkD86P5PmdkEv7nHX7KB`
+      `connect https://chat.example.com z44cwkD86P5PmdkEv7nHX7KB my_id`
 
       **Already connected servers**
 

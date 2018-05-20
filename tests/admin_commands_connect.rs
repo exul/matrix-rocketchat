@@ -15,12 +15,14 @@ use std::thread;
 use iron::{status, Iron, Listening};
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::models::{RocketchatServer, UserOnRocketchatServer};
-use matrix_rocketchat_test::{default_timeout, get_free_socket_addr, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER,
-                             DEFAULT_ROCKETCHAT_VERSION, IRON_THREADS, RS_TOKEN};
+use matrix_rocketchat_test::{
+    default_timeout, get_free_socket_addr, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER,
+    DEFAULT_ROCKETCHAT_VERSION, IRON_THREADS, RS_TOKEN,
+};
 use router::Router;
-use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::r0::sync::get_state_events_for_empty_key::{self, Endpoint as GetStateEventsForEmptyKey};
+use ruma_client_api::Endpoint;
 use ruma_events::EventType;
 use ruma_identifiers::{RoomId, UserId};
 

@@ -14,9 +14,8 @@ use std::convert::TryFrom;
 use iron::status;
 use matrix_rocketchat::api::rocketchat::v1::LOGIN_PATH;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test};
-use router::Router;
-use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
+use ruma_client_api::Endpoint;
 use ruma_identifiers::{RoomId, UserId};
 
 #[test]
@@ -25,7 +24,7 @@ fn the_user_gets_a_message_when_the_rocketchat_error_cannot_be_deserialized() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(
         LOGIN_PATH,
         handlers::InvalidJsonResponse {

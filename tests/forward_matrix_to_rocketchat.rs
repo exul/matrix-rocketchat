@@ -17,7 +17,6 @@ use matrix_rocketchat::api::rocketchat::v1::{CHAT_POST_MESSAGE_PATH, ROOMS_UPLOA
 use matrix_rocketchat::api::rocketchat::WebhookMessage;
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
-use router::Router;
 use ruma_client_api::r0::media::get_content::Endpoint as GetContentEndpoint;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::Endpoint;
@@ -28,14 +27,15 @@ use serde_json::to_string;
 fn successfully_forwards_a_text_message_from_matrix_to_rocketchat() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(CHAT_POST_MESSAGE_PATH, message_forwarder, "post_text_message");
 
-    let test = test.with_rocketchat_mock()
+    let test = test
+        .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     helpers::send_room_message_from_matrix(
@@ -64,15 +64,16 @@ fn successfully_forwards_an_image_message_from_matrix_to_rocketchat() {
         },
         "get_file",
     );
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(format!("{}{}", ROOMS_UPLOAD_PATH, "/:channel_id"), message_forwarder, "upload");
 
-    let test = test.with_rocketchat_mock()
+    let test = test
+        .with_rocketchat_mock()
         .with_matrix_routes(matrix_router)
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     helpers::send_image_message_from_matrix(
@@ -100,16 +101,17 @@ fn no_message_is_forwarded_when_the_image_cannot_be_found() {
         },
         "get_file",
     );
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(CHAT_POST_MESSAGE_PATH, message_forwarder, "post_text_message");
     rocketchat_router.post(format!("{}{}", ROOMS_UPLOAD_PATH, "/:channel_id"), upload_forwarder, "upload");
 
-    let test = test.with_rocketchat_mock()
+    let test = test
+        .with_rocketchat_mock()
         .with_matrix_routes(matrix_router)
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     helpers::send_image_message_from_matrix(
@@ -128,14 +130,15 @@ fn no_message_is_forwarded_when_the_image_cannot_be_found() {
 fn do_not_forward_messages_from_the_bot_user_to_avoid_loops() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(CHAT_POST_MESSAGE_PATH, message_forwarder, "post_text_message");
 
-    let test = test.with_rocketchat_mock()
+    let test = test
+        .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     helpers::send_room_message_from_matrix(
@@ -152,14 +155,15 @@ fn do_not_forward_messages_from_the_bot_user_to_avoid_loops() {
 fn do_not_forward_messages_from_virtual_user_to_avoid_loops() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(CHAT_POST_MESSAGE_PATH, message_forwarder, "post_text_message");
 
-    let test = test.with_rocketchat_mock()
+    let test = test
+        .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     // create the virtual user by simulating a message from Rocket.Chat
@@ -189,10 +193,11 @@ fn do_not_forward_messages_from_virtual_user_to_avoid_loops() {
 fn ignore_messages_from_unbridged_rooms() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(CHAT_POST_MESSAGE_PATH, message_forwarder, "post_text_message");
 
-    let test = test.with_rocketchat_mock()
+    let test = test
+        .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
@@ -253,14 +258,15 @@ fn ignore_messages_from_rooms_with_empty_room_canonical_alias() {
 fn ignore_messages_with_a_message_type_that_is_not_supported() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(CHAT_POST_MESSAGE_PATH, message_forwarder, "post_text_message");
 
-    let test = test.with_rocketchat_mock()
+    let test = test
+        .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     // create the virtual user by simulating a message from Rocket.Chat
@@ -292,7 +298,7 @@ fn the_user_gets_a_message_when_forwarding_a_message_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let mut rocketchat_router = Router::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(
         CHAT_POST_MESSAGE_PATH,
         handlers::RocketchatErrorResponder {
@@ -302,12 +308,13 @@ fn the_user_gets_a_message_when_forwarding_a_message_failes() {
         "post_text_message",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     helpers::send_room_message_from_matrix(
@@ -346,11 +353,12 @@ fn the_user_gets_a_message_when_when_getting_the_canonical_room_alias_failes() {
         "get_room_canonical_room_alias",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     helpers::send_room_message_from_matrix(
@@ -387,11 +395,12 @@ fn the_user_gets_a_message_when_when_getting_the_canonical_room_alias_response_c
         "get_room_canonical_room_alias",
     );
 
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
         .with_logged_in_user()
-        .with_bridged_room(("spec_channel", "spec_user"))
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
         .run();
 
     helpers::send_room_message_from_matrix(

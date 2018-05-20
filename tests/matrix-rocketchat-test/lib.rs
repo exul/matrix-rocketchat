@@ -180,10 +180,12 @@ impl Error for TestError {
 pub struct Test {
     /// The application service listening server
     pub as_listening: Option<Listening>,
-    /// Group that is bridged and the user that bridged it
+    /// Group that is bridged and the user that are in the group
     pub bridged_group: Option<(&'static str, Vec<&'static str>)>,
-    /// Room that is bridged and the user that bridged it
+    /// Room that is bridged and the user that are in the room
     pub bridged_room: Option<(&'static str, Vec<&'static str>)>,
+    /// Direct message that is bridged and the users that are participating
+    pub bridged_dm: Option<(RoomId, Vec<UserId>)>,
     /// A list of Rocket.Chat channels that are returned when querying the Rocket.Chat mock
     /// channels.list endpoint
     pub channels: Arc<Mutex<HashMap<&'static str, Vec<&'static str>>>>,
@@ -227,6 +229,7 @@ impl Test {
             as_listening: None,
             bridged_group: None,
             bridged_room: None,
+            bridged_dm: None,
             channels: Arc::new(Mutex::new(HashMap::new())),
             config: config,
             connection_pool: connection_pool,
@@ -297,6 +300,11 @@ impl Test {
         self
     }
 
+    pub fn with_bridge_dm(mut self, bridged_dm: (RoomId, Vec<UserId>)) -> Test {
+        self.bridged_dm = Some(bridged_dm);
+        self
+    }
+
     /// Run the application service so that a test can interact with it.
     pub fn run(mut self) -> Test {
         self.run_matrix_homeserver_mock();
@@ -347,11 +355,18 @@ impl Test {
             None => self.default_matrix_routes(),
         };
 
+        let mut user_list = HashMap::new();
+        let mut users_in_rooms = HashMap::new();
+        let mut room_state_map = HashMap::new();
+        if let Some(ref bridged_dm) = self.bridged_dm {
+            self.create_dm_room(&mut user_list, &mut users_in_rooms, &mut room_state_map, bridged_dm);
+        }
+
         thread::spawn(move || {
             let mut chain = Chain::new(router);
-            chain.link_before(Write::<UserList>::one(HashMap::new()));
-            chain.link_before(Write::<UsersInRooms>::one(HashMap::new()));
-            chain.link_before(Write::<RoomsStatesMap>::one(HashMap::new()));
+            chain.link_before(Write::<UserList>::one(user_list));
+            chain.link_before(Write::<UsersInRooms>::one(users_in_rooms));
+            chain.link_before(Write::<RoomsStatesMap>::one(room_state_map));
             chain.link_before(Write::<RoomAliasMap>::one(HashMap::new()));
             chain.link_before(Write::<PendingInvites>::one(HashMap::new()));
             let mut server = Iron::new(chain);
@@ -416,7 +431,9 @@ impl Test {
         let as_listening = as_rx.recv_timeout(default_timeout() * 2).unwrap();
 
         let matrix_api = MatrixApi::new(&self.config, DEFAULT_LOGGER.clone()).unwrap();
-        matrix_api.register("spec_user".to_string()).unwrap();
+        matrix_api
+            .register("spec_user".to_string())
+            .unwrap_or_else(|e| warn!(DEFAULT_LOGGER, "Can't register spec user {}", e));
 
         self.as_listening = Some(as_listening);
     }
@@ -458,6 +475,47 @@ impl Test {
             RoomId::try_from(format!("!{}_id:localhost", room_name).as_ref()).unwrap(),
             UserId::try_from("@spec_user:localhost").unwrap(),
         );
+    }
+
+    /// create_dm_room simulates the creation of a DM room on the matrix mock server by adding all relevant users and states to
+    /// the various maps that handle the matrix mock server's state.
+    fn create_dm_room(
+        &self,
+        user_list: &mut HashMap<UserId, Option<String>>,
+        users_in_rooms: &mut HashMap<RoomId, HashMap<UserId, (MembershipState, Vec<(UserId, MembershipState)>)>>,
+        room_state_map: &mut HashMap<RoomId, HashMap<UserId, HashMap<String, String>>>,
+        bridged_dm: &(RoomId, Vec<UserId>),
+    ) {
+        let bot_user_id = self.config.matrix_bot_user_id().unwrap();
+        let (room_id, user_ids) = bridged_dm;
+        // a dm room is created by the virtual user, so that the AS can control it
+        let creator_id = user_ids.iter().filter(|id| self.config.is_application_service_user(id)).next().unwrap().to_string();
+        let mut room_states = HashMap::new();
+        room_states.insert("creator".to_string(), creator_id);
+
+        users_in_rooms.insert(room_id.clone(), HashMap::new());
+        room_state_map.insert(room_id.clone(), HashMap::new());
+
+        // in a dm room both regular members joined the room
+        let mut user_in_room_list: Vec<(UserId, MembershipState)> =
+            user_ids.clone().into_iter().map(|id| (id, MembershipState::Join)).collect();
+
+        // the bot user joins the room but leaves it immediately, it's only needed to have access
+        // to the room state. The following membership states mimic this.
+        user_in_room_list.push((bot_user_id.clone(), MembershipState::Leave));
+        let bot_user_state = (MembershipState::Leave, user_in_room_list.clone());
+        users_in_rooms.get_mut(room_id).unwrap().insert(bot_user_id.clone(), bot_user_state);
+        room_state_map.get_mut(room_id).unwrap().insert(bot_user_id, room_states.clone());
+
+        // room state for regular members
+        for user_id in user_ids {
+            user_list.insert(user_id.clone(), None);
+
+            let user_state = (MembershipState::Join, user_in_room_list.clone());
+            users_in_rooms.get_mut(room_id).unwrap().insert(user_id.clone(), user_state);
+
+            room_state_map.get_mut(room_id).unwrap().insert(user_id.clone(), room_states.clone());
+        }
     }
 
     /// The default matrix routes that the matrix mock server needs to work. They can be used a

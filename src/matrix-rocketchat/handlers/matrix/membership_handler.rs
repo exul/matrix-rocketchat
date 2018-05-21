@@ -9,8 +9,8 @@ use slog::Logger;
 use api::MatrixApi;
 use config::Config;
 use errors::*;
-use handlers::ErrorNotifier;
 use handlers::matrix::CommandHandler;
+use handlers::ErrorNotifier;
 use i18n::*;
 use log;
 use models::Room;
@@ -34,11 +34,11 @@ impl<'a> MembershipHandler<'a> {
         room: &'a Room<'a>,
     ) -> MembershipHandler<'a> {
         MembershipHandler {
-            config: config,
-            conn: conn,
-            logger: logger,
-            matrix_api: matrix_api,
-            room: room,
+            config,
+            conn,
+            logger,
+            matrix_api,
+            room,
         }
     }
 

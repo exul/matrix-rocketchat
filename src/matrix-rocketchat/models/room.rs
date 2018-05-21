@@ -40,10 +40,10 @@ impl<'a> Room<'a> {
     /// Create a new room model, to interact with Matrix rooms.
     pub fn new(config: &'a Config, logger: &'a Logger, matrix_api: &'a MatrixApi, id: RoomId) -> Room<'a> {
         Room {
-            config: config,
-            logger: logger,
-            matrix_api: matrix_api,
-            id: id,
+            config,
+            logger,
+            matrix_api,
+            id,
         }
     }
 
@@ -68,8 +68,8 @@ impl<'a> Room<'a> {
         logger: &'a Logger,
         matrix_api: &'a MatrixApi,
         channel_id: String,
-        sender_id: UserId,
-        receiver_id: UserId,
+        sender_id: &UserId,
+        receiver_id: &UserId,
     ) -> Result<Option<Room<'a>>> {
         // If the user does not exist yet, there is no existing direct message room
         if matrix_api.get_display_name(sender_id.clone())?.is_none() {
@@ -95,8 +95,8 @@ impl<'a> Room<'a> {
         for room_id in matrix_api.get_joined_rooms(sender_id.clone())? {
             let room = Room::new(config, logger, matrix_api, room_id);
             let user_ids = room.user_ids(Some(sender_id.clone()))?;
-            if user_ids.iter().all(|id| id == &sender_id || id == &receiver_id) {
-                room.add_to_cache(channel_id, receiver_id);
+            if user_ids.iter().all(|id| id == sender_id || id == receiver_id) {
+                room.add_to_cache(channel_id, &receiver_id);
                 return Ok(Some(room));
             }
         }
@@ -342,7 +342,7 @@ impl<'a> Room<'a> {
     /// Add a room to the cache.
     /// This will speed-up future direct messages because the direct message room lookup is done via
     /// cache instead of going through the users rooms.
-    fn add_to_cache(&self, channel_id: String, receiver_id: UserId) -> () {
+    fn add_to_cache(&self, channel_id: String, receiver_id: &UserId) -> () {
         match DM_ROOMS.lock() {
             Ok(mut dm_rooms) => {
                 debug!(self.logger, "Adding DM room {} with receiver {} to cache", channel_id, receiver_id);

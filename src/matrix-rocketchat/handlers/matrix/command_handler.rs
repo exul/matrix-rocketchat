@@ -34,11 +34,11 @@ impl<'a> CommandHandler<'a> {
         admin_room: &'a Room<'a>,
     ) -> CommandHandler<'a> {
         CommandHandler {
-            config: config,
-            connection: connection,
-            logger: logger,
-            matrix_api: matrix_api,
-            admin_room: admin_room,
+            config,
+            connection,
+            logger,
+            matrix_api,
+            admin_room,
         }
     }
 
@@ -128,12 +128,13 @@ impl<'a> CommandHandler<'a> {
                 )?;
                 self.matrix_api.send_text_message_event(self.admin_room.id.clone(), self.config.matrix_bot_user_id()?, body)?;
 
-                Ok(info!(
+                info!(
                     self.logger,
                     "Successfully executed connect command for user {} and Rocket.Chat server {}",
                     event.user_id,
                     rocketchat_url
-                ))
+                );
+                Ok(())
             })
             .map_err(Error::from)
     }
@@ -187,7 +188,7 @@ impl<'a> CommandHandler<'a> {
 
         let new_rocketchat_server = NewRocketchatServer {
             id: rocketchat_server_id,
-            rocketchat_url: rocketchat_url,
+            rocketchat_url,
             rocketchat_token: Some(token),
         };
 
@@ -200,7 +201,8 @@ impl<'a> CommandHandler<'a> {
         let bot_user_id = self.config.matrix_bot_user_id()?;
         self.matrix_api.send_text_message_event(self.admin_room.id.clone(), bot_user_id, help_message)?;
 
-        Ok(info!(self.logger, "Successfully executed help command for user {}", event.user_id))
+        info!(self.logger, "Successfully executed help command for user {}", event.user_id);
+        Ok(())
     }
 
     fn login(&self, event: &MessageEvent, server: &RocketchatServer, message: &str) -> Result<()> {
@@ -230,7 +232,8 @@ impl<'a> CommandHandler<'a> {
         let message = t!(["admin_room", "list_rocketchat_rooms"]).with_vars(vec![("list", list)]);
         self.matrix_api.send_text_message_event(event.room_id.clone(), bot_user_id, message.l(DEFAULT_LANGUAGE))?;
 
-        Ok(info!(self.logger, "Successfully listed rooms for Rocket.Chat server {}", &server.rocketchat_url))
+        info!(self.logger, "Successfully listed rooms for Rocket.Chat server {}", &server.rocketchat_url);
+        Ok(())
     }
 
     fn bridge(&self, event: &MessageEvent, server: &RocketchatServer, message: &str) -> Result<()> {
@@ -300,7 +303,8 @@ impl<'a> CommandHandler<'a> {
             .with_vars(vec![("rocketchat_room_name", rocketchat_room_name.to_string())]);
         self.matrix_api.send_text_message_event(event.room_id.clone(), bot_user_id.clone(), message.l(DEFAULT_LANGUAGE))?;
 
-        Ok(info!(self.logger, "Successfully bridged room {} to {}", &rocketchat_room.id, &room_id))
+        info!(self.logger, "Successfully bridged room {} to {}", &rocketchat_room.id, &room_id);
+        Ok(())
     }
 
     fn unbridge(&self, event: &MessageEvent, server: &RocketchatServer, message: &str) -> Result<()> {
@@ -364,7 +368,8 @@ impl<'a> CommandHandler<'a> {
         let message = t!(["admin_room", "room_successfully_unbridged"]).with_vars(vec![("rocketchat_room_name", name.clone())]);
         self.matrix_api.send_text_message_event(event.room_id.clone(), bot_user_id, message.l(DEFAULT_LANGUAGE))?;
 
-        Ok(info!(self.logger, "Successfully unbridged room {}", name.clone()))
+        info!(self.logger, "Successfully unbridged room {}", name.clone());
+        Ok(())
     }
 
     fn get_existing_rocketchat_server(&self, rocketchat_url: &str) -> Result<RocketchatServer> {
@@ -403,8 +408,8 @@ impl<'a> CommandHandler<'a> {
         &self,
         rocketchat_server_id: &str,
         user_id: &UserId,
-        rocketchat_rooms: &Vec<Channel>,
-        joined_rocketchat_rooms: &Vec<Channel>,
+        rocketchat_rooms: &[Channel],
+        joined_rocketchat_rooms: &[Channel],
     ) -> Result<String> {
         let mut list = "".to_string();
         for r in rocketchat_rooms {

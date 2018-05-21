@@ -39,11 +39,11 @@ impl<'a> Forwarder<'a> {
         virtual_user: &'a VirtualUser,
     ) -> Forwarder<'a> {
         Forwarder {
-            config: config,
-            connection: connection,
-            logger: logger,
-            matrix_api: matrix_api,
-            virtual_user: virtual_user,
+            config,
+            connection,
+            logger,
+            matrix_api,
+            virtual_user,
         }
     }
 
@@ -142,8 +142,8 @@ impl<'a> Forwarder<'a> {
             self.logger,
             self.matrix_api,
             message.channel_id.clone(),
-            sender_id,
-            receiver.matrix_user_id.clone(),
+            &sender_id,
+            &receiver.matrix_user_id,
         )? {
             self.invite_user_into_direct_message_room(&room, receiver)?;
             return Ok(Some(room));

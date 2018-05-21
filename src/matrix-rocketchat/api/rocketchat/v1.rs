@@ -489,8 +489,8 @@ impl RocketchatApi {
     /// Create a new `RocketchatApi`.
     pub fn new(base_url: String, logger: Logger) -> RocketchatApi {
         RocketchatApi {
-            base_url: base_url,
-            logger: logger,
+            base_url,
+            logger,
             user_id: "".to_string(),
             auth_token: "".to_string(),
         }
@@ -627,7 +627,7 @@ impl super::RocketchatApi for RocketchatApi {
             user_id: self.user_id.clone(),
             auth_token: self.auth_token.clone(),
             path: CHAT_GET_MESSAGE_PATH,
-            query_params: query_params,
+            query_params,
         };
 
         let (body, status_code) = RestApi::call_rocketchat(&message_endpoint)?;
@@ -674,7 +674,7 @@ impl super::RocketchatApi for RocketchatApi {
             auth_token: self.auth_token.clone(),
             payload: PostChatMessagePayload {
                 text: Some(text),
-                room_id: room_id,
+                room_id,
             },
         };
 
@@ -769,8 +769,8 @@ impl super::RocketchatApi for RocketchatApi {
         let login_endpoint = LoginEndpoint {
             base_url: self.base_url.clone(),
             payload: LoginPayload {
-                username: username,
-                password: password,
+                username,
+                password,
             },
         };
 
@@ -816,11 +816,11 @@ impl super::RocketchatApi for RocketchatApi {
             user_id: self.user_id.clone(),
             auth_token: self.auth_token.clone(),
             payload: PostFileMessagePayload {
-                file: file,
-                filename: filename,
-                mime_type: mime_type,
+                file,
+                filename,
+                mime_type,
             },
-            room_id: room_id,
+            room_id,
         };
 
         let (body, status_code) = RestApi::call_rocketchat(&post_file_message_endpoint)?;
@@ -841,7 +841,7 @@ impl super::RocketchatApi for RocketchatApi {
             user_id: self.user_id.clone(),
             auth_token: self.auth_token.clone(),
             path: USERS_INFO_PATH,
-            query_params: query_params,
+            query_params,
         };
 
         let (body, status_code) = RestApi::call_rocketchat(&users_info_endpoint)?;
@@ -875,7 +875,7 @@ fn get_channel_members(rocketchat_api: &RocketchatApi, room_id: &str, offset: i3
         base_url: rocketchat_api.base_url.clone(),
         user_id: rocketchat_api.user_id.clone(),
         auth_token: rocketchat_api.auth_token.clone(),
-        query_params: query_params,
+        query_params,
     };
 
     let (body, status_code) = RestApi::call_rocketchat(&channel_members_endpoint)?;
@@ -901,7 +901,7 @@ fn get_group_members(rocketchat_api: &RocketchatApi, room_id: &str, offset: i32)
         base_url: rocketchat_api.base_url.clone(),
         user_id: rocketchat_api.user_id.clone(),
         auth_token: rocketchat_api.auth_token.clone(),
-        query_params: query_params,
+        query_params,
     };
 
     let (body, status_code) = RestApi::call_rocketchat(&group_members_endpoint)?;
@@ -926,7 +926,7 @@ fn channels_list_joined(rocketchat_api: &RocketchatApi, offset: i32) -> Result<G
         base_url: rocketchat_api.base_url.clone(),
         user_id: rocketchat_api.user_id.clone(),
         auth_token: rocketchat_api.auth_token.clone(),
-        query_params: query_params,
+        query_params,
     };
 
     let (body, status_code) = RestApi::call_rocketchat(&channels_list_joined_endpoint)?;

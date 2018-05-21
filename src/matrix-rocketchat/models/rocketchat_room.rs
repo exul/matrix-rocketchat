@@ -32,11 +32,11 @@ impl<'a> RocketchatRoom<'a> {
         server_id: &'a str,
     ) -> RocketchatRoom<'a> {
         RocketchatRoom {
-            config: config,
-            logger: logger,
-            matrix_api: matrix_api,
-            id: id,
-            server_id: server_id,
+            config,
+            logger,
+            matrix_api,
+            id,
+            server_id,
         }
     }
 

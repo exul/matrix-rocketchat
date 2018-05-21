@@ -27,8 +27,8 @@ impl<'a> Server<'a> {
     /// Create a new `Server` with a given configuration.
     pub fn new(config: &Config, logger: Logger) -> Server {
         Server {
-            config: config,
-            logger: logger,
+            config,
+            logger,
         }
     }
 
@@ -73,7 +73,7 @@ impl<'a> Server<'a> {
             "/rocketchat/login",
             RocketchatLogin {
                 config: self.config.clone(),
-                matrix_api: matrix_api,
+                matrix_api,
             },
             "rocketchat_login",
         );

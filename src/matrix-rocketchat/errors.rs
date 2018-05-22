@@ -428,7 +428,7 @@ impl From<Error> for IronError {
         let response = Response::with(&error);
         IronError {
             error: Box::new(error),
-            response: response,
+            response,
         }
     }
 }
@@ -443,7 +443,7 @@ impl<'a> Modifier<Response> for &'a Error {
         let causes = self.error_chain.iter().skip(1).map(|e| format!("{}", e)).collect();
         let resp = ErrorResponse {
             error: error_message,
-            causes: causes,
+            causes,
         };
 
         let err_msg = serde_json::to_string(&resp).expect("ErrorResponse is always serializable");

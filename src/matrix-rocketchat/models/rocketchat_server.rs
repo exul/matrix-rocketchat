@@ -137,12 +137,14 @@ impl RocketchatServer {
             matrix_api.send_text_message_event(room_id, bot_user_id, message)?;
         }
 
-        Ok(info!(
+        info!(
             logger,
             "Successfully executed login command for user {} on Rocket.Chat server {}",
             credentials.rocketchat_username,
             self.rocketchat_url
-        ))
+        );
+
+        Ok(())
     }
 
     /// Get all users that are connected to this Rocket.Chat server.

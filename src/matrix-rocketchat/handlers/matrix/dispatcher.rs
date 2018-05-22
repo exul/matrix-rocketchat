@@ -28,10 +28,10 @@ impl<'a> Dispatcher<'a> {
         matrix_api: Box<MatrixApi>,
     ) -> Dispatcher<'a> {
         Dispatcher {
-            config: config,
-            connection: connection,
-            logger: logger,
-            matrix_api: matrix_api,
+            config,
+            connection,
+            logger,
+            matrix_api,
         }
     }
 

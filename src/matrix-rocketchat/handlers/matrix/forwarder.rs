@@ -19,9 +19,9 @@ impl<'a> Forwarder<'a> {
     /// Create a new `Forwarder`.
     pub fn new(connection: &'a SqliteConnection, logger: &'a Logger, matrix_api: &'a MatrixApi) -> Forwarder<'a> {
         Forwarder {
-            connection: connection,
-            logger: logger,
-            matrix_api: matrix_api,
+            connection,
+            logger,
+            matrix_api,
         }
     }
 

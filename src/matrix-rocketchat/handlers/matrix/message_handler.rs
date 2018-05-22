@@ -25,10 +25,10 @@ impl<'a> MessageHandler<'a> {
         matrix_api: Box<MatrixApi>,
     ) -> MessageHandler<'a> {
         MessageHandler {
-            config: config,
-            connection: connection,
-            logger: logger,
-            matrix_api: matrix_api,
+            config,
+            connection,
+            logger,
+            matrix_api,
         }
     }
 

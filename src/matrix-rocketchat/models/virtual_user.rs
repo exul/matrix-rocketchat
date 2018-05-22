@@ -21,9 +21,9 @@ impl<'a> VirtualUser<'a> {
     /// Create a new virtual users model, to interact with Matrix virtual users.
     pub fn new(config: &'a Config, logger: &'a Logger, matrix_api: &'a MatrixApi) -> VirtualUser<'a> {
         VirtualUser {
-            config: config,
-            logger: logger,
-            matrix_api: matrix_api,
+            config,
+            logger,
+            matrix_api,
         }
     }
 

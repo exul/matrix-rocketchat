@@ -23,7 +23,7 @@ impl Rocketchat {
     pub fn chain(config: &Config, matrix_api: Box<MatrixApi>) -> Chain {
         let rocketchat = Rocketchat {
             config: config.clone(),
-            matrix_api: matrix_api,
+            matrix_api,
         };
         let mut chain = Chain::new(rocketchat);
         chain.link_before(RocketchatToken {});

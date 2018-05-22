@@ -25,11 +25,11 @@ impl Transactions {
     pub fn chain(config: Config, matrix_api: Box<MatrixApi>) -> Chain {
         let transactions = Transactions {
             config: config.clone(),
-            matrix_api: matrix_api,
+            matrix_api,
         };
         let mut chain = Chain::new(transactions);
         chain.link_before(AccessToken {
-            config: config,
+            config,
         });
 
         chain

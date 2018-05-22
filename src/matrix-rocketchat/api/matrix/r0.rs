@@ -54,7 +54,7 @@ impl MatrixApi {
         MatrixApi {
             base_url: config.hs_url.to_string(),
             access_token: config.as_token.to_string(),
-            logger: logger,
+            logger,
         }
     }
 
@@ -78,7 +78,7 @@ impl super::MatrixApi for MatrixApi {
             invite: vec![],
             name: room_name,
             preset: Some(RoomPreset::PrivateChat),
-            room_alias_name: room_alias_name,
+            room_alias_name,
             topic: None,
             visibility: Some("private".to_string()),
         };
@@ -117,7 +117,7 @@ impl super::MatrixApi for MatrixApi {
 
     fn forget_room(&self, room_id: RoomId, user_id: UserId) -> Result<()> {
         let path_params = forget_room::PathParams {
-            room_id: room_id,
+            room_id,
         };
         let endpoint = self.base_url.clone() + &ForgetRoomEndpoint::request_path(path_params);
         let user_id = user_id.to_string();
@@ -133,8 +133,8 @@ impl super::MatrixApi for MatrixApi {
 
     fn get_content(&self, server_name: String, media_id: String) -> Result<Vec<u8>> {
         let path_params = get_content::PathParams {
-            server_name: server_name,
-            media_id: media_id,
+            server_name,
+            media_id,
         };
         let endpoint = self.base_url.clone() + &GetContentEndpoint::request_path(path_params);
         let params = self.params_hash();
@@ -154,7 +154,7 @@ impl super::MatrixApi for MatrixApi {
 
     fn get_display_name(&self, user_id: UserId) -> Result<Option<String>> {
         let path_params = get_display_name::PathParams {
-            user_id: user_id,
+            user_id,
         };
         let endpoint = self.base_url.clone() + &GetDisplayNameEndpoint::request_path(path_params);
         let params = self.params_hash();
@@ -225,7 +225,7 @@ impl super::MatrixApi for MatrixApi {
 
     fn get_room_aliases(&self, room_id: RoomId, user_id: UserId) -> Result<Vec<RoomAliasId>> {
         let path_params = get_state_events::PathParams {
-            room_id: room_id,
+            room_id,
         };
         let endpoint = self.base_url.clone() + &GetStateEvents::request_path(path_params);
         let user_id = user_id.to_string();
@@ -257,7 +257,7 @@ impl super::MatrixApi for MatrixApi {
 
     fn get_room_canonical_alias(&self, room_id: RoomId) -> Result<Option<RoomAliasId>> {
         let path_params = get_state_events_for_empty_key::PathParams {
-            room_id: room_id,
+            room_id,
             event_type: EventType::RoomCanonicalAlias.to_string(),
         };
         let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
@@ -290,7 +290,7 @@ impl super::MatrixApi for MatrixApi {
 
     fn get_room_creator(&self, room_id: RoomId) -> Result<UserId> {
         let path_params = get_state_events_for_empty_key::PathParams {
-            room_id: room_id,
+            room_id,
             event_type: EventType::RoomCreate.to_string(),
         };
         let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
@@ -340,7 +340,7 @@ impl super::MatrixApi for MatrixApi {
 
     fn get_room_topic(&self, room_id: RoomId) -> Result<Option<String>> {
         let path_params = get_state_events_for_empty_key::PathParams {
-            room_id: room_id,
+            room_id,
             event_type: EventType::RoomTopic.to_string(),
         };
         let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
@@ -389,7 +389,7 @@ impl super::MatrixApi for MatrixApi {
 
     fn is_room_accessible_by_bot(&self, room_id: RoomId) -> Result<bool> {
         let path_params = get_state_events_for_empty_key::PathParams {
-            room_id: room_id,
+            room_id,
             event_type: EventType::RoomCreate.to_string(),
         };
         let endpoint = self.base_url.clone() + &GetStateEventsForEmptyKeyEndpoint::request_path(path_params);
@@ -420,7 +420,7 @@ impl super::MatrixApi for MatrixApi {
 
     fn leave_room(&self, room_id: RoomId, user_id: UserId) -> Result<()> {
         let path_params = leave_room::PathParams {
-            room_id: room_id,
+            room_id,
         };
         let endpoint = self.base_url.clone() + &LeaveRoomEndpoint::request_path(path_params);
         let user_id = user_id.to_string();
@@ -436,7 +436,7 @@ impl super::MatrixApi for MatrixApi {
 
     fn put_canonical_room_alias(&self, room_id: RoomId, matrix_room_alias_id: Option<RoomAliasId>) -> Result<()> {
         let path_params = send_state_event_for_empty_key::PathParams {
-            room_id: room_id,
+            room_id,
             event_type: EventType::RoomCanonicalAlias,
         };
         let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
@@ -536,7 +536,7 @@ impl super::MatrixApi for MatrixApi {
 
     fn set_default_powerlevels(&self, room_id: RoomId, room_creator_user_id: UserId) -> Result<()> {
         let path_params = send_state_event_for_empty_key::PathParams {
-            room_id: room_id,
+            room_id,
             event_type: EventType::RoomPowerLevels,
         };
         let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
@@ -584,7 +584,7 @@ impl super::MatrixApi for MatrixApi {
 
     fn set_room_name(&self, room_id: RoomId, name: String) -> Result<()> {
         let path_params = send_state_event_for_empty_key::PathParams {
-            room_id: room_id,
+            room_id,
             event_type: EventType::RoomName,
         };
         let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
@@ -603,7 +603,7 @@ impl super::MatrixApi for MatrixApi {
 
     fn set_room_topic(&self, room_id: RoomId, topic: String) -> Result<()> {
         let path_params = send_state_event_for_empty_key::PathParams {
-            room_id: room_id,
+            room_id,
             event_type: EventType::RoomTopic,
         };
         let endpoint = self.base_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);

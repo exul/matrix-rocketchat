@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 
 use iron::{status, Chain};
-use matrix_rocketchat::api::rocketchat::v1::{Attachment, Message as RocketchatMessage, UserInfo, CHAT_GET_MESSAGE_PATH};
+use matrix_rocketchat::api::rocketchat::v1::{Attachment, File, Message, UserInfo, CHAT_GET_MESSAGE_PATH};
 use matrix_rocketchat::api::rocketchat::WebhookMessage;
 use matrix_rocketchat::api::{MatrixApi, RequestData, RestApi};
 use matrix_rocketchat::models::Room;
@@ -33,7 +33,7 @@ use ruma_identifiers::{RoomId, UserId};
 use serde_json::to_string;
 
 #[test]
-fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_is_not_registered_on_matrix() {
+fn successfully_forwards_a_message_from_rocketchat_to_matrix_when_the_user_is_not_registered_on_matrix() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (register_forwarder, register_receiver) = handlers::MatrixRegister::with_forwarder();
@@ -138,7 +138,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 }
 
 #[test]
-fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_is_registered_on_matrix() {
+fn successfully_forwards_a_message_from_rocketchat_to_matrix_when_the_user_is_registered_on_matrix() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let (register_forwarder, register_receiver) = handlers::MatrixRegister::with_forwarder();
@@ -241,7 +241,7 @@ fn successfully_forwards_a_text_message_from_rocketchat_to_matrix_when_the_user_
 }
 
 #[test]
-fn successfully_forwards_a_image_from_rocketchat_to_matrix_when_the_user_is_not_registered_on_matrix() {
+fn successfully_forwards_an_image_from_rocketchat_to_matrix_when_the_user_is_not_registered_on_matrix() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let uploaded_files = Arc::new(Mutex::new(Vec::new()));
@@ -256,14 +256,19 @@ fn successfully_forwards_a_image_from_rocketchat_to_matrix_when_the_user_is_not_
         image_size: Some(100),
         image_type: Some("image/png".to_string()),
         image_url: Some("/file-upload/image.png".to_string()),
+        mimetype: "image/png".to_string(),
         title: "Spec titel".to_string(),
+        title_link: "/file-upload/image.png".to_string(),
     }];
-    let rocketchat_message = Arc::new(Mutex::new(Some(RocketchatMessage {
+    let rocketchat_message = Arc::new(Mutex::new(Some(Message {
         id: "spec_id".to_string(),
         rid: "spec_rid".to_string(),
         msg: "".to_string(),
         ts: "2017-12-12 11:11".to_string(),
         attachments: Some(attachments),
+        file: Some(File {
+            mimetype: "image/png".to_string(),
+        }),
         u: UserInfo {
             id: "spec_user_id".to_string(),
             username: "spec_sender".to_string(),
@@ -325,13 +330,206 @@ fn successfully_forwards_a_image_from_rocketchat_to_matrix_when_the_user_is_not_
 
     let message = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message.contains("Spec titel"));
+    assert!(message.contains("m.image"));
     let files = uploaded_files.lock().unwrap();
     let file_id = files.first().unwrap();
     assert!(message.contains(&format!("mxc://localhost/{}", file_id)));
 }
 
 #[test]
-fn do_not_forward_an_image_message_when_there_are_no_attachments() {
+fn successfully_forwards_an_audio_recording_from_rocketchat_to_matrix_when_the_user_is_not_registered_on_matrix() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let uploaded_files = Arc::new(Mutex::new(Vec::new()));
+    let (create_content_forwarder, create_content_receiver) =
+        handlers::MatrixCreateContentHandler::with_forwarder(Arc::clone(&uploaded_files));
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(CreateContentEndpoint::router_path(), create_content_forwarder, "create_content");
+
+    let attachments = vec![Attachment {
+        description: "Spec audio".to_string(),
+        image_size: None,
+        image_type: None,
+        image_url: None,
+        mimetype: "audio/x-wav".to_string(),
+        title: "Spec titel".to_string(),
+        title_link: "/file-upload/recording.wav".to_string(),
+    }];
+    let rocketchat_message = Arc::new(Mutex::new(Some(Message {
+        id: "spec_id".to_string(),
+        rid: "spec_rid".to_string(),
+        msg: "".to_string(),
+        ts: "2017-12-12 11:11".to_string(),
+        attachments: Some(attachments),
+        file: Some(File {
+            mimetype: "audio/x-wav".to_string(),
+        }),
+        u: UserInfo {
+            id: "spec_user_id".to_string(),
+            username: "spec_sender".to_string(),
+            name: "spec sender".to_string(),
+        },
+        mentions: Vec::new(),
+        channels: Vec::new(),
+        updated_at: "2017-12-12 11:11".to_string(),
+    })));
+    let rocketchat_message_responder = handlers::RocketchatMessageResponder {
+        message: rocketchat_message,
+    };
+    let mut rocketchat_router = test.default_rocketchat_routes();
+    rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
+    let mut files = HashMap::new();
+    files.insert("recording.wav".to_string(), b"audio".to_vec());
+    rocketchat_router.get(
+        "/file-upload/:filename",
+        handlers::RocketchatFileResponder {
+            files: files,
+        },
+        "get_file",
+    );
+
+    let test = test
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard room bridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message = WebhookMessage {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_channel_id".to_string(),
+        channel_name: Some("spec_channel".to_string()),
+        user_id: "new_user_id".to_string(),
+        user_name: "new_spec_user".to_string(),
+        text: "Uploaded a file".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    let file = create_content_receiver.recv_timeout(default_timeout()).unwrap();
+    // this would contain the audio data, but for the test this was just a string converted to bytes.
+    assert_eq!(file, "audio");
+
+    let message = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message.contains("Spec titel"));
+    assert!(message.contains("m.audio"));
+    let files = uploaded_files.lock().unwrap();
+    let file_id = files.first().unwrap();
+    assert!(message.contains(&format!("mxc://localhost/{}", file_id)));
+}
+
+#[test]
+fn successfully_forwards_a_video_recording_from_rocketchat_to_matrix_when_the_user_is_not_registered_on_matrix() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let uploaded_files = Arc::new(Mutex::new(Vec::new()));
+    let (create_content_forwarder, create_content_receiver) =
+        handlers::MatrixCreateContentHandler::with_forwarder(Arc::clone(&uploaded_files));
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    matrix_router.post(CreateContentEndpoint::router_path(), create_content_forwarder, "create_content");
+
+    let attachments = vec![Attachment {
+        description: "Spec video".to_string(),
+        image_size: None,
+        image_type: None,
+        image_url: None,
+        mimetype: "video/webm".to_string(),
+        title: "Spec titel".to_string(),
+        title_link: "/file-upload/recording.webm".to_string(),
+    }];
+    let rocketchat_message = Arc::new(Mutex::new(Some(Message {
+        id: "spec_id".to_string(),
+        rid: "spec_rid".to_string(),
+        msg: "".to_string(),
+        ts: "2017-12-12 11:11".to_string(),
+        attachments: Some(attachments),
+        file: Some(File {
+            mimetype: "video/webm".to_string(),
+        }),
+        u: UserInfo {
+            id: "spec_user_id".to_string(),
+            username: "spec_sender".to_string(),
+            name: "spec sender".to_string(),
+        },
+        mentions: Vec::new(),
+        channels: Vec::new(),
+        updated_at: "2017-12-12 11:11".to_string(),
+    })));
+    let rocketchat_message_responder = handlers::RocketchatMessageResponder {
+        message: rocketchat_message,
+    };
+    let mut rocketchat_router = test.default_rocketchat_routes();
+    rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
+    let mut files = HashMap::new();
+    files.insert("recording.webm".to_string(), b"video".to_vec());
+    rocketchat_router.get(
+        "/file-upload/:filename",
+        handlers::RocketchatFileResponder {
+            files: files,
+        },
+        "get_file",
+    );
+
+    let test = test
+        .with_matrix_routes(matrix_router)
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
+        .run();
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard room bridged message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message = WebhookMessage {
+        message_id: "spec_id".to_string(),
+        token: Some(RS_TOKEN.to_string()),
+        channel_id: "spec_channel_id".to_string(),
+        channel_name: Some("spec_channel".to_string()),
+        user_id: "new_user_id".to_string(),
+        user_name: "new_spec_user".to_string(),
+        text: "Uploaded a file".to_string(),
+    };
+    let payload = to_string(&message).unwrap();
+
+    helpers::simulate_message_from_rocketchat(&test.config.as_url, &payload);
+
+    let file = create_content_receiver.recv_timeout(default_timeout()).unwrap();
+    // this would contain the audio data, but for the test this was just a string converted to bytes.
+    assert_eq!(file, "video");
+
+    let message = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message.contains("Spec titel"));
+    assert!(message.contains("m.video"));
+    let files = uploaded_files.lock().unwrap();
+    let file_id = files.first().unwrap();
+    assert!(message.contains(&format!("mxc://localhost/{}", file_id)));
+}
+
+#[test]
+fn do_not_forward_an_image_when_there_are_no_attachments() {
     let test = Test::new();
     let uploaded_files = Arc::new(Mutex::new(Vec::new()));
     let (message_forwarder, receiver) = MessageForwarder::new();
@@ -341,12 +539,15 @@ fn do_not_forward_an_image_message_when_there_are_no_attachments() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(CreateContentEndpoint::router_path(), create_content_forwarder, "create_content");
 
-    let rocketchat_message = Arc::new(Mutex::new(Some(RocketchatMessage {
+    let rocketchat_message = Arc::new(Mutex::new(Some(Message {
         id: "spec_id".to_string(),
         rid: "spec_rid".to_string(),
         msg: "".to_string(),
         ts: "2017-12-12 11:11".to_string(),
         attachments: None,
+        file: Some(File {
+            mimetype: "image/png".to_string(),
+        }),
         u: UserInfo {
             id: "spec_user_id".to_string(),
             username: "spec_sender".to_string(),
@@ -407,7 +608,7 @@ fn do_not_forward_an_image_message_when_there_are_no_attachments() {
 }
 
 #[test]
-fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_message() {
+fn do_not_forward_an_image_when_there_are_is_an_error_when_getting_the_message() {
     let test = Test::new();
     let uploaded_files = Arc::new(Mutex::new(Vec::new()));
     let (message_forwarder, receiver) = MessageForwarder::new();
@@ -460,7 +661,7 @@ fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_m
 }
 
 #[test]
-fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_file() {
+fn do_not_forward_an_image_when_there_are_is_an_error_when_getting_the_file() {
     let test = Test::new();
     let uploaded_files = Arc::new(Mutex::new(Vec::new()));
     let (message_forwarder, receiver) = MessageForwarder::new();
@@ -475,14 +676,19 @@ fn do_not_forward_an_image_message_when_there_are_is_an_error_when_getting_the_f
         image_size: Some(100),
         image_type: Some("image/png".to_string()),
         image_url: Some("/file-upload/image.png".to_string()),
+        mimetype: "image/png".to_string(),
         title: "Spec titel".to_string(),
+        title_link: "/file-upload/image.png".to_string(),
     }];
-    let rocketchat_message = Arc::new(Mutex::new(Some(RocketchatMessage {
+    let rocketchat_message = Arc::new(Mutex::new(Some(Message {
         id: "spec_id".to_string(),
         rid: "spec_rid".to_string(),
         msg: "".to_string(),
         ts: "2017-12-12 11:11".to_string(),
         attachments: Some(attachments),
+        file: Some(File {
+            mimetype: "image/png".to_string(),
+        }),
         u: UserInfo {
             id: "spec_user_id".to_string(),
             username: "spec_sender".to_string(),

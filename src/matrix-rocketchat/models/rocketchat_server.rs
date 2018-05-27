@@ -134,7 +134,7 @@ impl RocketchatServer {
             let bot_user_id = config.matrix_bot_user_id()?;
             let as_url = config.as_url.clone();
             let message = CommandHandler::build_help_message(connection, &room, as_url, &credentials.user_id)?;
-            matrix_api.send_text_message_event(room_id, bot_user_id, message)?;
+            matrix_api.send_text_message(room_id, bot_user_id, message)?;
         }
 
         info!(

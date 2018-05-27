@@ -126,7 +126,7 @@ impl<'a> CommandHandler<'a> {
                     self.config.as_url.clone(),
                     &event.user_id,
                 )?;
-                self.matrix_api.send_text_message_event(self.admin_room.id.clone(), self.config.matrix_bot_user_id()?, body)?;
+                self.matrix_api.send_text_message(self.admin_room.id.clone(), self.config.matrix_bot_user_id()?, body)?;
 
                 info!(
                     self.logger,
@@ -199,7 +199,7 @@ impl<'a> CommandHandler<'a> {
         let help_message =
             CommandHandler::build_help_message(self.connection, self.admin_room, self.config.as_url.clone(), &event.user_id)?;
         let bot_user_id = self.config.matrix_bot_user_id()?;
-        self.matrix_api.send_text_message_event(self.admin_room.id.clone(), bot_user_id, help_message)?;
+        self.matrix_api.send_text_message(self.admin_room.id.clone(), bot_user_id, help_message)?;
 
         info!(self.logger, "Successfully executed help command for user {}", event.user_id);
         Ok(())
@@ -230,7 +230,7 @@ impl<'a> CommandHandler<'a> {
         let bot_user_id = self.config.matrix_bot_user_id()?;
         let list = self.build_rocketchat_rooms_list(rocketchat_api.as_ref(), &server.id, &event.user_id)?;
         let message = t!(["admin_room", "list_rocketchat_rooms"]).with_vars(vec![("list", list)]);
-        self.matrix_api.send_text_message_event(event.room_id.clone(), bot_user_id, message.l(DEFAULT_LANGUAGE))?;
+        self.matrix_api.send_text_message(event.room_id.clone(), bot_user_id, message.l(DEFAULT_LANGUAGE))?;
 
         info!(self.logger, "Successfully listed rooms for Rocket.Chat server {}", &server.rocketchat_url);
         Ok(())
@@ -301,7 +301,7 @@ impl<'a> CommandHandler<'a> {
 
         let message = t!(["admin_room", "room_successfully_bridged"])
             .with_vars(vec![("rocketchat_room_name", rocketchat_room_name.to_string())]);
-        self.matrix_api.send_text_message_event(event.room_id.clone(), bot_user_id.clone(), message.l(DEFAULT_LANGUAGE))?;
+        self.matrix_api.send_text_message(event.room_id.clone(), bot_user_id.clone(), message.l(DEFAULT_LANGUAGE))?;
 
         info!(self.logger, "Successfully bridged room {} to {}", &rocketchat_room.id, &room_id);
         Ok(())
@@ -366,7 +366,7 @@ impl<'a> CommandHandler<'a> {
 
         let bot_user_id = self.config.matrix_bot_user_id()?;
         let message = t!(["admin_room", "room_successfully_unbridged"]).with_vars(vec![("rocketchat_room_name", name.clone())]);
-        self.matrix_api.send_text_message_event(event.room_id.clone(), bot_user_id, message.l(DEFAULT_LANGUAGE))?;
+        self.matrix_api.send_text_message(event.room_id.clone(), bot_user_id, message.l(DEFAULT_LANGUAGE))?;
 
         info!(self.logger, "Successfully unbridged room {}", name.clone());
         Ok(())

@@ -1,6 +1,9 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use diesel::sqlite::SqliteConnection;
+use reqwest::header::ContentType;
+use reqwest::mime;
+use ruma_events::room::message::MessageType;
 use ruma_identifiers::UserId;
 use slog::Logger;
 
@@ -13,6 +16,7 @@ use log;
 use models::{RocketchatRoom, RocketchatServer, Room, UserOnRocketchatServer, VirtualUser};
 
 const IMAGE_MESSAGE_TEXT: &str = "Uploaded an image";
+const FILE_MESSAGE_TEXT: &str = "Uploaded a file";
 const RESEND_THRESHOLD_IN_SECONDS: i64 = 3;
 
 /// Forwards messages from Rocket.Chat to Matrix
@@ -78,10 +82,10 @@ impl<'a> Forwarder<'a> {
             }
         }
 
-        if message.text == IMAGE_MESSAGE_TEXT {
-            self.forward_image(server, message, &room, &sender_id)
+        if message.text == IMAGE_MESSAGE_TEXT || message.text == FILE_MESSAGE_TEXT {
+            self.forward_file(server, message, &room, &sender_id)
         } else {
-            self.matrix_api.send_text_message_event(room.id.clone(), sender_id, message.text.clone())
+            self.matrix_api.send_text_message(room.id.clone(), sender_id, message.text.clone())
         }
     }
 
@@ -252,18 +256,12 @@ impl<'a> Forwarder<'a> {
         Ok(None)
     }
 
-    fn forward_image(
-        &self,
-        server: &RocketchatServer,
-        message: &WebhookMessage,
-        room: &Room,
-        sender_id: &UserId,
-    ) -> Result<()> {
-        debug!(self.logger, "Forwarding image, room {}", room.id);
+    fn forward_file(&self, server: &RocketchatServer, message: &WebhookMessage, room: &Room, sender_id: &UserId) -> Result<()> {
+        debug!(self.logger, "Forwarding file, room {}", room.id);
 
         let users = room.logged_in_users(self.connection, server.id.clone())?;
 
-        // This chooses an arbitrary user from the room to use the credentials to be able to retreive the image from the
+        // This chooses an arbitrary user from the room to use the credentials to be able to retreive the file from the
         // Rocket.Chat server.
         let user = match users.first() {
             Some(user) => user,
@@ -284,11 +282,21 @@ impl<'a> Forwarder<'a> {
         let files = rocketchat_api.attachments(&message.message_id)?;
 
         for file in files {
-            let image_url = self.matrix_api.upload(file.data, file.content_type)?;
-            debug!(self.logger, "Uploaded image, URL is {}", image_url);
-            self.matrix_api.send_image_message_event(room.id.clone(), sender_id.clone(), file.title, image_url)?;
+            let file_url = self.matrix_api.upload(file.data.to_vec(), file.content_type.clone())?;
+            let message_type = self.message_type(&file.content_type);
+            debug!(self.logger, "Uploaded file, URL is {}", file_url);
+            self.matrix_api.send_data_message(room.id.clone(), sender_id.clone(), file.title.clone(), file_url, message_type)?;
         }
 
         Ok(())
+    }
+
+    fn message_type(&self, content_type: &ContentType) -> MessageType {
+        match content_type.type_() {
+            mime::IMAGE => MessageType::Image,
+            mime::AUDIO => MessageType::Audio,
+            mime::VIDEO => MessageType::Video,
+            _ => MessageType::File,
+        }
     }
 }

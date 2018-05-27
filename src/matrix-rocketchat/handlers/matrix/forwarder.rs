@@ -1,11 +1,12 @@
 use diesel::sqlite::SqliteConnection;
-use reqwest::mime::Mime;
+use reqwest::mime::{self, Mime};
 use ruma_events::room::message::{MessageEvent, MessageEventContent};
 use slog::Logger;
 use url::Url;
 
 use api::{MatrixApi, RocketchatApi};
 use errors::*;
+use i18n::*;
 use models::{RocketchatServer, UserOnRocketchatServer};
 
 /// Forwards messages
@@ -36,32 +37,72 @@ impl<'a> Forwarder<'a> {
                 }
             };
 
+        let rocketchat_api = RocketchatApi::new(server.rocketchat_url, self.logger.clone())?.with_credentials(
+            user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
+            user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
+        );
+
         match event.content {
-            MessageEventContent::Text(ref text_content) => {
-                let rocketchat_api = RocketchatApi::new(server.rocketchat_url, self.logger.clone())?.with_credentials(
-                    user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
-                    user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
-                );
-                rocketchat_api.chat_post_message(&text_content.body, channel_id)?;
+            MessageEventContent::Text(ref content) => {
+                rocketchat_api.chat_post_message(&content.body, channel_id)?;
             }
-            MessageEventContent::Image(ref image_content) => {
-                let url = Url::parse(&image_content.url).chain_err(|| ErrorKind::InternalServerError)?;
-                let host = url.host_str().unwrap_or_default();
-                let image_id = url.path().trim_left_matches('/');
-                let image = self.matrix_api.get_content(host.to_string(), image_id.to_string())?;
-
-                let rocketchat_api = RocketchatApi::new(server.rocketchat_url, self.logger.clone())?.with_credentials(
-                    user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
-                    user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
-                );
-
-                let info = image_content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?;
-                let mime_type: Mime = info.mimetype.parse().chain_err(|| ErrorKind::UnknownMimeType(info.mimetype.clone()))?;
-                rocketchat_api.rooms_upload(image, &image_content.body, mime_type, channel_id)?;
+            MessageEventContent::Image(ref content) => {
+                let mimetype = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
+                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mimetype, &content.body, channel_id)?;
             }
-            _ => info!(self.logger, "Forwarding the type {} is not implemented.", event.event_type),
+            MessageEventContent::File(ref content) => {
+                let mimetype = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
+                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mimetype, &content.body, channel_id)?;
+            }
+            MessageEventContent::Audio(ref content) => {
+                let mimetype = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
+                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mimetype, &content.body, channel_id)?;
+            }
+            MessageEventContent::Video(ref content) => {
+                let mimetype = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
+                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mimetype, &content.body, channel_id)?;
+            }
+            MessageEventContent::Emote(_) | MessageEventContent::Location(_) | MessageEventContent::Notice(_) => {
+                info!(self.logger, "Forwarding the type {} is not implemented.", event.event_type)
+            }
         }
 
         user_on_rocketchat_server.set_last_message_sent(self.connection)
+    }
+
+    fn forward_file_to_rocketchat(
+        &self,
+        rocketchat_api: &RocketchatApi,
+        url: &str,
+        mimetype: Option<String>,
+        body: &str,
+        channel_id: &str,
+    ) -> Result<()> {
+        let url = Url::parse(url).chain_err(|| ErrorKind::InternalServerError)?;
+        let host = url.host_str().unwrap_or_default();
+        let file_id = url.path().trim_left_matches('/');
+        let file = self.matrix_api.get_content(host.to_string(), file_id.to_string())?;
+
+        let mime: Mime = self.parse_mimetype(mimetype)?;
+
+        if let Err(err) = rocketchat_api.rooms_upload(file, body, mime, channel_id) {
+            bail_error!(
+                ErrorKind::RocketchatUploadFailed(url.to_string(), err.to_string()),
+                t!(["errors", "rocketchat_server_upload_failed"])
+                    .with_vars(vec![("url", url.to_string()), ("err", err.to_string())])
+            );
+        }
+
+        Ok(())
+    }
+
+    fn parse_mimetype(&self, mimetype: Option<String>) -> Result<Mime> {
+        let mime = mimetype
+            .clone()
+            .unwrap_or_else(|| mime::APPLICATION_OCTET_STREAM.to_string())
+            .parse()
+            .chain_err(|| ErrorKind::UnknownMimeType(mimetype.unwrap_or_default()))?;
+
+        Ok(mime)
     }
 }

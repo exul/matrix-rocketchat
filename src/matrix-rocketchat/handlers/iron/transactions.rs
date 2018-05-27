@@ -1,8 +1,8 @@
 use std::io::Read;
 
-use iron::{status, Handler};
 use iron::prelude::*;
 use iron::request::Body;
+use iron::{status, Handler};
 use serde_json;
 
 use api::MatrixApi;

@@ -1,10 +1,10 @@
 use ruma_identifiers::RoomId;
 use slog::Logger;
 
-use i18n::*;
 use api::MatrixApi;
 use config::Config;
 use errors::*;
+use i18n::*;
 
 /// Notifies the user about errors
 pub struct ErrorNotifier<'a> {
@@ -34,10 +34,10 @@ impl<'a> ErrorNotifier<'a> {
             None => {
                 error!(self.logger, "{}", msg);
                 let user_msg = t!(["defaults", "internal_error"]).l(DEFAULT_LANGUAGE);
-                return self.matrix_api.send_text_message_event(room_id, matrix_bot_id, user_msg);
+                return self.matrix_api.send_text_message(room_id, matrix_bot_id, user_msg);
             }
         };
 
-        self.matrix_api.send_text_message_event(room_id, matrix_bot_id, user_message.l(DEFAULT_LANGUAGE))
+        self.matrix_api.send_text_message(room_id, matrix_bot_id, user_message.l(DEFAULT_LANGUAGE))
     }
 }

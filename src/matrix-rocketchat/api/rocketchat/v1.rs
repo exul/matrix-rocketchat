@@ -9,7 +9,8 @@ use serde_json;
 use slog::Logger;
 
 use api::rocketchat::{
-    Attachment as RocketchatAttachment, Channel, Endpoint, Message as RocketchatMessage, MessageAttachment, User,
+    Attachment as RocketchatAttachment, Channel, Endpoint, File as RocketchatFile, Message as RocketchatMessage,
+    MessageAttachment, User,
 };
 use api::{RequestData, RestApi};
 use errors::*;
@@ -60,16 +61,33 @@ pub struct Message {
     pub mentions: Vec<serde_json::Value>,
     /// A list of channels
     pub channels: Vec<serde_json::Value>,
+    /// Optional file, only present when a file is attached to the message
+    pub file: Option<File>,
     /// The timestamp when the message was updated the last time
     #[serde(rename = "_updatedAt")]
     pub updated_at: String,
 }
 
+/// A file attached to a message
+#[derive(Deserialize, Debug, Serialize, Clone, Default)]
+pub struct File {
+    /// The file's MIME type
+    #[serde(rename = "type")]
+    pub mimetype: String,
+}
+
+impl Message {
+    /// The content the of the attachment
+    pub fn content_type(&self) -> Result<ContentType> {
+        let mimetype = self.file.clone().unwrap_or_default().mimetype;
+        let mime: Mime = mimetype.parse().chain_err(|| ErrorKind::UnknownMimeType(mimetype))?;
+        Ok(ContentType(mime))
+    }
+}
+
 /// Metadata for a file that is uploaded to Rocket.Chat
 #[derive(Deserialize, Debug, Serialize)]
 pub struct Attachment {
-    /// An optional title for the file
-    pub title: String,
     /// An optinal description of the file
     pub description: String,
     /// URL to download the image, it's only present when the attachment is an image
@@ -78,6 +96,13 @@ pub struct Attachment {
     pub image_type: Option<String>,
     /// The size of the uploaded image in bytes, it's only present when the attachment is an image
     pub image_size: Option<i64>,
+    /// The files MIME type
+    #[serde(rename = "type")]
+    pub mimetype: String,
+    /// An optional title for the file
+    pub title: String,
+    /// Link to file
+    pub title_link: String,
 }
 
 #[derive(Deserialize, Debug, Serialize)]
@@ -90,17 +115,6 @@ pub struct UserInfo {
     pub username: String,
     /// The users name
     pub name: String,
-}
-
-impl Attachment {
-    /// The content the of the attachment
-    pub fn content_type(&self) -> Result<ContentType> {
-        match self.image_type {
-            Some(ref content_type) if content_type == "image/jpeg" => Ok(ContentType::jpeg()),
-            Some(ref content_type) if content_type == "image/png" => Ok(ContentType::png()),
-            _ => bail_error!(ErrorKind::UnknownContentType(self.image_type.clone().unwrap_or_default())),
-        }
-    }
 }
 
 /// V1 get endpoints that require authentication
@@ -292,7 +306,7 @@ pub struct RoomsUploadEndpoint<'a> {
 pub struct PostFileMessagePayload<'a> {
     file: Vec<u8>,
     filename: &'a str,
-    mime_type: Mime,
+    mimetype: Mime,
 }
 
 impl<'a> Endpoint<String> for RoomsUploadEndpoint<'a> {
@@ -309,7 +323,7 @@ impl<'a> Endpoint<String> for RoomsUploadEndpoint<'a> {
         c.write_all(&self.payload.file).unwrap();
         c.seek(SeekFrom::Start(0)).unwrap();
 
-        let part = Part::reader(c).file_name(self.payload.filename.to_owned()).mime(self.payload.mime_type.clone());
+        let part = Part::reader(c).file_name(self.payload.filename.to_owned()).mime(self.payload.mimetype.clone());
         let form = Form::new().part("file", part);
         Ok(RequestData::MultipartForm(form))
     }
@@ -507,34 +521,32 @@ impl super::RocketchatApi for RocketchatApi {
 
         if let Some(attachments) = message.attachments {
             for attachment in attachments {
-                if let Some(ref image_url) = attachment.image_url {
-                    debug!(self.logger, "Getting file {}", image_url);
+                debug!(self.logger, "Getting file {}", attachment.title_link);
 
-                    let mut get_file_endpoint = GetFileEndpoint {
-                        base_url: self.base_url.clone(),
-                        user_id: self.user_id.clone(),
-                        auth_token: self.auth_token.clone(),
-                        path: image_url,
-                        query_params: HashMap::new(),
-                    };
+                let mut get_file_endpoint = GetFileEndpoint {
+                    base_url: self.base_url.clone(),
+                    user_id: self.user_id.clone(),
+                    auth_token: self.auth_token.clone(),
+                    path: &attachment.title_link,
+                    query_params: HashMap::new(),
+                };
 
-                    let mut resp = RestApi::get_rocketchat_file(&get_file_endpoint)?;
+                let mut resp = RestApi::get_rocketchat_file(&get_file_endpoint)?;
 
-                    if !resp.status().is_success() {
-                        let mut body = String::new();
-                        resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed(image_url.to_owned()))?;
-                        return Err(build_error(&get_file_endpoint.url(), &body, &resp.status()));
-                    }
-
-                    let mut buffer = Vec::new();
-                    resp.read_to_end(&mut buffer).chain_err(|| ErrorKind::InternalServerError)?;
-                    let rocketchat_attachment = RocketchatAttachment {
-                        content_type: attachment.content_type,
-                        data: buffer,
-                        title: attachment.title,
-                    };
-                    files.push(rocketchat_attachment);
+                if !resp.status().is_success() {
+                    let mut body = String::new();
+                    resp.read_to_string(&mut body).chain_err(|| ErrorKind::ApiCallFailed(attachment.title_link.clone()))?;
+                    return Err(build_error(&get_file_endpoint.url(), &body, &resp.status()));
                 }
+
+                let mut buffer = Vec::new();
+                resp.read_to_end(&mut buffer).chain_err(|| ErrorKind::InternalServerError)?;
+                let rocketchat_attachment = RocketchatAttachment {
+                    content_type: attachment.content_type,
+                    data: buffer,
+                    title: attachment.title,
+                };
+                files.push(rocketchat_attachment);
             }
         } else {
             info!(self.logger, "No attachments found for message ID {}", message_id);
@@ -643,23 +655,31 @@ impl super::RocketchatApi for RocketchatApi {
         })?;
 
         let mut message_attachments_option: Option<Vec<MessageAttachment>> = None;
+        // Rocket.Chat stores the proper content type (for example 'text/plain') only in the message,
+        // the attachment contains a type as well, but it's set to 'file' most of the time.
+        let content_type = message_response.message.content_type()?;
         if let Some(attachments) = message_response.message.attachments {
             let mut message_attachments = Vec::new();
             for attachment in attachments {
                 message_attachments.push(MessageAttachment {
-                    content_type: attachment.content_type()?,
+                    content_type: content_type.clone(),
                     image_url: attachment.image_url,
                     title: attachment.title,
+                    title_link: attachment.title_link,
                 })
             }
 
             message_attachments_option = Some(message_attachments)
         };
 
+        let file = message_response.message.file.as_ref().map(|f| RocketchatFile {
+            mimetype: f.mimetype.clone(),
+        });
         let message = RocketchatMessage {
             attachments: message_attachments_option,
             id: message_response.message.id,
             msg: message_response.message.msg,
+            file,
         };
 
         Ok(message)
@@ -808,7 +828,7 @@ impl super::RocketchatApi for RocketchatApi {
         Ok(user)
     }
 
-    fn rooms_upload(&self, file: Vec<u8>, filename: &str, mime_type: Mime, room_id: &str) -> Result<()> {
+    fn rooms_upload(&self, file: Vec<u8>, filename: &str, mimetype: Mime, room_id: &str) -> Result<()> {
         debug!(self.logger, "Uploading file to room {}", room_id);
 
         let post_file_message_endpoint = RoomsUploadEndpoint {
@@ -818,7 +838,7 @@ impl super::RocketchatApi for RocketchatApi {
             payload: PostFileMessagePayload {
                 file,
                 filename,
-                mime_type,
+                mimetype,
             },
             room_id,
         };

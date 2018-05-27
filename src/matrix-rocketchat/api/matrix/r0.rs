@@ -478,7 +478,7 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn send_text_message_event(&self, room_id: RoomId, user_id: UserId, body: String) -> Result<()> {
+    fn send_text_message(&self, room_id: RoomId, user_id: UserId, body: String) -> Result<()> {
         let formatted_body = render_markdown(&body);
         let mut message = Map::new();
         message.insert("body".to_string(), json!(body));
@@ -507,10 +507,10 @@ impl super::MatrixApi for MatrixApi {
         Ok(())
     }
 
-    fn send_image_message_event(&self, room_id: RoomId, user_id: UserId, body: String, url: String) -> Result<()> {
+    fn send_data_message(&self, room_id: RoomId, user_id: UserId, body: String, url: String, mtype: MessageType) -> Result<()> {
         let mut message = Map::new();
         message.insert("body".to_string(), json!(body));
-        message.insert("msgtype".to_string(), json!(MessageType::Image));
+        message.insert("msgtype".to_string(), json!(mtype));
         message.insert("url".to_string(), json!(url));
         let payload = serde_json::to_string(&message).chain_err(|| body_params_error!("send image message"))?;
         let txn_id = EventId::new(&self.base_url).chain_err(|| ErrorKind::EventIdGenerationFailed)?;
@@ -530,7 +530,7 @@ impl super::MatrixApi for MatrixApi {
             return Err(build_error(&endpoint, &body, &status_code));
         }
 
-        debug!(self.logger, "User {} successfully sent an image message to room {}", user_id, room_id);
+        debug!(self.logger, "User {} successfully sent a file message to room {}", user_id, room_id);
         Ok(())
     }
 

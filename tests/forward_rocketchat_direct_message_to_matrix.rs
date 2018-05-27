@@ -17,7 +17,7 @@ use std::sync::{Arc, Mutex};
 
 use iron::{status, Chain};
 use matrix_rocketchat::api::rocketchat::v1::{
-    Attachment, Message as RocketchatMessage, UserInfo, CHAT_GET_MESSAGE_PATH, DM_LIST_PATH, LOGIN_PATH, ME_PATH,
+    Attachment, File, Message, UserInfo, CHAT_GET_MESSAGE_PATH, DM_LIST_PATH, LOGIN_PATH, ME_PATH,
 };
 use matrix_rocketchat::api::rocketchat::WebhookMessage;
 use matrix_rocketchat::api::MatrixApi;
@@ -197,14 +197,19 @@ fn successfully_forwards_an_image_in_a_direct_message_to_matrix() {
         image_size: Some(100),
         image_type: Some("image/png".to_string()),
         image_url: Some("/file-upload/image.png".to_string()),
+        mimetype: "image/png".to_string(),
         title: "Spec titel".to_string(),
+        title_link: "/file-upload/image.png".to_string(),
     }];
-    let rocketchat_message = Arc::new(Mutex::new(Some(RocketchatMessage {
+    let rocketchat_message = Arc::new(Mutex::new(Some(Message {
         id: "spec_id".to_string(),
         rid: "spec_rid".to_string(),
         msg: "".to_string(),
         ts: "2017-12-12 11:11".to_string(),
         attachments: Some(attachments),
+        file: Some(File {
+            mimetype: "image/png".to_string(),
+        }),
         u: UserInfo {
             id: "spec_user_id".to_string(),
             username: "spec_sender".to_string(),

@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use reqwest::header::ContentType;
+use ruma_client_api::unversioned::get_supported_versions::{
+    Endpoint as GetSupportedVersionsEndpoint, Response as GetSupportedVersionsResponse,
+};
 use ruma_client_api::Endpoint;
-use ruma_client_api::unversioned::get_supported_versions::{Endpoint as GetSupportedVersionsEndpoint,
-                                                           Response as GetSupportedVersionsResponse};
 use ruma_events::room::member::MemberEvent;
+use ruma_events::room::message::MessageType;
 use ruma_identifiers::{RoomAliasId, RoomId, UserId};
 use serde_json;
 use slog::Logger;
@@ -55,9 +57,9 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     /// Register a user.
     fn register(&self, user_id_local_part: String) -> Result<()>;
     /// Send a text message to a room.
-    fn send_text_message_event(&self, room_id: RoomId, user_id: UserId, body: String) -> Result<()>;
-    /// Send an image message to a room.
-    fn send_image_message_event(&self, room_id: RoomId, user_id: UserId, body: String, url: String) -> Result<()>;
+    fn send_text_message(&self, room_id: RoomId, user_id: UserId, body: String) -> Result<()>;
+    /// Send an data message (audio, file, image, video) to a room.
+    fn send_data_message(&self, room_id: RoomId, user_id: UserId, body: String, url: String, mtype: MessageType) -> Result<()>;
     /// Set the default power levels for a room. Only the bot will be able to control the room.
     /// The power levels for invite, kick, ban, and redact are all set to 50.
     fn set_default_powerlevels(&self, room_id: RoomId, room_creator_user_id: UserId) -> Result<()>;

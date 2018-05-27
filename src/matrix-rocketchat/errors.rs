@@ -256,6 +256,11 @@ error_chain!{
             display("Bridging the channel {} failed, because the user hasn't joined it on Rocket.Chat", channel_name)
         }
 
+        RocketchatUploadFailed(url: String, err: String) {
+            description("Uploading file to Rocket.Chat failed")
+            display("Uploading file {} to Rocket.Chat failed: {}", url, err)
+        }
+
         UnbridgeOfNotBridgedRoom(display_name: String) {
             description("Room with the given display name could not be found")
             display("No room with display_name {} found", display_name)
@@ -346,14 +351,9 @@ error_chain!{
             display("Deleting record from the database failed")
         }
 
-        UnknownContentType(content_type: String) {
-            description("The content type of the file is unknown")
-            display("Don't know how to handle content type {}", content_type)
-        }
-
-        UnknownMimeType(mime_type: String) {
+        UnknownMimeType(mimetype: String) {
             description("The mime type of the file is unknown")
-            display("Don't know how to handle mime type {}", mime_type)
+            display("Don't know how to handle mime type '{}'", mimetype)
         }
 
         MissingMimeType {

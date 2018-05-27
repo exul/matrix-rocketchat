@@ -3,19 +3,21 @@ use std::convert::TryFrom;
 
 use super::{DEFAULT_LOGGER, HS_TOKEN};
 use diesel::sqlite::SqliteConnection;
-use matrix_rocketchat::Config;
 use matrix_rocketchat::api::{MatrixApi, RequestData, RestApi};
 use matrix_rocketchat::models::Events;
 use matrix_rocketchat::models::UserOnRocketchatServer;
+use matrix_rocketchat::Config;
 use reqwest::{Method, StatusCode};
-use ruma_client_api::Endpoint;
 use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint as SendStateEventForEmptyKeyEndpoint};
-use ruma_events::EventType;
+use ruma_client_api::Endpoint;
 use ruma_events::collections::all::Event;
-use ruma_events::room::ImageInfo;
 use ruma_events::room::member::{MemberEvent, MemberEventContent, MembershipState};
-use ruma_events::room::message::{ImageMessageEventContent, MessageEvent, MessageEventContent, MessageType,
-                                 TextMessageEventContent};
+use ruma_events::room::message::{
+    AudioInfo, AudioMessageEventContent, FileInfo, FileMessageEventContent, ImageMessageEventContent, MessageEvent,
+    MessageEventContent, MessageType, TextMessageEventContent, VideoInfo, VideoMessageEventContent,
+};
+use ruma_events::room::ImageInfo;
+use ruma_events::EventType;
 use ruma_identifiers::{EventId, RoomAliasId, RoomId, UserId};
 use serde_json::{self, to_string, Map, Value};
 
@@ -153,14 +155,100 @@ pub fn send_image_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Us
         content: MessageEventContent::Image(ImageMessageEventContent {
             body: body,
             info: Some(ImageInfo {
-                height: 100,
-                mimetype: "image/png".to_string(),
-                size: 100,
-                width: 100,
+                height: Some(100),
+                mimetype: Some("image/png".to_string()),
+                size: Some(100),
+                width: Some(100),
             }),
             msgtype: MessageType::Image,
             thumbnail_info: None,
             thumbnail_url: None,
+            url: url,
+        }),
+        event_id: EventId::new("localhost").unwrap(),
+        event_type: EventType::RoomMessage,
+        room_id: room_id,
+        unsigned: None,
+        user_id: user_id,
+    };
+
+    let events = Events {
+        events: vec![Box::new(Event::RoomMessage(message_event))],
+    };
+    let payload = to_string(&events).unwrap();
+
+    simulate_message_from_matrix(as_url, &payload);
+}
+
+pub fn send_file_message_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId, body: String, url: String) {
+    let message_event = MessageEvent {
+        content: MessageEventContent::File(FileMessageEventContent {
+            body: body,
+            info: Some(FileInfo {
+                mimetype: Some("text/plain".to_string()),
+                size: None,
+            }),
+            msgtype: MessageType::File,
+            thumbnail_info: None,
+            thumbnail_url: None,
+            url: url,
+        }),
+        event_id: EventId::new("localhost").unwrap(),
+        event_type: EventType::RoomMessage,
+        room_id: room_id,
+        unsigned: None,
+        user_id: user_id,
+    };
+
+    let events = Events {
+        events: vec![Box::new(Event::RoomMessage(message_event))],
+    };
+    let payload = to_string(&events).unwrap();
+
+    simulate_message_from_matrix(as_url, &payload);
+}
+
+pub fn send_audio_message_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId, body: String, url: String) {
+    let message_event = MessageEvent {
+        content: MessageEventContent::Audio(AudioMessageEventContent {
+            body: body,
+            info: Some(AudioInfo {
+                mimetype: Some("audio/x-wav".to_string()),
+                duration: None,
+                size: None,
+            }),
+            msgtype: MessageType::Audio,
+            url: url,
+        }),
+        event_id: EventId::new("localhost").unwrap(),
+        event_type: EventType::RoomMessage,
+        room_id: room_id,
+        unsigned: None,
+        user_id: user_id,
+    };
+
+    let events = Events {
+        events: vec![Box::new(Event::RoomMessage(message_event))],
+    };
+    let payload = to_string(&events).unwrap();
+
+    simulate_message_from_matrix(as_url, &payload);
+}
+
+pub fn send_video_message_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId, body: String, url: String) {
+    let message_event = MessageEvent {
+        content: MessageEventContent::Video(VideoMessageEventContent {
+            body: body,
+            info: Some(VideoInfo {
+                mimetype: Some("video/webm".to_string()),
+                duration: None,
+                size: None,
+                thumbnail_info: None,
+                thumbnail_url: None,
+                height: Some(480),
+                width: Some(640),
+            }),
+            msgtype: MessageType::Video,
             url: url,
         }),
         event_id: EventId::new("localhost").unwrap(),

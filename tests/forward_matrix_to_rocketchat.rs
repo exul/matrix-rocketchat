@@ -89,6 +89,178 @@ fn successfully_forwards_an_image_message_from_matrix_to_rocketchat() {
 }
 
 #[test]
+fn successfully_forwards_a_file_message_from_matrix_to_rocketchat() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    let mut files = HashMap::new();
+    files.insert("spec_id".to_string(), b"file".to_vec());
+    matrix_router.get(
+        GetContentEndpoint::router_path(),
+        handlers::MatrixGetContentHandler {
+            files: files,
+        },
+        "get_file",
+    );
+    let mut rocketchat_router = test.default_rocketchat_routes();
+    rocketchat_router.post(format!("{}{}", ROOMS_UPLOAD_PATH, "/:channel_id"), message_forwarder, "upload");
+
+    let test = test
+        .with_rocketchat_mock()
+        .with_matrix_routes(matrix_router)
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
+        .run();
+
+    helpers::send_file_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "spec_image.txt".to_string(),
+        "mxc://localhost/spec_id".to_string(),
+    );
+
+    let message_received_by_rocketchat = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_rocketchat.contains("file"));
+}
+
+#[test]
+fn successfully_forwards_an_audio_message_from_matrix_to_rocketchat() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    let mut files = HashMap::new();
+    files.insert("spec_id".to_string(), b"audio".to_vec());
+    matrix_router.get(
+        GetContentEndpoint::router_path(),
+        handlers::MatrixGetContentHandler {
+            files: files,
+        },
+        "get_file",
+    );
+    let mut rocketchat_router = test.default_rocketchat_routes();
+    rocketchat_router.post(format!("{}{}", ROOMS_UPLOAD_PATH, "/:channel_id"), message_forwarder, "upload");
+
+    let test = test
+        .with_rocketchat_mock()
+        .with_matrix_routes(matrix_router)
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
+        .run();
+
+    helpers::send_audio_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "spec_audio.wav".to_string(),
+        "mxc://localhost/spec_id".to_string(),
+    );
+
+    let message_received_by_rocketchat = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_rocketchat.contains("audio"));
+}
+
+#[test]
+fn successfully_forwards_a_video_message_from_matrix_to_rocketchat() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    let mut files = HashMap::new();
+    files.insert("spec_id".to_string(), b"video".to_vec());
+    matrix_router.get(
+        GetContentEndpoint::router_path(),
+        handlers::MatrixGetContentHandler {
+            files: files,
+        },
+        "get_file",
+    );
+    let mut rocketchat_router = test.default_rocketchat_routes();
+    rocketchat_router.post(format!("{}{}", ROOMS_UPLOAD_PATH, "/:channel_id"), message_forwarder, "upload");
+
+    let test = test
+        .with_rocketchat_mock()
+        .with_matrix_routes(matrix_router)
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
+        .run();
+
+    helpers::send_video_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "spec_video.webm".to_string(),
+        "mxc://localhost/spec_id".to_string(),
+    );
+
+    let message_received_by_rocketchat = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(message_received_by_rocketchat.contains("video"));
+}
+
+#[test]
+fn error_message_when_uploading_the_file_on_rocketchat_fails_when_forwarding_a_file_message_from_matrix_to_rocketchat() {
+    let test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut matrix_router = test.default_matrix_routes();
+    matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
+    let mut files = HashMap::new();
+    files.insert("spec_id".to_string(), b"file".to_vec());
+    matrix_router.get(
+        GetContentEndpoint::router_path(),
+        handlers::MatrixGetContentHandler {
+            files: files,
+        },
+        "get_file",
+    );
+    let mut rocketchat_router = test.default_rocketchat_routes();
+    rocketchat_router.post(
+        format!("{}{}", ROOMS_UPLOAD_PATH, "/:channel_id"),
+        handlers::RocketchatErrorResponder {
+            message: "Spec error".to_string(),
+            status: status::BadRequest,
+        },
+        "upload",
+    );
+
+    let test = test
+        .with_rocketchat_mock()
+        .with_matrix_routes(matrix_router)
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
+        .run();
+
+    helpers::send_file_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "spec_image.txt".to_string(),
+        "mxc://localhost/spec_id".to_string(),
+    );
+
+    // discard welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard connect message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard login message
+    receiver.recv_timeout(default_timeout()).unwrap();
+    // discard bridge message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
+    let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(
+        message_received_by_matrix
+            .contains("Uploading file mxc://localhost/spec_id to Rocket.Chat failed with 'Rocket.Chat error: Spec error")
+    );
+}
+
+#[test]
 fn no_message_is_forwarded_when_the_image_cannot_be_found() {
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();

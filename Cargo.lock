@@ -1077,7 +1077,7 @@ dependencies = [
 [[package]]
 name = "ruma-events"
 version = "0.9.0"
-source = "git+https://github.com/exul/ruma-events.git#fc9b2566c59e9841b0f3e92b0d1861faa386f228"
+source = "git+https://github.com/exul/ruma-events.git#f6695bba0ad20251e21349d3da4dd1dc2b5272fd"
 dependencies = [
  "ruma-identifiers 0.11.0 (git+https://github.com/exul/ruma-identifiers.git)",
  "ruma-signatures 0.4.0 (git+https://github.com/exul/ruma-signatures?branch=update-dependencies)",

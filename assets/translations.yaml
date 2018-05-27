@@ -89,6 +89,7 @@ en:
     rocketchat_server_not_found: "Rocket.Chat server ${rocketchat_url} not found, it is probably not connected."
     rocketchat_server_unreachable: "Could not reach Rocket.Chat server ${rocketchat_url}"
     rocketchat_join_first: "You have to join the channel or group ${rocketchat_room_name} on the Rocket.Chat server before you can bridge it."
+    rocketchat_server_upload_failed: "Uploading file ${url} to Rocket.Chat failed with '${err}'."
     room_already_connected: "This room is already connected"
     room_assocaited_with_aliases: "Cannot unbdrige room ${rocketchat_room_name}, because aliases (${aliases}) are still associated with the room. All aliases have to be removed before the room can be unbridged."
     room_not_connected: "This room is not connected to a Rocket.Chat server, you have to connect it first to be able to execute the command, type `help` for further instructions on how to connect this room"

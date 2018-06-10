@@ -61,8 +61,17 @@ pub struct Message {
     pub id: String,
     /// The text content of the message
     pub msg: String,
+    /// Optional file, only present when a file is attached to the message
+    pub file: Option<File>,
     /// A list of attachments that are associated with the message
     pub attachments: Option<Vec<MessageAttachment>>,
+}
+
+/// A file attached to a message
+#[derive(Clone, Deserialize, Debug)]
+pub struct File {
+    /// The file's MIME type
+    pub mimetype: String,
 }
 
 /// Metadata for a file that is uploaded to Rocket.Chat
@@ -74,6 +83,8 @@ pub struct MessageAttachment {
     pub image_url: Option<String>,
     /// An optional title for the file
     pub title: String,
+    /// Link to file
+    pub title_link: String,
 }
 
 /// A Rocket.Chat user
@@ -130,7 +141,7 @@ pub trait RocketchatApi {
     /// Get current user information
     fn me(&self) -> Result<User>;
     /// Post a message with an attachment
-    fn rooms_upload(&self, file: Vec<u8>, filename: &str, mime_type: Mime, room_id: &str) -> Result<()>;
+    fn rooms_upload(&self, file: Vec<u8>, filename: &str, mimetype: Mime, room_id: &str) -> Result<()>;
     /// Get information like user_id, status, etc. about a user
     fn users_info(&self, username: &str) -> Result<User>;
     /// Set credentials that are used for all API calls that need authentication

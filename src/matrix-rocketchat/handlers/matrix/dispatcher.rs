@@ -6,8 +6,8 @@ use slog::Logger;
 use api::MatrixApi;
 use config::Config;
 use errors::*;
-use handlers::ErrorNotifier;
 use handlers::matrix::{MembershipHandler, MessageHandler};
+use handlers::ErrorNotifier;
 use log;
 use models::Room;
 

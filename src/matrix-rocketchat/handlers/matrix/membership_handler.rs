@@ -136,7 +136,7 @@ impl<'a> MembershipHandler<'a> {
 
         match CommandHandler::build_help_message(self.conn, self.room, self.config.as_url.clone(), &room_creator_id) {
             Ok(body) => {
-                self.matrix_api.send_text_message_event(self.room.id.clone(), matrix_bot_user_id, body)?;
+                self.matrix_api.send_text_message(self.room.id.clone(), matrix_bot_user_id, body)?;
             }
             Err(err) => {
                 log::log_info(self.logger, &err);
@@ -156,7 +156,7 @@ impl<'a> MembershipHandler<'a> {
             info!(self.logger, "Another user join the admin room {}, bot user is leaving", self.room.id);
             let bot_user_id = self.config.matrix_bot_user_id()?;
             let body = t!(["errors", "other_user_joined"]).l(DEFAULT_LANGUAGE);
-            self.matrix_api.send_text_message_event(self.room.id.clone(), bot_user_id.clone(), body)?;
+            self.matrix_api.send_text_message(self.room.id.clone(), bot_user_id.clone(), body)?;
             self.room.forget(bot_user_id)?;
         }
         Ok(())

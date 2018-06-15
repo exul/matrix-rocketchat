@@ -979,7 +979,7 @@ fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
 
     if *status_code == StatusCode::Unauthorized {
         return Error {
-            error_chain: ErrorKind::AuthenticationFailed(rocketchat_error_resp.message.unwrap_or_default()).into(),
+            error_chain: ErrorKind::RocketchatAuthenticationFailed(rocketchat_error_resp.message.unwrap_or_default()).into(),
             user_message: Some(t!(["errors", "authentication_failed"])),
         };
     }

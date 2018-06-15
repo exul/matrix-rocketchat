@@ -168,9 +168,9 @@ error_chain!{
             display("Unsupported HTTP method {}", method)
         }
 
-        AuthenticationFailed(error_msg: String) {
-            description("Authentication failed")
-            display("Authentication failed: {}", error_msg)
+        RocketchatAuthenticationFailed(error_msg: String) {
+            description("Rocket.Chat authentication failed")
+            display("User login on Rocket.Chat server failed: {}", error_msg)
         }
 
         ApiCallFailed(url: String) {
@@ -398,9 +398,9 @@ impl Error {
     pub fn status_code(&self) -> Status {
         match *self.error_chain {
             ErrorKind::InvalidAccessToken(_) | ErrorKind::InvalidRocketchatToken(_) => Status::Forbidden,
-            ErrorKind::MissingAccessToken | ErrorKind::MissingRocketchatToken | ErrorKind::AuthenticationFailed(_) => {
-                Status::Unauthorized
-            }
+            ErrorKind::MissingAccessToken
+            | ErrorKind::MissingRocketchatToken
+            | ErrorKind::RocketchatAuthenticationFailed(_) => Status::Unauthorized,
             ErrorKind::InvalidJSON(_) => Status::UnprocessableEntity,
             ErrorKind::AdminRoomForRocketchatServerNotFound(_) => Status::NotFound,
             _ => Status::InternalServerError,

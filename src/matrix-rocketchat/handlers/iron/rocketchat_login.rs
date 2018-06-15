@@ -1,14 +1,14 @@
 use std::io::Read;
 
-use iron::{status, Handler};
 use iron::prelude::*;
 use iron::request::Body;
+use iron::{status, Handler};
 use serde_json;
 
-use i18n::*;
 use api::MatrixApi;
 use config::Config;
 use errors::*;
+use i18n::*;
 use log::IronLogger;
 use models::{ConnectionPool, Credentials, RocketchatServer};
 
@@ -23,7 +23,7 @@ pub struct RocketchatLogin {
 impl Handler for RocketchatLogin {
     fn handle(&self, request: &mut Request) -> IronResult<Response> {
         let logger = IronLogger::from_request(request)?;
-        debug!(logger, "Received login command via REST API");
+        info!(logger, "Received login command via REST API");
 
         let connection = ConnectionPool::from_request(request)?;
         let credentials = deserialize_credentials(&mut request.body)?;

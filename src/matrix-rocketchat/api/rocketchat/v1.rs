@@ -549,7 +549,7 @@ impl super::RocketchatApi for RocketchatApi {
                 files.push(rocketchat_attachment);
             }
         } else {
-            info!(self.logger, "No attachments found for message ID {}", message_id);
+            debug!(self.logger, "No attachments found for message ID {}", message_id);
         }
 
         Ok(files)

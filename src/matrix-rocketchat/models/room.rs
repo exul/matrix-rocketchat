@@ -277,7 +277,7 @@ impl<'a> Room<'a> {
     pub fn join_user(&self, user_id: UserId, inviting_user_id: UserId) -> Result<()> {
         let user_joined_already = self.user_ids(Some(inviting_user_id.clone()))?.iter().any(|id| id == &user_id);
         if !user_joined_already {
-            info!(self.logger, "Adding virtual user {} to room {}", user_id, self.id);
+            debug!(self.logger, "Adding virtual user {} to room {}", user_id, self.id);
             self.matrix_api.invite(self.id.clone(), user_id.clone(), inviting_user_id)?;
 
             if user_id.to_string().starts_with(&format!("@{}", self.config.sender_localpart)) {

@@ -137,12 +137,7 @@ impl RocketchatServer {
             matrix_api.send_text_message(room_id, bot_user_id, message)?;
         }
 
-        info!(
-            logger,
-            "Successfully executed login command for user {} on Rocket.Chat server {}",
-            credentials.rocketchat_username,
-            self.rocketchat_url
-        );
+        info!(logger, "Successfully executed login command on Rocket.Chat server {}", self.rocketchat_url);
 
         Ok(())
     }

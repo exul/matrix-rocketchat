@@ -74,7 +74,7 @@ impl<'a> Dispatcher<'a> {
         };
 
         if let Err(send_err) = error_notifier.send_message_to_user(err, room_id.clone()) {
-            debug!(self.logger, "Unable to send an error message to the user");
+            warn!(self.logger, "Unable to send an error message to the user in room {}", room_id);
             log::log_debug(self.logger, err);
             return Err(send_err);
         }

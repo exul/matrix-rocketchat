@@ -523,7 +523,7 @@ impl super::RocketchatApi for RocketchatApi {
             for attachment in attachments {
                 debug!(self.logger, "Getting file {}", attachment.title_link);
 
-                let mut get_file_endpoint = GetFileEndpoint {
+                let get_file_endpoint = GetFileEndpoint {
                     base_url: self.base_url.clone(),
                     user_id: self.user_id.clone(),
                     auth_token: self.auth_token.clone(),

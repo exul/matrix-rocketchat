@@ -12,6 +12,7 @@ use iron::modifier::Modifier;
 use iron::status::Status;
 use iron::{IronError, Response};
 use ruma_identifiers::RoomId;
+use serde::{Deserialize, Deserializer};
 use serde_json;
 
 use i18n::*;
@@ -73,7 +74,27 @@ pub struct RocketchatErrorResponse {
     /// Error message returned by the Rocket.Chat API
     pub message: Option<String>,
     /// The error that occured
+    #[serde(default, deserialize_with = "deserialize_error")]
     pub error: Option<String>,
+}
+
+pub fn deserialize_error<'de, D>(deserializer: D) -> StdResult<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum ErrorValue {
+        String(String),
+        Int(i64),
+        None,
+    }
+
+    match ErrorValue::deserialize(deserializer)? {
+        ErrorValue::String(s) => Ok(Some(s)),
+        ErrorValue::Int(i) => Ok(Some(format!("{}", i))),
+        ErrorValue::None => Ok(None),
+    }
 }
 
 #[derive(Debug)]

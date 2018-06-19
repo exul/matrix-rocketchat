@@ -63,7 +63,7 @@ impl<'a> Forwarder<'a> {
                 self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mimetype, &content.body, channel_id)?;
             }
             MessageEventContent::Emote(_) | MessageEventContent::Location(_) | MessageEventContent::Notice(_) => {
-                info!(self.logger, "Forwarding the type {} is not implemented.", event.event_type)
+                info!(self.logger, "Not forwarding message, forwarding emote, location or notice messages is not implemented.")
             }
         }
 

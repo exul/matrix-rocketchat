@@ -523,7 +523,7 @@ impl super::RocketchatApi for RocketchatApi {
             for attachment in attachments {
                 debug!(self.logger, "Getting file {}", attachment.title_link);
 
-                let mut get_file_endpoint = GetFileEndpoint {
+                let get_file_endpoint = GetFileEndpoint {
                     base_url: self.base_url.clone(),
                     user_id: self.user_id.clone(),
                     auth_token: self.auth_token.clone(),
@@ -549,7 +549,7 @@ impl super::RocketchatApi for RocketchatApi {
                 files.push(rocketchat_attachment);
             }
         } else {
-            info!(self.logger, "No attachments found for message ID {}", message_id);
+            debug!(self.logger, "No attachments found for message ID {}", message_id);
         }
 
         Ok(files)
@@ -979,7 +979,7 @@ fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
 
     if *status_code == StatusCode::Unauthorized {
         return Error {
-            error_chain: ErrorKind::AuthenticationFailed(rocketchat_error_resp.message.unwrap_or_default()).into(),
+            error_chain: ErrorKind::RocketchatAuthenticationFailed(rocketchat_error_resp.message.unwrap_or_default()).into(),
             user_message: Some(t!(["errors", "authentication_failed"])),
         };
     }

@@ -121,7 +121,7 @@ impl<'a> Forwarder<'a> {
         };
 
         if receiver.rocketchat_user_id.clone().unwrap_or_default() == message.user_id {
-            info!(self.logger, "Not forwarding direct message, because the sender is the receivers virtual user");
+            debug!(self.logger, "Not forwarding direct message, because the sender is the receivers virtual user");
             return Ok(None);
         }
 
@@ -213,7 +213,7 @@ impl<'a> Forwarder<'a> {
             // the bot will leave as soon as the AS gets the join event
             let invitee_id = self.config.matrix_bot_user_id()?;
             self.matrix_api.invite(room_id.clone(), invitee_id.clone(), sender_id.clone())?;
-            debug!(self.logger, "Direct message room {} successfully created", &room_id);
+            info!(self.logger, "Direct message room {} successfully created", &room_id);
 
             let room = Room::new(self.config, self.logger, self.matrix_api, room_id);
             Ok(Some(room))

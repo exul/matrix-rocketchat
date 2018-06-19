@@ -1,6 +1,6 @@
 //! Application service to bridge Matrix <-> Rocket.Chat.
 
-#![feature(try_from)]
+#![feature(try_from, nll)]
 #![deny(missing_docs)]
 #![recursion_limit = "256"]
 
@@ -18,6 +18,7 @@ extern crate persistent;
 extern crate pulldown_cmark;
 extern crate r2d2;
 extern crate r2d2_diesel;
+extern crate regex;
 extern crate reqwest;
 extern crate router;
 extern crate ruma_client_api;

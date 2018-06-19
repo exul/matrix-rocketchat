@@ -128,12 +128,7 @@ impl<'a> CommandHandler<'a> {
                 )?;
                 self.matrix_api.send_text_message(self.admin_room.id.clone(), self.config.matrix_bot_user_id()?, body)?;
 
-                info!(
-                    self.logger,
-                    "Successfully executed connect command for user {} and Rocket.Chat server {}",
-                    event.user_id,
-                    rocketchat_url
-                );
+                info!(self.logger, "Successfully executed connect command for Rocket.Chat server {}", rocketchat_url);
                 Ok(())
             })
             .map_err(Error::from)
@@ -201,7 +196,7 @@ impl<'a> CommandHandler<'a> {
         let bot_user_id = self.config.matrix_bot_user_id()?;
         self.matrix_api.send_text_message(self.admin_room.id.clone(), bot_user_id, help_message)?;
 
-        info!(self.logger, "Successfully executed help command for user {}", event.user_id);
+        debug!(self.logger, "Successfully executed help command for user {}", event.user_id);
         Ok(())
     }
 

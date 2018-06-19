@@ -1,4 +1,5 @@
 sudo: required
+
 dist: trusty
 
 language: rust
@@ -7,7 +8,7 @@ cache:
   - apt
   - cargo
 
-# Dependencies of kcov, used by coverage
+# Dependencies of kcov, used by cargo-travis
 addons:
   apt:
     packages:
@@ -19,8 +20,9 @@ addons:
     sources:
       - kalakris-cmake
 
-rust:
-  - nightly
+env: TARGET=x86_64-unknown-linux-gnu
+
+rust: nightly
 
 before_script:
   - export PATH=$HOME/.cargo/bin:$PATH
@@ -33,3 +35,24 @@ script:
 
 after_success:
   - cargo coveralls --exclude-pattern src/bin/,target/,tests/
+
+before_deploy:
+  - cargo build --release --target=$TARGET
+  - name="matrix-rocketchat-$TARGET-$TRAVIS_TAG"
+  - mkdir $name
+  - cp target/$TARGET/release/matrix-rocketchat $name/
+  - cp README.md LICENSE-MIT LICENSE-APACHE $name/
+  - tar czvf $name.tar.gz $name
+  - sha256sum $name.tar.gz > $name.tar.gz.sha256
+
+deploy:
+  provider: releases
+  api_key:
+    secure: iBydfSz7j55RqhlYdEQ1b65AtMYzvM2HAtkIiL1ISqwCN7gBG6U+Ys/wUFcOrwnyA9Dl+CHYOxm7/TE2jRn4Vt3e9BJNTIGX1tm7PNL2Co+2QMbjsaTuqdcFDzYjkzi7l6gdxk6poj734xza2YddVPXmFp3Y37QCnYf+OcGJ/v9PgaC2aMbU6PgyP5T9gwJEOqRoQBAB87nsIABlZtaFqxzIOA30HmU9lJjIcEm19Y0w4c6pAY7ISnKrioVxS2ahb+qkucqiE19/ER4BVQ7C/xWV3Clao6nPUBDxG16nmQNaecKYbA/Nnvf6EnjFBWd+8ucePQksxAJnJe+8MOJmVoPz2BbS9z46wKVWWT75k89v15n1KV18LXwWdnBu0u0KilpjTNLAW8UIdAuO4fNJRowWw+ddLbuh44W+4KdF3eoQe++LaTGrXvUGvPXpxHpbtk5a5anHlDODg390I1l0QUBLXDD532sYQrtfhWW/K5EhFr1YsogwyfHJ7a5d5xb2rnlGyIy/lLd8zzoMXUHnY4QpFugX51J1FJS3BPJW+55lAdOP4DWJP16icBUeYTIGz2Eu5RJlW/WMtjxi7/WvmU4LXldmjP7mpM0TDf9CcLjGj8P6zORhVWGTJzpH7Htytq7s9HBk/NqAxwzRoQXWB4ASe64pzfGWsncnyntZGP4=
+  file:
+    - matrix-rocketchat-$TARGET-$TRAVIS_TAG.tar.gz
+    - matrix-rocketchat-$TARGET-$TRAVIS_TAG.tar.gz.sha256
+  skip_cleanup: true
+  on:
+    branch: master
+    tags: true

@@ -72,8 +72,8 @@ en:
     direct_message_room_display_name_suffix: "(DM Rocket.Chat)"
     internal_error: "An internal error occurred"
   handlers:
-    welcome: "Your Rocket.Chat <-> Matrix application service is running"
-    rocketchat_login_successful: "You are logged in. Return to your Matrix client and enter help in the admin room for more instructions."
+    welcome: "Your Rocket.Chat <-> Matrix application service is running\n"
+    rocketchat_login_successful: "You are logged in. Return to your Matrix client and enter help in the admin room for more instructions.\n"
   errors:
     authentication_failed: "Authentication failed!"
     connect_without_rocketchat_server_id: "You have to provide an id to connect to a Rocket.Chat server. It can contain any alphanumeric character and `_`. For example `connect https://rocketchat.example.com my_token rocketchat_example`"

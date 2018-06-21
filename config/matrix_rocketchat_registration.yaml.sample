@@ -1,0 +1,28 @@
+# An identifier that has to be unique across all application services that are registred.
+id: rocketchat
+# The token that is used to authenticate the homeserver when sending requests to the application service.
+# This has to match the parameter `hs_token` in the appliation service config file.
+# Keep this private, anybody with this token can send valid requests to the application servce!
+hs_token: "hs-secret-use-your-own-random-string!!!"
+# The token that is used to authenticate the application service when sending requests to the homeserver.
+# This has to match the parameter `as_token` in the appliation service config file.
+# Keep this private, anybody with this token can send valid requests to the homeserver (within the scope of the application service)!
+as_token: "as-secret-use-your-own-random-string!!!"
+# An application service can register certain namespaces. There are namespaces for users, aliases and rooms.
+# See https://matrix.org/docs/spec/application_service/unstable.html#registration for more details.
+namespaces:
+  users:
+    - exclusive: true
+      regex: '@_rocketchat.*'
+  aliases:
+    - exclusive: true
+      regex: '#_rocketchat.*'
+  rooms: []
+# The base url of the application service.
+# This has to match the parameter `as_url` in the application service config file.
+url: "http://127.0.0.1:8822"
+# The local part of your bot, the full name will be something like @_rocketchat:example.com
+# This will also be the namespace that the application service uses on the homeserver so no other
+# application service/user will be able to use username that starts with this string. This has to
+# match the parameter sender_localpart in the application service config.
+sender_localpart: _rocketchat

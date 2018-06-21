@@ -16,6 +16,6 @@ fn root_url_returns_a_welcome_message() {
     let params = HashMap::new();
 
     let (body, status) = RestApi::call(&Method::GET, &url, RequestData::Body("".to_string()), &params, None).unwrap();
-    assert_eq!(body, "Your Rocket.Chat <-> Matrix application service is running");
+    assert_eq!(body, "Your Rocket.Chat <-> Matrix application service is running\n");
     assert_eq!(status, StatusCode::OK);
 }

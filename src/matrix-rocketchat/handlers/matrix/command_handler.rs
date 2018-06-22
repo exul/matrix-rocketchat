@@ -448,7 +448,11 @@ impl<'a> CommandHandler<'a> {
                 } else {
                     connected_servers.iter().fold("".to_string(), |init, rs| init + &format!("* {}\n", rs.rocketchat_url))
                 };
-                t!(["admin_room", "connection_instructions"]).with_vars(vec![("as_url", as_url), ("server_list", server_list)])
+                t!(["admin_room", "connection_instructions"]).with_vars(vec![
+                    ("as_url", as_url),
+                    ("server_list", server_list),
+                    ("max_rocketchat_server_id_length", MAX_ROCKETCHAT_SERVER_ID_LENGTH.to_string()),
+                ])
             }
         };
 

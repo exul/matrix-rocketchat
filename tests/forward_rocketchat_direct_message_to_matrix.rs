@@ -14,9 +14,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use iron::{status, Chain};
-use matrix_rocketchat::api::rocketchat::v1::{
-    Attachment, File, Message, UserInfo, CHAT_GET_MESSAGE_PATH, DM_LIST_PATH, LOGIN_PATH, ME_PATH,
-};
+use matrix_rocketchat::api::rocketchat::v1::{Attachment, File, Message, UserInfo, CHAT_GET_MESSAGE_PATH, DM_LIST_PATH};
 use matrix_rocketchat::api::rocketchat::WebhookMessage;
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::models::{Room, UserOnRocketchatServer};
@@ -468,19 +466,14 @@ fn do_use_two_different_dm_rooms_when_both_users_are_on_matrix() {
     let direct_messages_list_handler =
         handlers::RocketchatDirectMessagesList { direct_messages: direct_messages, status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
-    let login_user_id = Arc::new(Mutex::new(Some("spec_user_id".to_string())));
-    rocketchat_router.post(
-        LOGIN_PATH,
-        handlers::RocketchatLogin { successful: true, rocketchat_user_id: Arc::clone(&login_user_id) },
-        "login",
-    );
-    let me_username = Arc::new(Mutex::new("spec_user".to_string()));
-    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: Arc::clone(&me_username) }, "me");
+    let mut rocketchat_users = HashMap::new();
+    rocketchat_users.insert("other_user".to_string(), ("other_user_id".to_string(), "secret".to_string()));
 
     let test = test
         .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
+        .with_rocketchat_users(rocketchat_users)
         .with_connected_admin_room()
         .with_logged_in_user()
         .run();
@@ -519,13 +512,6 @@ fn do_use_two_different_dm_rooms_when_both_users_are_on_matrix() {
 
     let other_user_sender_direct_message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(other_user_sender_direct_message_received_by_matrix.contains("Hey there"));
-
-    {
-        let mut new_login_user_id = login_user_id.lock().unwrap();
-        *new_login_user_id = Some("other_user_id".to_string());
-        let mut new_me_username = me_username.lock().unwrap();
-        *new_me_username = "other_user".to_string();
-    }
 
     let matrix_api = MatrixApi::new(&test.config, DEFAULT_LOGGER.clone()).unwrap();
     matrix_api.register("other_user".to_string()).unwrap();

@@ -119,7 +119,7 @@ impl RocketchatServer {
         config: &Config,
         connection: &SqliteConnection,
         logger: &Logger,
-        matrix_api: &MatrixApi,
+        matrix_api: &dyn MatrixApi,
         credentials: &Credentials,
         admin_room_id: Option<RoomId>,
     ) -> Result<()> {
@@ -146,7 +146,7 @@ impl RocketchatServer {
     pub fn logged_in_users_on_rocketchat_server(&self, connection: &SqliteConnection) -> Result<Vec<UserOnRocketchatServer>> {
         let users_on_rocketchat_server: Vec<UserOnRocketchatServer> = users_on_rocketchat_servers::table
             .filter(users_on_rocketchat_servers::rocketchat_server_id.eq(&self.id))
-            .filter(users_on_rocketchat_servers::rocketchat_auth_token.is_not_null())
+            .filter(users_on_rocketchat_servers::rocketchat_user_id.is_not_null())
             .load(connection)
             .chain_err(|| ErrorKind::DBSelectError)?;
         Ok(users_on_rocketchat_server)

@@ -20,6 +20,7 @@ use std::process;
 use clap::{App, Arg};
 use iron::Listening;
 use matrix_rocketchat::errors::*;
+use matrix_rocketchat::server::StartupNotification;
 use matrix_rocketchat::{Config, Server};
 use slog::{Drain, FnValue, Level, LevelFilter, Record};
 
@@ -39,13 +40,24 @@ fn run() -> Result<Listening> {
         .author("Andreas Studer <foss@exul.org>")
         .about("An application service to bridge Matrix and Rocket.Chat.")
         .arg(Arg::with_name("config").short("c").long("config").help("Path to config file").takes_value(true))
+        .arg(
+            Arg::with_name("skip-login-notification")
+                .short("s")
+                .long("skip-login-notification")
+                .help("Do not notify users that they have to re-login")
+                .takes_value(false),
+        )
         .get_matches();
 
+    let mut startup_notification = StartupNotification::On;
     let config_path = matches.value_of("config").unwrap_or("config.yaml").to_string();
+    if matches.is_present("skip-login-notification") {
+        startup_notification = StartupNotification::Off;
+    }
     let config = Config::read_from_file(&config_path).chain_err(|| ErrorKind::ReadFileError(config_path))?;
     let log = build_logger(&config);
     let threads = num_cpus::get() * 8;
-    Server::new(&config, log).run(threads)
+    Server::new(&config, log).run(threads, startup_notification)
 }
 
 fn build_logger(config: &Config) -> slog::Logger {

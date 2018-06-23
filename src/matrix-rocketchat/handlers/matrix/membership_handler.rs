@@ -20,7 +20,7 @@ pub struct MembershipHandler<'a> {
     config: &'a Config,
     conn: &'a SqliteConnection,
     logger: &'a Logger,
-    matrix_api: &'a MatrixApi,
+    matrix_api: &'a dyn MatrixApi,
     room: &'a Room<'a>,
 }
 
@@ -30,7 +30,7 @@ impl<'a> MembershipHandler<'a> {
         config: &'a Config,
         conn: &'a SqliteConnection,
         logger: &'a Logger,
-        matrix_api: &'a MatrixApi,
+        matrix_api: &'a dyn MatrixApi,
         room: &'a Room<'a>,
     ) -> MembershipHandler<'a> {
         MembershipHandler { config, conn, logger, matrix_api, room }

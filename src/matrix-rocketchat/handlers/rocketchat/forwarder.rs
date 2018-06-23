@@ -27,7 +27,7 @@ pub struct Forwarder<'a> {
     /// Logger context
     logger: &'a Logger,
     /// Matrix REST API
-    matrix_api: &'a MatrixApi,
+    matrix_api: &'a dyn MatrixApi,
     /// Manages virtual users that the application service uses
     virtual_user: &'a VirtualUser<'a>,
 }
@@ -38,7 +38,7 @@ impl<'a> Forwarder<'a> {
         config: &'a Config,
         connection: &'a SqliteConnection,
         logger: &'a Logger,
-        matrix_api: &'a MatrixApi,
+        matrix_api: &'a dyn MatrixApi,
         virtual_user: &'a VirtualUser,
     ) -> Forwarder<'a> {
         Forwarder { config, connection, logger, matrix_api, virtual_user }
@@ -190,7 +190,7 @@ impl<'a> Forwarder<'a> {
 
         let rocketchat_api = RocketchatApi::new(server.rocketchat_url.clone(), self.logger.clone())?.with_credentials(
             receiver.rocketchat_user_id.clone().unwrap_or_default(),
-            receiver.rocketchat_auth_token.clone().unwrap_or_default(),
+            receiver.rocketchat_auth_token().unwrap_or_default(),
         );
 
         if rocketchat_api.dm_list()?.iter().any(|dm| dm.id == message.channel_id) {
@@ -269,7 +269,7 @@ impl<'a> Forwarder<'a> {
 
         let rocketchat_api = RocketchatApi::new(server.rocketchat_url.clone(), self.logger.clone())?.with_credentials(
             user.rocketchat_user_id.clone().unwrap_or_default(),
-            user.rocketchat_auth_token.clone().unwrap_or_default(),
+            user.rocketchat_auth_token().unwrap_or_default(),
         );
 
         let files = rocketchat_api.attachments(&message.message_id)?;

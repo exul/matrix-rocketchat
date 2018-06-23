@@ -18,7 +18,7 @@ pub struct ErrorNotifier<'a> {
     /// Logger context
     pub logger: &'a Logger,
     /// Matrix REST API
-    pub matrix_api: &'a MatrixApi,
+    pub matrix_api: &'a dyn MatrixApi,
 }
 
 impl<'a> ErrorNotifier<'a> {

@@ -286,8 +286,7 @@ pub fn logout_user_from_rocketchat_server_on_bridge(
     user_id: &UserId,
 ) {
     let mut user_on_rocketchat_server = UserOnRocketchatServer::find(connection, &user_id, rocketchat_server_id).unwrap();
-    let rocketchat_user_id = user_on_rocketchat_server.rocketchat_user_id.clone();
-    user_on_rocketchat_server.set_credentials(connection, rocketchat_user_id, None).unwrap();
+    user_on_rocketchat_server.set_credentials(connection, None, None).unwrap();
 }
 
 pub fn add_room_alias_id(config: &Config, room_id: RoomId, room_alias_id: RoomAliasId, user_id: UserId, access_token: &str) {

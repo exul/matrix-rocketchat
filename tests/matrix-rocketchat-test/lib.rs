@@ -51,6 +51,7 @@ use matrix_rocketchat::api::rocketchat::v1::{
 };
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat::models::ConnectionPool;
+use matrix_rocketchat::server::StartupNotification;
 use matrix_rocketchat::{Config, Server};
 use persistent::Write;
 use r2d2::Pool;
@@ -205,6 +206,8 @@ pub struct Test {
     pub rocketchat_listening: Option<Listening>,
     /// The URL of the Rocket.Chat mock server
     pub rocketchat_mock_url: Option<String>,
+    /// A list of Users that are registered on the Rocket.Chat mock server
+    pub rocketchat_users: Arc<Mutex<HashMap<String, (String, String)>>>,
     /// Temp directory to store data during the test, it has to be part of the struct so that it
     /// does not get dropped until the test is over
     pub temp_dir: TempDir,
@@ -239,6 +242,7 @@ impl Test {
             rocketchat_mock_router: None,
             rocketchat_listening: None,
             rocketchat_mock_url: None,
+            rocketchat_users: Arc::new(Mutex::new(default_rocketchat_users())),
             temp_dir: temp_dir,
             with_admin_room: false,
             with_connected_admin_room: false,
@@ -304,6 +308,14 @@ impl Test {
         self
     }
 
+    pub fn with_rocketchat_users(self, users: HashMap<String, (String, String)>) -> Test {
+        for (k, v) in users {
+            self.rocketchat_users.lock().unwrap().insert(k, v);
+        }
+
+        self
+    }
+
     /// Run the application service so that a test can interact with it.
     pub fn run(mut self) -> Test {
         self.run_matrix_homeserver_mock();
@@ -342,6 +354,17 @@ impl Test {
         }
 
         self
+    }
+
+    // Restart the application service while a test is running.
+    pub fn restart_application_service(&mut self) {
+        if let Some(ref mut listening) = self.as_listening {
+            info!(DEFAULT_LOGGER, "Closing AS {:?}", listening);
+            listening.close().unwrap()
+        };
+
+        self.config.as_address = get_free_socket_addr();
+        self.run_application_service();
     }
 
     fn run_matrix_homeserver_mock(&mut self) {
@@ -414,16 +437,17 @@ impl Test {
 
         thread::spawn(move || {
             debug!(DEFAULT_LOGGER, "config: {:?}", server_config);
-            let listening = match Server::new(&server_config, DEFAULT_LOGGER.clone()).run(IRON_THREADS) {
-                Ok(listening) => listening,
-                Err(err) => {
-                    error!(DEFAULT_LOGGER, "error: {}", err);
-                    for err in err.error_chain.iter().skip(1) {
-                        error!(DEFAULT_LOGGER, "caused by: {}", err);
+            let listening =
+                match Server::new(&server_config, DEFAULT_LOGGER.clone()).run(IRON_THREADS, StartupNotification::Off) {
+                    Ok(listening) => listening,
+                    Err(err) => {
+                        error!(DEFAULT_LOGGER, "error: {}", err);
+                        for err in err.error_chain.iter().skip(1) {
+                            error!(DEFAULT_LOGGER, "caused by: {}", err);
+                        }
+                        return;
                     }
-                    return;
-                }
-            };
+                };
             as_tx.send(listening).unwrap()
         });
 
@@ -586,12 +610,7 @@ impl Test {
 
         router.get("/api/info", handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION }, "info");
 
-        let login_user_id = Arc::new(Mutex::new(Some("spec_user_id".to_string())));
-        router.post(
-            LOGIN_PATH,
-            handlers::RocketchatLogin { successful: true, rocketchat_user_id: Arc::clone(&login_user_id) },
-            "login",
-        );
+        router.post(LOGIN_PATH, handlers::RocketchatLogin { users: Arc::clone(&self.rocketchat_users) }, "login");
 
         let me_username = Arc::new(Mutex::new("spec_user".to_string()));
         router.get(ME_PATH, handlers::RocketchatMe { username: Arc::clone(&me_username) }, "me");
@@ -723,4 +742,11 @@ pub fn extract_payload(request: &mut Request) -> String {
 
 fn file_line_logger_format(info: &Record) -> String {
     format!("{}:{} {}", info.file(), info.line(), info.module())
+}
+
+fn default_rocketchat_users() -> HashMap<String, (String, String)> {
+    let mut users = HashMap::new();
+    users.insert("spec_user".to_string(), ("spec_user_id".to_string(), "secret".to_string()));
+
+    users
 }

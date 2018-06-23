@@ -491,7 +491,7 @@ fn unkown_membership_states_are_skipped() {
 
     // the user does not get a message, because the event is ignored
     // so the receiver never gets a message and times out
-    receiver.recv_timeout(default_timeout()).is_err();
+    receiver.recv_timeout(default_timeout()).unwrap_err();
 }
 
 #[test]

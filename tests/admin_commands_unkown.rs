@@ -26,8 +26,11 @@ fn unknown_commands_from_the_admin_room_are_ignored() {
         "bogus command".to_string(),
     );
 
+    // welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
     // we don't get a message, because the command is ignored and no error occurs
-    receiver.recv_timeout(default_timeout()).is_err();
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 
 #[test]
@@ -46,8 +49,11 @@ fn unknown_content_types_from_the_admin_room_are_ignored() {
         "emote message".to_string(),
     );
 
+    // welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
     // we don't get a message, because unknown content types are ignored and no error occurs
-    receiver.recv_timeout(default_timeout()).is_err();
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
 }
 
 #[test]
@@ -66,6 +72,9 @@ fn messages_from_the_bot_user_are_ignored() {
         "bot message".to_string(),
     );
 
+    // welcome message
+    receiver.recv_timeout(default_timeout()).unwrap();
+
     // we don't get a message, because messages from the bot user are ignored and no error occurs
-    receiver.recv_timeout(default_timeout()).is_err();
+    assert!(receiver.recv_timeout(default_timeout()).is_err());
 }

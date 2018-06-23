@@ -229,10 +229,12 @@ pub struct LoginEndpoint<'a> {
 }
 
 /// Payload of the login endpoint
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize)]
 pub struct LoginPayload<'a> {
-    username: &'a str,
-    password: &'a str,
+    /// Rocket.Chat username
+    pub username: &'a str,
+    /// Rocket.Chat password
+    pub password: &'a str,
 }
 
 impl<'a> Endpoint<String> for LoginEndpoint<'a> {
@@ -868,7 +870,7 @@ impl super::RocketchatApi for RocketchatApi {
         Ok(users_info_response.user)
     }
 
-    fn with_credentials(mut self: Box<Self>, user_id: String, auth_token: String) -> Box<super::RocketchatApi> {
+    fn with_credentials(mut self: Box<Self>, user_id: String, auth_token: String) -> Box<dyn super::RocketchatApi> {
         self.user_id = user_id;
         self.auth_token = auth_token;
         self

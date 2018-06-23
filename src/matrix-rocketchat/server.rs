@@ -10,8 +10,9 @@ use api::MatrixApi;
 use config::Config;
 use errors::*;
 use handlers::iron::{Rocketchat, RocketchatLogin, Transactions, Welcome};
+use i18n::*;
 use log::IronLogger;
-use models::ConnectionPool;
+use models::{ConnectionPool, Room};
 
 embed_migrations!("migrations");
 
@@ -23,6 +24,15 @@ pub struct Server<'a> {
     logger: Logger,
 }
 
+/// Enable/Disable notifications when the application service is started
+#[derive(PartialEq)]
+pub enum StartupNotification {
+    /// Do send notifications when the server is started
+    On,
+    /// Do not send notifications when the server is started
+    Off,
+}
+
 impl<'a> Server<'a> {
     /// Create a new `Server` with a given configuration.
     pub fn new(config: &Config, logger: Logger) -> Server {
@@ -30,12 +40,16 @@ impl<'a> Server<'a> {
     }
 
     /// Runs the application service bridge.
-    pub fn run(&self, threads: usize) -> Result<Listening> {
+    pub fn run(&self, threads: usize, startup_notification: StartupNotification) -> Result<Listening> {
         self.prepare_database()?;
         let connection_pool = ConnectionPool::create(&self.config.database_url)?;
 
         let matrix_api = MatrixApi::new(self.config, self.logger.clone())?;
         self.setup_bot_user(matrix_api.as_ref())?;
+
+        if startup_notification == StartupNotification::On {
+            self.send_login_notifications(&matrix_api)?;
+        }
 
         let router = self.setup_routes(matrix_api);
         let mut chain = Chain::new(router);
@@ -62,7 +76,21 @@ impl<'a> Server<'a> {
         listener.chain_err(|| ErrorKind::ServerStartupError).map_err(Error::from)
     }
 
-    fn setup_routes(&self, matrix_api: Box<MatrixApi>) -> Router {
+    fn send_login_notifications(&self, matrix_api: &Box<dyn MatrixApi>) -> Result<()> {
+        let bot_user_id = self.config.matrix_bot_user_id()?;
+        let room_ids = matrix_api.get_joined_rooms(bot_user_id.clone())?;
+        let msg = t!(["admin_room", "re_login"]).l(DEFAULT_LANGUAGE);
+        for room_id in room_ids {
+            let room = Room::new(self.config, &self.logger, matrix_api.as_ref(), room_id);
+            if room.is_admin_room()? {
+                matrix_api.send_text_message(room.id, bot_user_id.clone(), msg.clone())?;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn setup_routes(&self, matrix_api: Box<dyn MatrixApi>) -> Router {
         debug!(self.logger, "Setting up routes");
         let mut router = Router::new();
         router.get("/", Welcome {}, "welcome");
@@ -78,7 +106,7 @@ impl<'a> Server<'a> {
         embedded_migrations::run(&connection).map_err(Error::from)
     }
 
-    fn setup_bot_user(&self, matrix_api: &MatrixApi) -> Result<()> {
+    fn setup_bot_user(&self, matrix_api: &dyn MatrixApi) -> Result<()> {
         let matrix_bot_user_id = self.config.matrix_bot_user_id()?;
         debug!(self.logger, "Setting up bot user {}", matrix_bot_user_id);
         if matrix_api.get_display_name(matrix_bot_user_id.clone())?.is_some() {

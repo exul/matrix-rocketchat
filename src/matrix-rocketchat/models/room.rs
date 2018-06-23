@@ -33,18 +33,18 @@ pub struct Room<'a> {
     /// Logger context
     logger: &'a Logger,
     /// API to call the Matrix homeserver
-    matrix_api: &'a MatrixApi,
+    matrix_api: &'a dyn MatrixApi,
 }
 
 impl<'a> Room<'a> {
     /// Create a new room model, to interact with Matrix rooms.
-    pub fn new(config: &'a Config, logger: &'a Logger, matrix_api: &'a MatrixApi, id: RoomId) -> Room<'a> {
+    pub fn new(config: &'a Config, logger: &'a Logger, matrix_api: &'a dyn MatrixApi, id: RoomId) -> Room<'a> {
         Room { config, logger, matrix_api, id }
     }
 
     /// Create a room on the Matrix homeserver with the power levels for a bridged room.
     pub fn create(
-        matrix_api: &MatrixApi,
+        matrix_api: &dyn MatrixApi,
         alias: Option<String>,
         display_name: &Option<String>,
         creator_id: &UserId,
@@ -61,7 +61,7 @@ impl<'a> Room<'a> {
     pub fn get_dm(
         config: &'a Config,
         logger: &'a Logger,
-        matrix_api: &'a MatrixApi,
+        matrix_api: &'a dyn MatrixApi,
         channel_id: String,
         sender_id: &UserId,
         receiver_id: &UserId,
@@ -250,7 +250,7 @@ impl<'a> Room<'a> {
 
         let user_on_rocketchat_server = UserOnRocketchatServer::find(conn, user_matrix_id, server_id)?;
         let rocketchat_user_id = user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default();
-        let rocketchat_auth_token = user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default();
+        let rocketchat_auth_token = user_on_rocketchat_server.rocketchat_auth_token().unwrap_or_default();
         let rocketchat_api = RocketchatApi::new(server.rocketchat_url.clone(), self.logger.clone())?
             .with_credentials(rocketchat_user_id, rocketchat_auth_token);
 
@@ -286,7 +286,7 @@ impl<'a> Room<'a> {
     /// Join all users that are in a Rocket.Chat room to the Matrix room.
     pub fn join_all_rocketchat_users(
         &self,
-        rocketchat_api: &RocketchatApi,
+        rocketchat_api: &dyn RocketchatApi,
         usernames: &[String],
         rocketchat_server_id: &str,
     ) -> Result<()> {

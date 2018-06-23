@@ -14,12 +14,12 @@ pub struct VirtualUser<'a> {
     /// Logger context
     logger: &'a Logger,
     /// API to call the Matrix homeserver
-    matrix_api: &'a MatrixApi,
+    matrix_api: &'a dyn MatrixApi,
 }
 
 impl<'a> VirtualUser<'a> {
     /// Create a new virtual users model, to interact with Matrix virtual users.
-    pub fn new(config: &'a Config, logger: &'a Logger, matrix_api: &'a MatrixApi) -> VirtualUser<'a> {
+    pub fn new(config: &'a Config, logger: &'a Logger, matrix_api: &'a dyn MatrixApi) -> VirtualUser<'a> {
         VirtualUser { config, logger, matrix_api }
     }
 

@@ -145,7 +145,7 @@ pub trait RocketchatApi {
     /// Get information like user_id, status, etc. about a user
     fn users_info(&self, username: &str) -> Result<User>;
     /// Set credentials that are used for all API calls that need authentication
-    fn with_credentials(self: Box<Self>, user_id: String, auth_token: String) -> Box<RocketchatApi>;
+    fn with_credentials(self: Box<Self>, user_id: String, auth_token: String) -> Box<dyn RocketchatApi>;
 }
 
 /// Response format when querying the Rocket.Chat info endpoint
@@ -154,10 +154,10 @@ pub struct GetInfoResponse {
     version: String,
 }
 
-impl RocketchatApi {
+impl dyn RocketchatApi {
     /// Creates a new Rocket.Chat API depending on the version of the API.
     /// It returns a `RocketchatApi` trait, because for each version a different API is created.
-    pub fn new(base_url: String, logger: Logger) -> Result<Box<RocketchatApi>> {
+    pub fn new(base_url: String, logger: Logger) -> Result<Box<dyn RocketchatApi>> {
         let url = base_url.clone() + "/api/info";
         let params = HashMap::new();
 
@@ -190,7 +190,7 @@ impl RocketchatApi {
         RocketchatApi::get_max_supported_version_api(rocketchat_info.version, base_url, logger)
     }
 
-    fn get_max_supported_version_api(version: String, base_url: String, logger: Logger) -> Result<Box<RocketchatApi>> {
+    fn get_max_supported_version_api(version: String, base_url: String, logger: Logger) -> Result<Box<dyn RocketchatApi>> {
         let version_string = version.clone();
         let mut versions = version_string.split('.').into_iter();
         let major: i32 = versions.next().unwrap_or("0").parse().unwrap_or(0);

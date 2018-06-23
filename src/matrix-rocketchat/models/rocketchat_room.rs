@@ -19,7 +19,7 @@ pub struct RocketchatRoom<'a> {
     /// Logger context
     logger: &'a Logger,
     /// API to call the Matrix homeserver
-    matrix_api: &'a MatrixApi,
+    matrix_api: &'a dyn MatrixApi,
 }
 
 impl<'a> RocketchatRoom<'a> {
@@ -27,7 +27,7 @@ impl<'a> RocketchatRoom<'a> {
     pub fn new(
         config: &'a Config,
         logger: &'a Logger,
-        matrix_api: &'a MatrixApi,
+        matrix_api: &'a dyn MatrixApi,
         id: String,
         server_id: &'a str,
     ) -> RocketchatRoom<'a> {
@@ -38,10 +38,10 @@ impl<'a> RocketchatRoom<'a> {
     pub fn from_name(
         config: &'a Config,
         logger: &'a Logger,
-        matrix_api: &'a MatrixApi,
+        matrix_api: &'a dyn MatrixApi,
         name: &'a str,
         server_id: &'a str,
-        rocketchat_api: &'a RocketchatApi,
+        rocketchat_api: &'a dyn RocketchatApi,
     ) -> Result<RocketchatRoom<'a>> {
         let mut rocketchat_rooms = rocketchat_api.channels_list()?;
         let groups = rocketchat_api.groups_list()?;
@@ -67,7 +67,7 @@ impl<'a> RocketchatRoom<'a> {
     /// homeserver and manages the rooms virtual users.
     pub fn bridge(
         &self,
-        rocketchat_api: &RocketchatApi,
+        rocketchat_api: &dyn RocketchatApi,
         name: &Option<String>,
         userlist: &[String],
         creator_id: &UserId,

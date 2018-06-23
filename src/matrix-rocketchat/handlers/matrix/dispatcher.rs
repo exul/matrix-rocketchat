@@ -16,7 +16,7 @@ pub struct Dispatcher<'a> {
     config: &'a Config,
     connection: &'a SqliteConnection,
     logger: &'a Logger,
-    matrix_api: Box<MatrixApi>,
+    matrix_api: Box<dyn MatrixApi>,
 }
 
 impl<'a> Dispatcher<'a> {
@@ -25,7 +25,7 @@ impl<'a> Dispatcher<'a> {
         config: &'a Config,
         connection: &'a SqliteConnection,
         logger: &'a Logger,
-        matrix_api: Box<MatrixApi>,
+        matrix_api: Box<dyn MatrixApi>,
     ) -> Dispatcher<'a> {
         Dispatcher { config, connection, logger, matrix_api }
     }

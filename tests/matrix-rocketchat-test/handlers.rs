@@ -15,7 +15,7 @@ use iron::prelude::*;
 use iron::url::percent_encoding::percent_decode;
 use iron::url::Url;
 use iron::{status, BeforeMiddleware, Chain, Handler};
-use matrix_rocketchat::api::rocketchat::v1::Message as RocketchatMessage;
+use matrix_rocketchat::api::rocketchat::v1::{LoginPayload, Message as RocketchatMessage};
 use matrix_rocketchat::api::rocketchat::{Channel, User};
 use matrix_rocketchat::errors::{MatrixErrorResponse, RocketchatErrorResponse};
 use persistent::Write;
@@ -53,48 +53,41 @@ impl Handler for RocketchatInfo {
 }
 
 pub struct RocketchatLogin {
-    pub successful: bool,
-    pub rocketchat_user_id: Arc<Mutex<Option<String>>>,
+    pub users: Arc<Mutex<HashMap<String, (String, String)>>>,
 }
 
 impl Handler for RocketchatLogin {
-    fn handle(&self, _request: &mut Request) -> IronResult<Response> {
+    fn handle(&self, request: &mut Request) -> IronResult<Response> {
         debug!(DEFAULT_LOGGER, "Rocket.Chat mock server got login request");
+        let request_payload = extract_payload(request);
+        let login_payload: LoginPayload = serde_json::from_str(&request_payload).unwrap();
 
-        let (status, payload) = match self.successful {
-            true => {
-                let user_id: String = self
-                    .rocketchat_user_id
-                    .lock()
-                    .unwrap()
-                    .clone()
-                    .unwrap_or(thread_rng().gen_ascii_chars().take(10).collect());
-                (
-                    status::Ok,
-                    r#"{
+        let users_map = self.users.lock().unwrap();
+        if let Some((user_id, password)) = users_map.get(login_payload.username) {
+            if password == login_payload.password {
+                let payload = r#"{
                     "status": "success",
                     "data": {
                         "authToken": "spec_auth_token",
                         "userId": "USER_ID"
                     }
                  }"#
-                    .replace("USER_ID", &user_id),
-                )
+                .replace("USER_ID", &user_id);
+                return Ok(Response::with((status::Ok, payload)));
             }
-            false => (
-                status::Unauthorized,
-                r#"{
+        }
+
+        let payload = r#"{
                     "status": "error",
                     "message": "Unauthorized"
                 }"#
-                .to_string(),
-            ),
-        };
+        .to_string();
 
-        Ok(Response::with((status, payload)))
+        Ok(Response::with((status::Unauthorized, payload)))
     }
 }
 
+//TODO: Fix this handler to use the header value and lookup the user in the users list instead of hard-code it in the struct
 pub struct RocketchatMe {
     pub username: Arc<Mutex<String>>,
 }
@@ -483,7 +476,7 @@ impl MatrixRegister {
     pub fn with_forwarder() -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
         let mut chain = Chain::new(MatrixRegister {});
-        chain.link_before(message_forwarder);;
+        chain.link_before(message_forwarder);
         (chain, receiver)
     }
 }
@@ -519,7 +512,7 @@ impl MatrixSetDisplayName {
     pub fn with_forwarder() -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
         let mut chain = Chain::new(MatrixSetDisplayName {});
-        chain.link_before(message_forwarder);;
+        chain.link_before(message_forwarder);
         (chain, receiver)
     }
 }
@@ -718,7 +711,7 @@ impl SendRoomState {
     pub fn with_forwarder() -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
         let mut chain = Chain::new(SendRoomState {});
-        chain.link_before(message_forwarder);;
+        chain.link_before(message_forwarder);
         (chain, receiver)
     }
 }
@@ -853,7 +846,7 @@ impl MatrixCreateContentHandler {
     pub fn with_forwarder(uploaded_files: Arc<Mutex<Vec<String>>>) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
         let mut chain = Chain::new(MatrixCreateContentHandler { uploaded_files: uploaded_files });
-        chain.link_before(message_forwarder);;
+        chain.link_before(message_forwarder);
         (chain, receiver)
     }
 }
@@ -1054,7 +1047,7 @@ impl MatrixJoinRoom {
     pub fn with_forwarder(as_url: String, send_inviter: bool) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
         let mut chain = Chain::new(MatrixJoinRoom { as_url: as_url, send_inviter: send_inviter });
-        chain.link_before(message_forwarder);;
+        chain.link_before(message_forwarder);
         (chain, receiver)
     }
 }
@@ -1123,7 +1116,7 @@ impl MatrixInviteUser {
     pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
         let mut chain = Chain::new(MatrixInviteUser { as_url: as_url });
-        chain.link_before(message_forwarder);;
+        chain.link_before(message_forwarder);
         (chain, receiver)
     }
 }
@@ -1169,7 +1162,7 @@ impl MatrixLeaveRoom {
     pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
         let mut chain = Chain::new(MatrixLeaveRoom { as_url: as_url });
-        chain.link_before(message_forwarder);;
+        chain.link_before(message_forwarder);
         (chain, receiver)
     }
 }
@@ -1270,7 +1263,7 @@ impl MatrixConditionalErrorResponder {
         };
 
         let mut chain = Chain::new(conditional_error_responder);
-        chain.link_after(message_forwarder);;
+        chain.link_after(message_forwarder);
         (chain, receiver)
     }
 }
@@ -1535,7 +1528,7 @@ fn add_alias_to_room(request: &mut Request, room_id: RoomId, room_alias: RoomAli
 
     let aliases = room_alias_map.get_mut(&room_id).unwrap();
 
-    debug!(DEFAULT_LOGGER, "Matrix mock server adds alias {} to room {}", room_alias, room_id);;
+    debug!(DEFAULT_LOGGER, "Matrix mock server adds alias {} to room {}", room_alias, room_id);
     aliases.push(room_alias);
     Ok(())
 }

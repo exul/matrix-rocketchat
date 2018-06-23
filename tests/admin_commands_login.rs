@@ -10,11 +10,10 @@ extern crate serde_json;
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::sync::{Arc, Mutex};
 
 use http::Method;
 use iron::status;
-use matrix_rocketchat::api::rocketchat::v1::LOGIN_PATH;
+use matrix_rocketchat::api::rocketchat::v1::{CHAT_POST_MESSAGE_PATH, LOGIN_PATH};
 use matrix_rocketchat::api::{MatrixApi, RequestData, RestApi};
 use matrix_rocketchat::models::Credentials;
 use matrix_rocketchat::models::{RocketchatServer, UserOnRocketchatServer};
@@ -50,7 +49,7 @@ fn sucessfully_login_via_chat_mesage() {
     let user_on_rocketchat_server =
         UserOnRocketchatServer::find(&connection, &UserId::try_from("@spec_user:localhost").unwrap(), rocketchat_server.id)
             .unwrap();
-    assert_eq!(user_on_rocketchat_server.rocketchat_auth_token.unwrap(), "spec_auth_token");
+    assert_eq!(user_on_rocketchat_server.rocketchat_auth_token().unwrap(), "spec_auth_token");
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains("You are logged in."));
@@ -62,18 +61,7 @@ fn wrong_password_when_logging_in_via_chat_message() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let mut rocketchat_router = test.default_rocketchat_routes();
-    rocketchat_router.post(
-        LOGIN_PATH,
-        handlers::RocketchatLogin { successful: false, rocketchat_user_id: Arc::new(Mutex::new(None)) },
-        "login",
-    );
-    let test = test
-        .with_matrix_routes(matrix_router)
-        .with_custom_rocketchat_routes(rocketchat_router)
-        .with_rocketchat_mock()
-        .with_connected_admin_room()
-        .run();
+    let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_connected_admin_room().run();
 
     helpers::send_room_message_from_matrix(
         &test.config.as_url,
@@ -148,20 +136,50 @@ fn sucessfully_login_via_rest_api() {
     let user_on_rocketchat_server =
         UserOnRocketchatServer::find(&connection, &UserId::try_from("@spec_user:localhost").unwrap(), rocketchat_server.id)
             .unwrap();
-    assert_eq!(user_on_rocketchat_server.rocketchat_auth_token.unwrap(), "spec_auth_token");
+    assert_eq!(user_on_rocketchat_server.rocketchat_auth_token().unwrap(), "spec_auth_token");
+}
+
+#[test]
+fn successfully_login_after_an_application_service_restart() {
+    let mut test = Test::new();
+    let (message_forwarder, receiver) = MessageForwarder::new();
+    let mut rocketchat_router = test.default_rocketchat_routes();
+    rocketchat_router.post(CHAT_POST_MESSAGE_PATH, message_forwarder, "post_text_message");
+
+    test = test
+        .with_rocketchat_mock()
+        .with_custom_rocketchat_routes(rocketchat_router)
+        .with_connected_admin_room()
+        .with_logged_in_user()
+        .with_bridged_room(("spec_channel", vec!["spec_user"]))
+        .run();
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "spec message".to_string(),
+    );
+
+    let first_message_received_by_rocketchat = receiver.recv_timeout(default_timeout()).unwrap();
+    assert!(first_message_received_by_rocketchat.contains("spec message"));
+
+    test.restart_application_service();
+
+    helpers::send_room_message_from_matrix(
+        &test.config.as_url,
+        RoomId::try_from("!spec_channel_id:localhost").unwrap(),
+        UserId::try_from("@spec_user:localhost").unwrap(),
+        "next message".to_string(),
+    );
+
+    let second_message_received_by_rocketchat = receiver.recv_timeout(default_timeout()).unwrap();
+    println!("SECOND: {}", second_message_received_by_rocketchat);
 }
 
 #[test]
 fn wrong_password_when_logging_in_via_rest_api() {
-    let test = Test::new();
-
-    let mut rocketchat_router = test.default_rocketchat_routes();
-    rocketchat_router.post(
-        LOGIN_PATH,
-        handlers::RocketchatLogin { successful: false, rocketchat_user_id: Arc::new(Mutex::new(None)) },
-        "login",
-    );
-    let test = test.with_custom_rocketchat_routes(rocketchat_router).with_rocketchat_mock().with_connected_admin_room().run();
+    let test = Test::new().with_rocketchat_mock().with_connected_admin_room().run();
 
     let login_request = Credentials {
         user_id: UserId::try_from("@spec_user:localhost").unwrap(),

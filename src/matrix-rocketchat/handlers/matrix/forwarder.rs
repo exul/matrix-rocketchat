@@ -13,12 +13,12 @@ use models::{RocketchatServer, UserOnRocketchatServer};
 pub struct Forwarder<'a> {
     connection: &'a SqliteConnection,
     logger: &'a Logger,
-    matrix_api: &'a MatrixApi,
+    matrix_api: &'a dyn MatrixApi,
 }
 
 impl<'a> Forwarder<'a> {
     /// Create a new `Forwarder`.
-    pub fn new(connection: &'a SqliteConnection, logger: &'a Logger, matrix_api: &'a MatrixApi) -> Forwarder<'a> {
+    pub fn new(connection: &'a SqliteConnection, logger: &'a Logger, matrix_api: &'a dyn MatrixApi) -> Forwarder<'a> {
         Forwarder { connection, logger, matrix_api }
     }
 
@@ -35,32 +35,52 @@ impl<'a> Forwarder<'a> {
 
         let rocketchat_api = RocketchatApi::new(server.rocketchat_url, self.logger.clone())?.with_credentials(
             user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
-            user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
+            user_on_rocketchat_server.rocketchat_auth_token().unwrap_or_default(),
         );
 
-        match event.content {
-            MessageEventContent::Text(ref content) => {
-                rocketchat_api.chat_post_message(&content.body, channel_id)?;
-            }
+        let result = match event.content {
+            MessageEventContent::Text(ref content) => rocketchat_api.chat_post_message(&content.body, channel_id),
             MessageEventContent::Image(ref content) => {
                 let mt = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
-                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, Some(mt), &content.body, channel_id)?;
+                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, Some(mt), &content.body, channel_id)
             }
             MessageEventContent::File(ref content) => {
                 let mt = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
-                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, Some(mt), &content.body, channel_id)?;
+                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, Some(mt), &content.body, channel_id)
             }
             MessageEventContent::Audio(ref content) => {
                 let mt = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
-                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mt, &content.body, channel_id)?;
+                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mt, &content.body, channel_id)
             }
             MessageEventContent::Video(ref content) => {
                 let mt = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
-                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mt, &content.body, channel_id)?;
+                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mt, &content.body, channel_id)
             }
             MessageEventContent::Emote(_) | MessageEventContent::Location(_) | MessageEventContent::Notice(_) => {
-                info!(self.logger, "Not forwarding message, forwarding emote, location or notice messages is not implemented.")
+                info!(self.logger, "Not forwarding message, forwarding emote, location or notice messages is not implemented.");
+                return Ok(());
             }
+        };
+
+        if let Err(result) = result {
+            match result.error_chain.kind() {
+                ErrorKind::RocketchatAuthenticationFailed(_) => {
+                    let reason = t!(["errors", "rocketchat_login_needed"]).l(DEFAULT_LANGUAGE);
+                    let room_id = match &event.room_id{
+                        Some(room_id) => room_id.clone(),
+                        None => {
+                            warn!(self.logger, "Room ID missing");
+                            return Ok(())
+                        }
+                    };
+                    self.matrix_api.redact_event(room_id, event.event_id.clone(), Some(reason))?;
+                    //TODO: Send message to admin room
+                }
+                _ => {
+                    return Err(result);
+                }
+            }
+            return Ok(());
         }
 
         user_on_rocketchat_server.set_last_message_sent(self.connection)
@@ -68,7 +88,7 @@ impl<'a> Forwarder<'a> {
 
     fn forward_file_to_rocketchat(
         &self,
-        rocketchat_api: &RocketchatApi,
+        rocketchat_api: &dyn RocketchatApi,
         url: &str,
         mimetype: Option<String>,
         body: &str,

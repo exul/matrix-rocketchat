@@ -7,10 +7,9 @@ extern crate ruma_identifiers;
 
 use std::collections::HashMap;
 use std::convert::TryFrom;
-use std::sync::{Arc, Mutex};
 
 use iron::status;
-use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_JOINED_PATH, CHANNELS_LIST_PATH, LOGIN_PATH, ME_PATH};
+use matrix_rocketchat::api::rocketchat::v1::{CHANNELS_LIST_JOINED_PATH, CHANNELS_LIST_PATH, ME_PATH};
 use matrix_rocketchat::api::MatrixApi;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER};
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
@@ -173,11 +172,6 @@ fn the_user_gets_a_message_when_the_me_endpoint_returns_an_error() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = test.default_rocketchat_routes();
-    rocketchat_router.post(
-        LOGIN_PATH,
-        handlers::RocketchatLogin { successful: true, rocketchat_user_id: Arc::new(Mutex::new(None)) },
-        "login",
-    );
     rocketchat_router.get(
         ME_PATH,
         handlers::RocketchatErrorResponder { status: status::InternalServerError, message: "Spec Error".to_string() },
@@ -226,11 +220,6 @@ fn the_user_gets_a_message_when_the_me_response_cannot_be_deserialized() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = test.default_rocketchat_routes();
-    rocketchat_router.post(
-        LOGIN_PATH,
-        handlers::RocketchatLogin { successful: true, rocketchat_user_id: Arc::new(Mutex::new(None)) },
-        "login",
-    );
     rocketchat_router.get(ME_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "me");
 
     let channels = test.channel_list();

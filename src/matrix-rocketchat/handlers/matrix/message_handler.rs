@@ -13,7 +13,7 @@ pub struct MessageHandler<'a> {
     config: &'a Config,
     connection: &'a SqliteConnection,
     logger: &'a Logger,
-    matrix_api: Box<MatrixApi>,
+    matrix_api: Box<dyn MatrixApi>,
 }
 
 impl<'a> MessageHandler<'a> {
@@ -22,7 +22,7 @@ impl<'a> MessageHandler<'a> {
         config: &'a Config,
         connection: &'a SqliteConnection,
         logger: &'a Logger,
-        matrix_api: Box<MatrixApi>,
+        matrix_api: Box<dyn MatrixApi>,
     ) -> MessageHandler<'a> {
         MessageHandler { config, connection, logger, matrix_api }
     }

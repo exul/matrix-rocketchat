@@ -15,6 +15,7 @@ use std::thread;
 
 use iron::{status, Iron, Listening};
 use matrix_rocketchat::errors::*;
+use matrix_rocketchat::server::StartupNotification;
 use matrix_rocketchat::Server;
 use matrix_rocketchat_test::{default_matrix_api_versions, handlers, DEFAULT_LOGGER, IRON_THREADS, TEMP_DIR_NAME};
 use router::Router;
@@ -51,7 +52,8 @@ fn starup_fails_when_server_cannot_bind_to_address() {
     let running_server_log = log.clone();
     let (running_server_tx, running_server_rx) = channel::<Result<Listening>>();
     thread::spawn(move || {
-        let running_server_result = Server::new(&running_server_config, running_server_log).run(IRON_THREADS);
+        let running_server_result =
+            Server::new(&running_server_config, running_server_log).run(IRON_THREADS, StartupNotification::Off);
         homeserver_mock_listen.close().unwrap();
         running_server_tx.send(running_server_result).unwrap();
     });
@@ -60,7 +62,7 @@ fn starup_fails_when_server_cannot_bind_to_address() {
 
     let (failed_server_tx, failed_server_rx) = channel::<Result<Listening>>();
     thread::spawn(move || {
-        let failed_server_result = Server::new(&config, log).run(IRON_THREADS);
+        let failed_server_result = Server::new(&config, log).run(IRON_THREADS, StartupNotification::Off);
         failed_server_tx.send(failed_server_result).unwrap();
     });
     let failed_server_result = failed_server_rx.recv_timeout(matrix_rocketchat_test::default_timeout()).unwrap();
@@ -173,7 +175,7 @@ fn start_servers(matrix_router: Router) -> Result<Listening> {
         let mut config = matrix_rocketchat_test::build_test_config(&temp_dir);
         config.hs_url = format!("http://{}:{}", homeserver_mock_socket_addr.ip(), homeserver_mock_socket_addr.port());
         let log = DEFAULT_LOGGER.clone();
-        let server_result = Server::new(&config, log).run(IRON_THREADS);
+        let server_result = Server::new(&config, log).run(IRON_THREADS, StartupNotification::Off);
         server_tx.send(server_result).unwrap();
     });
 

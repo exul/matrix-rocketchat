@@ -16,6 +16,7 @@ use ruma_client_api::r0::membership::join_room_by_id::{self, Endpoint as JoinRoo
 use ruma_client_api::r0::membership::leave_room::{self, Endpoint as LeaveRoomEndpoint};
 use ruma_client_api::r0::profile::get_display_name::{self, Endpoint as GetDisplayNameEndpoint};
 use ruma_client_api::r0::profile::set_display_name::{self, Endpoint as SetDisplayNameEndpoint};
+use ruma_client_api::r0::redact::redact_event::{self, Endpoint as RedactEndpoint};
 use ruma_client_api::r0::room::create_room::{self, Endpoint as CreateRoomEndpoint, RoomPreset};
 use ruma_client_api::r0::send::send_message_event::{self, Endpoint as SendMessageEventEndpoint};
 use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint as SendStateEventForEmptyKeyEndpoint};
@@ -285,7 +286,7 @@ impl super::MatrixApi for MatrixApi {
 
         let room_create: Value = serde_json::from_str(&body).chain_err(|| {
             ErrorKind::InvalidJSON(format!(
-                "Could not deserialize response from Matrix get_state_events_for_empty_key API endpoint: `{}`",
+                "Could not deserialize response from Matrix get_room_creator/get_state_events_for_empty_key API endpoint: `{}`",
                 body
             ))
         })?;
@@ -334,7 +335,7 @@ impl super::MatrixApi for MatrixApi {
 
         let room_topic_response: Value = serde_json::from_str(&body).chain_err(|| {
             ErrorKind::InvalidJSON(format!(
-                "Could not deserialize response from Matrix get_state_events_for_empty_key API endpoint: `{}`",
+                "Could not deserialize response from Matrix get_room_topic/get_state_events_for_empty_key API endpoint: `{}`",
                 body
             ))
         })?;
@@ -418,6 +419,23 @@ impl super::MatrixApi for MatrixApi {
         if !status_code.is_success() {
             return Err(build_error(&endpoint, &body, &status_code));
         }
+        Ok(())
+    }
+
+    fn redact_event(&self, room_id: RoomId, event_id: EventId, reason: Option<String>) -> Result<()> {
+        let txn_id = EventId::new(&self.base_url).chain_err(|| ErrorKind::EventIdGenerationFailed)?.to_string();
+        let path_params = redact_event::PathParams { room_id, event_id, txn_id };
+        let endpoint = self.base_url.clone() + &RedactEndpoint::request_path(path_params);
+        let params = self.params_hash();
+
+        let body_params = redact_event::BodyParams { reason };
+        let payload = serde_json::to_string(&body_params).chain_err(|| body_params_error!("redact event"))?;
+
+        let (body, status_code) = RestApi::call_matrix(&RedactEndpoint::method(), &endpoint, payload, &params)?;
+        if !status_code.is_success() {
+            return Err(build_error(&endpoint, &body, &status_code));
+        }
+
         Ok(())
     }
 

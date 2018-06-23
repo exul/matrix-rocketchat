@@ -59,12 +59,12 @@ impl RestApi {
     }
 
     /// Call a Rocket.Chat API endpoint
-    pub fn call_rocketchat<T: Into<Body>>(endpoint: &Endpoint<T>) -> Result<(String, StatusCode)> {
+    pub fn call_rocketchat<T: Into<Body>>(endpoint: &dyn Endpoint<T>) -> Result<(String, StatusCode)> {
         RestApi::call(&endpoint.method(), &endpoint.url(), endpoint.payload()?, &endpoint.query_params(), endpoint.headers()?)
     }
 
     /// Get a file that was uploaded to Rocket.Chat
-    pub fn get_rocketchat_file<T: Into<Body>>(endpoint: &Endpoint<T>) -> Result<Response> {
+    pub fn get_rocketchat_file<T: Into<Body>>(endpoint: &dyn Endpoint<T>) -> Result<Response> {
         RestApi::call_raw(
             &endpoint.method(),
             &endpoint.url(),

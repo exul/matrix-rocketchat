@@ -7,7 +7,7 @@ use ruma_client_api::unversioned::get_supported_versions::{
 use ruma_client_api::Endpoint;
 use ruma_events::room::member::MemberEvent;
 use ruma_events::room::message::MessageType;
-use ruma_identifiers::{RoomAliasId, RoomId, UserId};
+use ruma_identifiers::{EventId, RoomAliasId, RoomId, UserId};
 use serde_json;
 use slog::Logger;
 
@@ -54,6 +54,8 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     fn leave_room(&self, room_id: RoomId, user_id: UserId) -> Result<()>;
     /// Set the canonical alias for a room.
     fn put_canonical_room_alias(&self, room_id: RoomId, matrix_room_alias_id: Option<RoomAliasId>) -> Result<()>;
+    /// Delete/redact an event.
+    fn redact_event(&self, room_id: RoomId, event_id: EventId, reason: Option<String>) -> Result<()>;
     /// Register a user.
     fn register(&self, user_id_local_part: String) -> Result<()>;
     /// Send a text message to a room.
@@ -77,28 +79,28 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
 /// `MatrixApi` trait to not be object safe.
 pub trait MatrixApiClone {
     /// Clone the object inside the trait and return it in box.
-    fn clone_box(&self) -> Box<MatrixApi>;
+    fn clone_box(&self) -> Box<dyn MatrixApi>;
 }
 
 impl<T> MatrixApiClone for T
 where
     T: 'static + MatrixApi + Clone,
 {
-    fn clone_box(&self) -> Box<MatrixApi> {
+    fn clone_box(&self) -> Box<dyn MatrixApi> {
         Box::new(self.clone())
     }
 }
 
-impl Clone for Box<MatrixApi> {
-    fn clone(&self) -> Box<MatrixApi> {
+impl Clone for Box<dyn MatrixApi> {
+    fn clone(&self) -> Box<dyn MatrixApi> {
         self.clone_box()
     }
 }
 
-impl MatrixApi {
+impl dyn MatrixApi {
     /// Creates a new Matrix API depending on the version of the homeserver.
     /// It returns a `MatrixApi` trait, because for each version a different API is created.
-    pub fn new(config: &Config, logger: Logger) -> Result<Box<MatrixApi>> {
+    pub fn new(config: &Config, logger: Logger) -> Result<Box<dyn MatrixApi>> {
         let url = config.hs_url.clone() + &GetSupportedVersionsEndpoint::request_path(());
         let params = HashMap::new();
 
@@ -126,7 +128,7 @@ impl MatrixApi {
         MatrixApi::get_max_supported_version_api(&supported_versions.versions, config, logger)
     }
 
-    fn get_max_supported_version_api(versions: &[String], config: &Config, logger: Logger) -> Result<Box<MatrixApi>> {
+    fn get_max_supported_version_api(versions: &[String], config: &Config, logger: Logger) -> Result<Box<dyn MatrixApi>> {
         for version in versions.iter().rev() {
             if version.starts_with("r0") {
                 let matrix_api = r0::MatrixApi::new(config, logger);

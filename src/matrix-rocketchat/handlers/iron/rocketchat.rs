@@ -15,12 +15,12 @@ pub struct Rocketchat {
     /// Application service configuration
     pub config: Config,
     /// Matrix REST API
-    pub matrix_api: Box<MatrixApi>,
+    pub matrix_api: Box<dyn MatrixApi>,
 }
 
 impl Rocketchat {
     /// Rocket.Chat endpoint with middleware
-    pub fn chain(config: &Config, matrix_api: Box<MatrixApi>) -> Chain {
+    pub fn chain(config: &Config, matrix_api: Box<dyn MatrixApi>) -> Chain {
         let rocketchat = Rocketchat { config: config.clone(), matrix_api };
         let mut chain = Chain::new(rocketchat);
         chain.link_before(RocketchatToken {});

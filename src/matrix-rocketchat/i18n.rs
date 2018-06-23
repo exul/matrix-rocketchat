@@ -92,7 +92,6 @@ macro_rules! i18n_languages {
     }
 }
 
-/// A list of languages that are supported by the application bridge
 i18n_languages!(en);
 
 /// Language that is used if no language is specified

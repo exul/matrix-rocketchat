@@ -20,7 +20,7 @@ pub struct CommandHandler<'a> {
     config: &'a Config,
     connection: &'a SqliteConnection,
     logger: &'a Logger,
-    matrix_api: &'a MatrixApi,
+    matrix_api: &'a dyn MatrixApi,
     admin_room: &'a Room<'a>,
 }
 
@@ -30,7 +30,7 @@ impl<'a> CommandHandler<'a> {
         config: &'a Config,
         connection: &'a SqliteConnection,
         logger: &'a Logger,
-        matrix_api: &'a MatrixApi,
+        matrix_api: &'a dyn MatrixApi,
         admin_room: &'a Room<'a>,
     ) -> CommandHandler<'a> {
         CommandHandler { config, connection, logger, matrix_api, admin_room }
@@ -107,8 +107,6 @@ impl<'a> CommandHandler<'a> {
                 let new_user_on_rocketchat_server = NewUserOnRocketchatServer {
                     matrix_user_id: event.sender.clone(),
                     rocketchat_server_id: server.id,
-                    rocketchat_user_id: None,
-                    rocketchat_auth_token: None,
                 };
 
                 UserOnRocketchatServer::upsert(self.connection, &new_user_on_rocketchat_server)?;
@@ -210,8 +208,8 @@ impl<'a> CommandHandler<'a> {
     fn list_rocketchat_rooms(&self, event: &MessageEvent, server: &RocketchatServer) -> Result<()> {
         let user_on_rocketchat_server = UserOnRocketchatServer::find(self.connection, &event.sender, server.id.clone())?;
         let rocketchat_api = RocketchatApi::new(server.rocketchat_url.clone(), self.logger.clone())?.with_credentials(
-            user_on_rocketchat_server.rocketchat_user_id.unwrap_or_default(),
-            user_on_rocketchat_server.rocketchat_auth_token.unwrap_or_default(),
+            user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
+            user_on_rocketchat_server.rocketchat_auth_token().unwrap_or_default(),
         );
         let bot_user_id = self.config.matrix_bot_user_id()?;
         let list = self.build_rocketchat_rooms_list(rocketchat_api.as_ref(), &server.id, &event.sender)?;
@@ -227,7 +225,7 @@ impl<'a> CommandHandler<'a> {
         let user_on_rocketchat_server = UserOnRocketchatServer::find(self.connection, &event.sender, server.id.clone())?;
         let rocketchat_api = RocketchatApi::new(server.rocketchat_url.clone(), self.logger.clone())?.with_credentials(
             user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
-            user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
+            user_on_rocketchat_server.rocketchat_auth_token().unwrap_or_default(),
         );
 
         let channels = rocketchat_api.channels_list()?;
@@ -300,7 +298,7 @@ impl<'a> CommandHandler<'a> {
         let user_on_rocketchat_server = UserOnRocketchatServer::find(self.connection, &event.sender, server.id.clone())?;
         let rocketchat_api = RocketchatApi::new(server.rocketchat_url.clone(), self.logger.clone())?.with_credentials(
             user_on_rocketchat_server.rocketchat_user_id.clone().unwrap_or_default(),
-            user_on_rocketchat_server.rocketchat_auth_token.clone().unwrap_or_default(),
+            user_on_rocketchat_server.rocketchat_auth_token().unwrap_or_default(),
         );
 
         let rocketchat_room =
@@ -371,7 +369,7 @@ impl<'a> CommandHandler<'a> {
 
     fn build_rocketchat_rooms_list(
         &self,
-        rocketchat_api: &RocketchatApi,
+        rocketchat_api: &dyn RocketchatApi,
         rocketchat_server_id: &str,
         user_id: &UserId,
     ) -> Result<String> {

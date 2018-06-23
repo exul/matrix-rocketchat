@@ -17,7 +17,7 @@ pub struct RocketchatLogin {
     /// Application service configuration
     pub config: Config,
     /// Matrix REST API
-    pub matrix_api: Box<MatrixApi>,
+    pub matrix_api: Box<dyn MatrixApi>,
 }
 
 impl Handler for RocketchatLogin {

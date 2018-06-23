@@ -17,12 +17,12 @@ use models::{ConnectionPool, Events};
 /// to push new events.
 pub struct Transactions {
     config: Config,
-    matrix_api: Box<MatrixApi>,
+    matrix_api: Box<dyn MatrixApi>,
 }
 
 impl Transactions {
     /// Transactions endpoint with middleware
-    pub fn chain(config: Config, matrix_api: Box<MatrixApi>) -> Chain {
+    pub fn chain(config: Config, matrix_api: Box<dyn MatrixApi>) -> Chain {
         let transactions = Transactions { config: config.clone(), matrix_api };
         let mut chain = Chain::new(transactions);
         chain.link_before(AccessToken { config });

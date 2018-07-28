@@ -131,9 +131,9 @@ impl RestApi {
                     url::form_urlencoded::byte_serialize(k.as_bytes()).collect::<String>(),
                     url::form_urlencoded::byte_serialize(v.as_bytes()).collect::<String>(),
                 ]
-                    .join("="),
+                .join("="),
             ]
-                .join("&")
+            .join("&")
         });
         let url_string = [base, query_string].join("");
         let encoded_url = Url::parse(&url_string).chain_err(|| ErrorKind::ApiCallFailed(url_string))?;

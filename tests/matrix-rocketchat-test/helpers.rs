@@ -292,5 +292,5 @@ pub fn add_room_alias_id(config: &Config, room_id: RoomId, room_alias_id: RoomAl
     body_params.insert("alias".to_string(), json!(room_alias));
     let payload = serde_json::to_string(&body_params).unwrap();
 
-    RestApi::call_matrix(&SendStateEventForEmptyKeyEndpoint::method(), &endpoint, payload, &params).unwrap();
+    RestApi::call_matrix(SendStateEventForEmptyKeyEndpoint::method(), &endpoint, payload, &params).unwrap();
 }

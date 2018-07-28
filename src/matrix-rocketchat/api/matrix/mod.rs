@@ -103,7 +103,7 @@ impl MatrixApi {
         let params = HashMap::new();
 
         debug!(logger, "Querying homeserver {} for API versions", url);
-        let (body, status_code) = RestApi::call_matrix(&GetSupportedVersionsEndpoint::method(), &url, "", &params)?;
+        let (body, status_code) = RestApi::call_matrix(GetSupportedVersionsEndpoint::method(), &url, "", &params)?;
         if !status_code.is_success() {
             let matrix_error_resp: MatrixErrorResponse = serde_json::from_str(&body).chain_err(|| {
                 ErrorKind::InvalidJSON(format!(

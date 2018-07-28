@@ -24,12 +24,12 @@ pub struct RestApi {}
 impl RestApi {
     /// Call a matrix REST API endpoint
     pub fn call_matrix<'a, T: Into<Body>>(
-        method: &RumaHttpMethod,
+        method: RumaHttpMethod,
         url: &str,
         payload: T,
         params: &HashMap<&str, &'a str>,
     ) -> Result<(String, StatusCode)> {
-        let method = match *method {
+        let method = match method {
             RumaHttpMethod::Delete => Method::DELETE,
             RumaHttpMethod::Get => Method::GET,
             RumaHttpMethod::Post => Method::POST,
@@ -42,12 +42,12 @@ impl RestApi {
 
     /// Get a file that was uploaded to a Matrix homeserver
     pub fn get_matrix_file<'a, T: Into<Body>>(
-        method: &RumaHttpMethod,
+        method: RumaHttpMethod,
         url: &str,
         payload: T,
         params: &HashMap<&str, &'a str>,
     ) -> Result<Response> {
-        let method = match *method {
+        let method = match method {
             RumaHttpMethod::Delete => Method::DELETE,
             RumaHttpMethod::Get => Method::GET,
             RumaHttpMethod::Post => Method::POST,

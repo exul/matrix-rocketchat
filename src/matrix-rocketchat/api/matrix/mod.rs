@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use reqwest::header::ContentType;
+use http::header::HeaderValue;
 use ruma_client_api::unversioned::get_supported_versions::{
     Endpoint as GetSupportedVersionsEndpoint, Response as GetSupportedVersionsResponse,
 };
@@ -70,7 +70,7 @@ pub trait MatrixApi: Send + Sync + MatrixApiClone {
     /// Set the topic for a room.
     fn set_room_topic(&self, room_id: RoomId, topic: String) -> Result<()>;
     /// Upload a file to the media storage
-    fn upload(&self, data: Vec<u8>, content_type: ContentType) -> Result<String>;
+    fn upload(&self, data: Vec<u8>, content_type: HeaderValue) -> Result<String>;
 }
 
 /// Helper trait because Clone cannot be part of the `MatrixApi` trait since that would cause the

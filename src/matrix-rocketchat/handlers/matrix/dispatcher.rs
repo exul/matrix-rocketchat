@@ -27,12 +27,7 @@ impl<'a> Dispatcher<'a> {
         logger: &'a Logger,
         matrix_api: Box<MatrixApi>,
     ) -> Dispatcher<'a> {
-        Dispatcher {
-            config,
-            connection,
-            logger,
-            matrix_api,
-        }
+        Dispatcher { config, connection, logger, matrix_api }
     }
 
     /// Processes the events that are passed to the method by forwarding them to the
@@ -67,11 +62,7 @@ impl<'a> Dispatcher<'a> {
     pub fn handle_error(&self, err: &Error, room_id: &RoomId) -> Result<()> {
         debug!(self.logger, "Sending error message to room {}", &room_id);
 
-        let error_notifier = ErrorNotifier {
-            config: self.config,
-            logger: self.logger,
-            matrix_api: self.matrix_api.as_ref(),
-        };
+        let error_notifier = ErrorNotifier { config: self.config, logger: self.logger, matrix_api: self.matrix_api.as_ref() };
 
         if let Err(send_err) = error_notifier.send_message_to_user(err, room_id.clone()) {
             warn!(self.logger, "Unable to send an error message to the user in room {}", room_id);

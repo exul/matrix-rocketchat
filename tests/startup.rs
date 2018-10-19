@@ -14,12 +14,12 @@ use std::sync::mpsc::channel;
 use std::thread;
 
 use iron::{status, Iron, Listening};
-use matrix_rocketchat::Server;
 use matrix_rocketchat::errors::*;
+use matrix_rocketchat::Server;
 use matrix_rocketchat_test::{default_matrix_api_versions, handlers, DEFAULT_LOGGER, IRON_THREADS, TEMP_DIR_NAME};
 use router::Router;
-use ruma_client_api::Endpoint;
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
+use ruma_client_api::Endpoint;
 use tempdir::TempDir;
 
 #[test]
@@ -36,9 +36,7 @@ fn starup_fails_when_server_cannot_bind_to_address() {
         let mut router = Router::new();
         router.get(
             "/_matrix/client/versions",
-            handlers::MatrixVersion {
-                versions: default_matrix_api_versions(),
-            },
+            handlers::MatrixVersion { versions: default_matrix_api_versions() },
             "get_versions",
         );
         router.post("*", handlers::EmptyJson {}, "default_post");
@@ -91,9 +89,7 @@ fn startup_fails_when_querying_the_api_version_is_not_successful_and_returns_an_
     let mut router = Router::new();
     router.get(
         "/_matrix/client/versions",
-        handlers::InvalidJsonResponse {
-            status: status::InternalServerError,
-        },
+        handlers::InvalidJsonResponse { status: status::InternalServerError },
         "get_versions",
     );
 
@@ -107,13 +103,7 @@ fn startup_fails_when_querying_the_api_version_is_not_successful_and_returns_an_
 #[test]
 fn startup_fails_when_the_server_can_query_the_matrix_api_version_but_gets_an_invalid_response() {
     let mut router = Router::new();
-    router.get(
-        "/_matrix/client/versions",
-        handlers::InvalidJsonResponse {
-            status: status::Ok,
-        },
-        "get_versions",
-    );
+    router.get("/_matrix/client/versions", handlers::InvalidJsonResponse { status: status::Ok }, "get_versions");
 
     let server_result = start_servers(router);
 
@@ -125,13 +115,7 @@ fn startup_fails_when_the_server_can_query_the_matrix_api_version_but_gets_an_in
 #[test]
 fn startup_failes_when_the_server_cannot_find_a_compatible_matrix_api_version() {
     let mut router = Router::new();
-    router.get(
-        "/_matrix/client/versions",
-        handlers::MatrixVersion {
-            versions: vec!["9999"],
-        },
-        "get_versions",
-    );
+    router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: vec!["9999"] }, "get_versions");
 
     let server_result = start_servers(router);
 
@@ -143,17 +127,9 @@ fn startup_failes_when_the_server_cannot_find_a_compatible_matrix_api_version() 
 #[test]
 fn startup_failes_when_the_bot_user_registration_failes() {
     let mut router = Router::new();
-    router.get(
-        "/_matrix/client/versions",
-        handlers::MatrixVersion {
-            versions: default_matrix_api_versions(),
-        },
-        "get_versions",
-    );
-    let error_responder = handlers::MatrixErrorResponder {
-        status: status::InternalServerError,
-        message: "Could not register user".to_string(),
-    };
+    router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "get_versions");
+    let error_responder =
+        handlers::MatrixErrorResponder { status: status::InternalServerError, message: "Could not register user".to_string() };
     router.post(RegisterEndpoint::router_path(), error_responder, "register");
 
     let server_result = start_servers(router);
@@ -166,18 +142,10 @@ fn startup_failes_when_the_bot_user_registration_failes() {
 #[test]
 fn startup_failes_when_the_bot_user_registration_returns_invalid_json() {
     let mut router = Router::new();
-    router.get(
-        "/_matrix/client/versions",
-        handlers::MatrixVersion {
-            versions: default_matrix_api_versions(),
-        },
-        "get_versions",
-    );
+    router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "get_versions");
     router.post(
         RegisterEndpoint::router_path(),
-        handlers::InvalidJsonResponse {
-            status: status::InternalServerError,
-        },
+        handlers::InvalidJsonResponse { status: status::InternalServerError },
         "register",
     );
 

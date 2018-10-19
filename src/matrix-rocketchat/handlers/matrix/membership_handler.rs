@@ -33,13 +33,7 @@ impl<'a> MembershipHandler<'a> {
         matrix_api: &'a MatrixApi,
         room: &'a Room<'a>,
     ) -> MembershipHandler<'a> {
-        MembershipHandler {
-            config,
-            conn,
-            logger,
-            matrix_api,
-            room,
-        }
+        MembershipHandler { config, conn, logger, matrix_api, room }
     }
 
     /// Handles room membership changes
@@ -195,11 +189,7 @@ impl<'a> MembershipHandler<'a> {
     }
 
     fn handle_admin_room_setup_error(&self, err: &Error, matrix_bot_user_id: UserId) {
-        let error_notifier = ErrorNotifier {
-            config: self.config,
-            logger: self.logger,
-            matrix_api: self.matrix_api,
-        };
+        let error_notifier = ErrorNotifier { config: self.config, logger: self.logger, matrix_api: self.matrix_api };
         if let Err(err) = error_notifier.send_message_to_user(err, self.room.id.clone()) {
             log::log_error(self.logger, &err);
         }

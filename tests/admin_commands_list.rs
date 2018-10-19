@@ -34,9 +34,7 @@ fn sucessfully_list_rocketchat_rooms() {
     users_in_rooms.insert("spec_user_id", vec!["joined_channel", "bridged_channel"]);
     rocketchat_router.get(
         CHANNELS_LIST_JOINED_PATH,
-        handlers::RocketchatJoinedRooms {
-            users_in_rooms: users_in_rooms,
-        },
+        handlers::RocketchatJoinedRooms { users_in_rooms: users_in_rooms },
         "joined_channels",
     );
 
@@ -85,10 +83,7 @@ fn the_user_gets_a_message_when_getting_room_list_failes() {
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(
         CHANNELS_LIST_PATH,
-        handlers::RocketchatErrorResponder {
-            message: "List Error".to_string(),
-            status: status::InternalServerError,
-        },
+        handlers::RocketchatErrorResponder { message: "List Error".to_string(), status: status::InternalServerError },
         "channels_list",
     );
     let test = test
@@ -124,13 +119,7 @@ fn the_user_gets_a_message_when_the_room_list_cannot_be_deserialized() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = test.default_rocketchat_routes();
-    rocketchat_router.get(
-        CHANNELS_LIST_PATH,
-        handlers::InvalidJsonResponse {
-            status: status::Ok,
-        },
-        "channels_list",
-    );
+    rocketchat_router.get(CHANNELS_LIST_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "channels_list");
     let test = test
         .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
@@ -188,18 +177,12 @@ fn the_user_gets_a_message_when_the_me_endpoint_returns_an_error() {
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(
         LOGIN_PATH,
-        handlers::RocketchatLogin {
-            successful: true,
-            rocketchat_user_id: Arc::new(Mutex::new(None)),
-        },
+        handlers::RocketchatLogin { successful: true, rocketchat_user_id: Arc::new(Mutex::new(None)) },
         "login",
     );
     rocketchat_router.get(
         ME_PATH,
-        handlers::RocketchatErrorResponder {
-            status: status::InternalServerError,
-            message: "Spec Error".to_string(),
-        },
+        handlers::RocketchatErrorResponder { status: status::InternalServerError, message: "Spec Error".to_string() },
         "me",
     );
 
@@ -247,19 +230,10 @@ fn the_user_gets_a_message_when_the_me_response_cannot_be_deserialized() {
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(
         LOGIN_PATH,
-        handlers::RocketchatLogin {
-            successful: true,
-            rocketchat_user_id: Arc::new(Mutex::new(None)),
-        },
+        handlers::RocketchatLogin { successful: true, rocketchat_user_id: Arc::new(Mutex::new(None)) },
         "login",
     );
-    rocketchat_router.get(
-        ME_PATH,
-        handlers::InvalidJsonResponse {
-            status: status::Ok,
-        },
-        "me",
-    );
+    rocketchat_router.get(ME_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "me");
 
     let channels = test.channel_list();
     channels.lock().unwrap().insert("spec_channel", Vec::new());

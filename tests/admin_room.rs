@@ -144,14 +144,10 @@ fn the_user_does_not_get_a_message_when_joining_the_room_failes_for_the_bot_user
     let test = Test::new();
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
-    let error_responder = handlers::MatrixErrorResponder {
-        status: status::InternalServerError,
-        message: "Could not join room".to_string(),
-    };
+    let error_responder =
+        handlers::MatrixErrorResponder { status: status::InternalServerError, message: "Could not join room".to_string() };
     matrix_router.post(JoinEndpoint::router_path(), error_responder, "join");
-    let admin_room_creator_handler = handlers::RoomStateCreate {
-        creator: UserId::try_from("@spec_user:localhost").unwrap(),
-    };
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
     matrix_router.get(GetStateEventsForEmptyKey::router_path(), admin_room_creator_handler, "get_room_creator_admin_room");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = test.with_matrix_routes(matrix_router).run();
@@ -175,9 +171,7 @@ fn the_bot_user_leaves_the_admin_room_when_getting_the_room_members_failes() {
         message: "Could not get room members".to_string(),
     };
     matrix_router.get(GetMemberEventsEndpoint::router_path(), error_responder, "get_member_events");
-    let admin_room_creator_handler = handlers::RoomStateCreate {
-        creator: UserId::try_from("@spec_user:localhost").unwrap(),
-    };
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
     let (leave_room, leave_room_receiver) = handlers::MatrixLeaveRoom::with_forwarder(test.config.as_url.clone());
     matrix_router.post(LeaveRoomEndpoint::router_path(), leave_room, "leave_room");
     let (forget_forwarder, forget_receiver) = MessageForwarder::new();
@@ -210,14 +204,10 @@ fn the_bot_user_leaves_the_admin_room_when_the_room_members_cannot_be_deserializ
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.get(
         GetMemberEventsEndpoint::router_path(),
-        handlers::InvalidJsonResponse {
-            status: status::Ok,
-        },
+        handlers::InvalidJsonResponse { status: status::Ok },
         "get_member",
     );
-    let admin_room_creator_handler = handlers::RoomStateCreate {
-        creator: UserId::try_from("@spec_user:localhost").unwrap(),
-    };
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
     matrix_router.get(GetStateEventsForEmptyKey::router_path(), admin_room_creator_handler, "get_room_creator_admin_room");
     let (leave_room, leave_room_receiver) = handlers::MatrixLeaveRoom::with_forwarder(test.config.as_url.clone());
     matrix_router.post(LeaveRoomEndpoint::router_path(), leave_room, "leave_room");
@@ -255,9 +245,7 @@ fn the_bot_user_does_not_leave_the_admin_room_just_because_setting_the_room_disp
         message: "Could not set display name for room".to_string(),
     };
     matrix_router.put(SendStateEventForEmptyKeyEndpoint::router_path(), error_responder, "send_state_event_for_empty_key");
-    let admin_room_creator_handler = handlers::RoomStateCreate {
-        creator: UserId::try_from("@spec_user:localhost").unwrap(),
-    };
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() };
     matrix_router.get(GetStateEventsForEmptyKey::router_path(), admin_room_creator_handler, "get_room_creator_admin_room");
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let test = test.with_matrix_routes(matrix_router).run();
@@ -328,9 +316,7 @@ fn the_bot_user_does_not_leave_the_admin_room_just_because_the_get_topic_respons
     };
     matrix_router.get(
         GetStateEventsForEmptyKey::request_path(room_topic_params),
-        handlers::InvalidJsonResponse {
-            status: status::Ok,
-        },
+        handlers::InvalidJsonResponse { status: status::Ok },
         "get_room_topic",
     );
     let test = test.with_matrix_routes(matrix_router).with_admin_room().run();
@@ -355,10 +341,8 @@ fn the_user_does_not_get_a_message_when_an_leaving_the_room_failes_for_the_bot_u
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let error_responder = handlers::MatrixErrorResponder {
-        status: status::InternalServerError,
-        message: "Could not leave room".to_string(),
-    };
+    let error_responder =
+        handlers::MatrixErrorResponder { status: status::InternalServerError, message: "Could not leave room".to_string() };
     matrix_router.post(LeaveRoomEndpoint::router_path(), error_responder, "leave_room");
     let test = test.with_matrix_routes(matrix_router).run();
 
@@ -396,10 +380,8 @@ fn the_user_does_not_get_a_message_when_forgetting_the_room_failes_for_the_bot_u
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let error_responder = handlers::MatrixErrorResponder {
-        status: status::InternalServerError,
-        message: "Could not forget room".to_string(),
-    };
+    let error_responder =
+        handlers::MatrixErrorResponder { status: status::InternalServerError, message: "Could not forget room".to_string() };
     matrix_router.post(ForgetRoomEndpoint::router_path(), error_responder, "forget_room");
 
     let test = test.with_matrix_routes(matrix_router).run();
@@ -501,9 +483,7 @@ fn unkown_membership_states_are_skipped() {
         user_id: UserId::new("localhost").unwrap(),
     };
 
-    let events = Events {
-        events: vec![Box::new(Event::RoomMember(unknown_event))],
-    };
+    let events = Events { events: vec![Box::new(Event::RoomMember(unknown_event))] };
 
     let payload = to_string(&events).unwrap();
 
@@ -548,9 +528,7 @@ fn accept_invites_from_local_rooms_if_accept_remote_invites_is_set_to_false() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.get(
         GetStateEventsForEmptyKey::router_path(),
-        handlers::RoomStateCreate {
-            creator: UserId::try_from("@spec_user:localhost").unwrap(),
-        },
+        handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() },
         "get_state_events_for_empty_key",
     );
     let _test = test.with_admin_room().with_matrix_routes(matrix_router).run();
@@ -570,17 +548,13 @@ fn ignore_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.get(
         GetStateEventsForEmptyKey::router_path(),
-        handlers::RoomStateCreate {
-            creator: UserId::try_from("@spec_user:localhost").unwrap(),
-        },
+        handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() },
         "get_state_events_for_empty_key",
     );
     let user_ids = vec![(UserId::try_from("@spec_user:other-homeserver.com").unwrap(), MembershipState::Join)];
     matrix_router.get(
         GetMemberEventsEndpoint::router_path(),
-        handlers::StaticRoomMembers {
-            user_ids: user_ids,
-        },
+        handlers::StaticRoomMembers { user_ids: user_ids },
         "room_members",
     );
     let test = test.with_matrix_routes(matrix_router).run();
@@ -607,9 +581,7 @@ fn accept_invites_from_local_rooms_if_accept_remote_invites_is_set_to_true() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.get(
         GetStateEventsForEmptyKey::router_path(),
-        handlers::RoomStateCreate {
-            creator: UserId::try_from("@spec_user:localhost").unwrap(),
-        },
+        handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:localhost").unwrap() },
         "get_state_events_for_empty_key",
     );
     let _test = test.with_admin_room().with_matrix_routes(matrix_router).run();
@@ -629,9 +601,7 @@ fn accept_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.get(
         GetStateEventsForEmptyKey::router_path(),
-        handlers::RoomStateCreate {
-            creator: UserId::try_from("@spec_user:other-homeserver.com").unwrap(),
-        },
+        handlers::RoomStateCreate { creator: UserId::try_from("@spec_user:other-homeserver.com").unwrap() },
         "get_state_events_for_empty_key",
     );
     let user_ids = vec![
@@ -640,9 +610,7 @@ fn accept_invites_from_rooms_on_other_homeservers_if_accept_remote_invites_is_se
     ];
     matrix_router.get(
         GetMemberEventsEndpoint::router_path(),
-        handlers::StaticRoomMembers {
-            user_ids: user_ids,
-        },
+        handlers::StaticRoomMembers { user_ids: user_ids },
         "room_members",
     );
 
@@ -705,9 +673,7 @@ fn the_user_does_get_a_message_when_getting_the_room_creator_cannot_be_deseriali
     };
     matrix_router.get(
         GetStateEventsForEmptyKey::request_path(room_creator_params),
-        handlers::InvalidJsonResponse {
-            status: status::Ok,
-        },
+        handlers::InvalidJsonResponse { status: status::Ok },
         "get_state_events_for_empty_key_with_invalid_json",
     );
     let (leave_room, leave_receiver) = handlers::MatrixLeaveRoom::with_forwarder(test.config.as_url.clone());
@@ -746,10 +712,7 @@ fn join_events_for_rooms_that_are_not_accessible_by_the_bot_user_are_ignored() {
     };
     matrix_router.get(
         GetStateEventsForEmptyKey::request_path(room_creator_params),
-        handlers::MatrixErrorResponder {
-            status: status::Forbidden,
-            message: "Guest access not allowed".to_string(),
-        },
+        handlers::MatrixErrorResponder { status: status::Forbidden, message: "Guest access not allowed".to_string() },
         "get_state_events_for_empty_key_forbidden",
     );
 

@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 
-use reqwest::header::{ContentType, Headers};
-use reqwest::mime::Mime;
+use http::header::{HeaderValue, CONTENT_TYPE};
+use http::{HeaderMap, Method, StatusCode};
+use mime::Mime;
 use reqwest::multipart::{Form, Part};
-use reqwest::{Method, StatusCode};
 use serde_json;
 use slog::Logger;
 
@@ -76,14 +76,17 @@ pub struct File {
     pub mimetype: String,
 }
 
-impl Message {
-    /// The content the of the attachment
-    pub fn content_type(&self) -> Result<ContentType> {
-        let mimetype = self.file.clone().unwrap_or_default().mimetype;
-        let mime: Mime = mimetype.parse().chain_err(|| ErrorKind::UnknownMimeType(mimetype))?;
-        Ok(ContentType(mime))
-    }
-}
+//TODO: remove
+// impl Message {
+//     /// The content the of the attachment
+//     pub fn content_type(&self) -> Result<ContentType> {
+//         let mimetype = self.file.clone().unwrap_or_default().mimetype;
+//         let mime: Mime = mimetype
+//             .parse()
+//             .chain_err(|| ErrorKind::UnknownMimeType(mimetype))?;
+//         Ok(ContentType(mime))
+//     }
+// }
 
 /// Metadata for a file that is uploaded to Rocket.Chat
 #[derive(Deserialize, Debug, Serialize)]
@@ -128,7 +131,7 @@ pub struct GetWithAuthEndpoint<'a> {
 
 impl<'a> Endpoint<String> for GetWithAuthEndpoint<'a> {
     fn method(&self) -> Method {
-        Method::Get
+        Method::GET
     }
 
     fn url(&self) -> String {
@@ -139,12 +142,12 @@ impl<'a> Endpoint<String> for GetWithAuthEndpoint<'a> {
         Ok(RequestData::Body("".to_string()))
     }
 
-    fn headers(&self) -> Option<Headers> {
-        let mut headers = Headers::new();
-        headers.set(ContentType::json());
-        headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
-        headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
-        Some(headers)
+    fn headers(&self) -> Result<Option<HeaderMap>> {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_str("application/json")?);
+        headers.insert("X-User-Id", HeaderValue::from_str(&self.user_id)?);
+        headers.insert("X-Auth-Token", HeaderValue::from_str(&self.auth_token)?);
+        Ok(Some(headers))
     }
 
     fn query_params(&self) -> HashMap<&'static str, &str> {
@@ -163,7 +166,7 @@ pub struct GetFileEndpoint<'a> {
 
 impl<'a> Endpoint<String> for GetFileEndpoint<'a> {
     fn method(&self) -> Method {
-        Method::Get
+        Method::GET
     }
 
     fn url(&self) -> String {
@@ -174,11 +177,11 @@ impl<'a> Endpoint<String> for GetFileEndpoint<'a> {
         Ok(RequestData::Body("".to_string()))
     }
 
-    fn headers(&self) -> Option<Headers> {
-        let mut headers = Headers::new();
+    fn headers(&self) -> Result<Option<HeaderMap>> {
+        let mut headers = HeaderMap::new();
         let cookie = "rc_uid=".to_string() + &self.user_id + "; rc_token=" + &self.auth_token;
-        headers.set_raw("Cookie", vec![cookie.into_bytes()]);
-        Some(headers)
+        headers.insert("Cookie", HeaderValue::from_str(&cookie)?);
+        Ok(Some(headers))
     }
 
     fn query_params(&self) -> HashMap<&'static str, &str> {
@@ -196,7 +199,7 @@ pub struct GroupsMembersEndpoint<'a> {
 
 impl<'a> Endpoint<String> for GroupsMembersEndpoint<'a> {
     fn method(&self) -> Method {
-        Method::Get
+        Method::GET
     }
 
     fn url(&self) -> String {
@@ -207,12 +210,12 @@ impl<'a> Endpoint<String> for GroupsMembersEndpoint<'a> {
         Ok(RequestData::Body("".to_string()))
     }
 
-    fn headers(&self) -> Option<Headers> {
-        let mut headers = Headers::new();
-        headers.set(ContentType::json());
-        headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
-        headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
-        Some(headers)
+    fn headers(&self) -> Result<Option<HeaderMap>> {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_str("application/json")?);
+        headers.insert("X-User-Id", HeaderValue::from_str(&self.user_id)?);
+        headers.insert("X-Auth-Token", HeaderValue::from_str(&self.auth_token)?);
+        Ok(Some(headers))
     }
 
     fn query_params(&self) -> HashMap<&'static str, &str> {
@@ -235,7 +238,7 @@ pub struct LoginPayload<'a> {
 
 impl<'a> Endpoint<String> for LoginEndpoint<'a> {
     fn method(&self) -> Method {
-        Method::Post
+        Method::POST
     }
 
     fn url(&self) -> String {
@@ -248,8 +251,8 @@ impl<'a> Endpoint<String> for LoginEndpoint<'a> {
         Ok(RequestData::Body(payload))
     }
 
-    fn headers(&self) -> Option<Headers> {
-        None
+    fn headers(&self) -> Result<Option<HeaderMap>> {
+        Ok(None)
     }
 }
 
@@ -271,7 +274,7 @@ pub struct PostChatMessagePayload<'a> {
 
 impl<'a> Endpoint<String> for ChatPostMessageEndpoint<'a> {
     fn method(&self) -> Method {
-        Method::Post
+        Method::POST
     }
 
     fn url(&self) -> String {
@@ -284,12 +287,12 @@ impl<'a> Endpoint<String> for ChatPostMessageEndpoint<'a> {
         Ok(RequestData::Body(payload))
     }
 
-    fn headers(&self) -> Option<Headers> {
-        let mut headers = Headers::new();
-        headers.set(ContentType::json());
-        headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
-        headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
-        Some(headers)
+    fn headers(&self) -> Result<Option<HeaderMap>> {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_str("application/json")?);
+        headers.insert("X-User-Id", HeaderValue::from_str(&self.user_id)?);
+        headers.insert("X-Auth-Token", HeaderValue::from_str(&self.auth_token)?);
+        Ok(Some(headers))
     }
 }
 
@@ -306,12 +309,12 @@ pub struct RoomsUploadEndpoint<'a> {
 pub struct PostFileMessagePayload<'a> {
     file: Vec<u8>,
     filename: &'a str,
-    mimetype: Mime,
+    mimetype: HeaderValue,
 }
 
 impl<'a> Endpoint<String> for RoomsUploadEndpoint<'a> {
     fn method(&self) -> Method {
-        Method::Post
+        Method::POST
     }
 
     fn url(&self) -> String {
@@ -320,20 +323,21 @@ impl<'a> Endpoint<String> for RoomsUploadEndpoint<'a> {
 
     fn payload(&self) -> Result<RequestData<String>> {
         let mut c = Cursor::new(Vec::new());
-        c.write_all(&self.payload.file).unwrap();
-        c.seek(SeekFrom::Start(0)).unwrap();
+        c.write_all(&self.payload.file)?;
+        c.seek(SeekFrom::Start(0))?;
 
-        let part = Part::reader(c).file_name(self.payload.filename.to_owned()).mime(self.payload.mimetype.clone());
+        let part = Part::reader(c).file_name(self.payload.filename.to_owned()).mime_str(self.payload.mimetype.to_str()?)?;
         let form = Form::new().part("file", part);
         Ok(RequestData::MultipartForm(form))
     }
 
-    fn headers(&self) -> Option<Headers> {
-        let mut headers = Headers::new();
-        headers.set(ContentType::form_url_encoded());
-        headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
-        headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
-        Some(headers)
+    fn headers(&self) -> Result<Option<HeaderMap>> {
+        let mut headers = HeaderMap::new();
+        // TODO: Fix unwrap
+        headers.insert(CONTENT_TYPE, HeaderValue::from_str("application/x-www-form-urlencoded")?);
+        headers.insert("X-User-Id", HeaderValue::from_str(&self.user_id)?);
+        headers.insert("X-Auth-Token", HeaderValue::from_str(&self.auth_token)?);
+        Ok(Some(headers))
     }
 }
 
@@ -357,7 +361,7 @@ pub struct MembersResponse {
 
 impl<'a> Endpoint<String> for ChannelsMembersEndpoint<'a> {
     fn method(&self) -> Method {
-        Method::Get
+        Method::GET
     }
 
     fn url(&self) -> String {
@@ -368,12 +372,12 @@ impl<'a> Endpoint<String> for ChannelsMembersEndpoint<'a> {
         Ok(RequestData::Body("".to_string()))
     }
 
-    fn headers(&self) -> Option<Headers> {
-        let mut headers = Headers::new();
-        headers.set(ContentType::json());
-        headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
-        headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
-        Some(headers)
+    fn headers(&self) -> Result<Option<HeaderMap>> {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_str("application/json")?);
+        headers.insert("X-User-Id", HeaderValue::from_str(&self.user_id)?);
+        headers.insert("X-Auth-Token", HeaderValue::from_str(&self.auth_token)?);
+        Ok(Some(headers))
     }
 
     fn query_params(&self) -> HashMap<&'static str, &str> {
@@ -400,7 +404,7 @@ pub struct GetJoinedChannelsResponse {
 
 impl<'a> Endpoint<String> for ChannelsListJoinedEndpoint<'a> {
     fn method(&self) -> Method {
-        Method::Get
+        Method::GET
     }
 
     fn url(&self) -> String {
@@ -411,12 +415,12 @@ impl<'a> Endpoint<String> for ChannelsListJoinedEndpoint<'a> {
         Ok(RequestData::Body("".to_string()))
     }
 
-    fn headers(&self) -> Option<Headers> {
-        let mut headers = Headers::new();
-        headers.set(ContentType::json());
-        headers.set_raw("X-User-Id", vec![self.user_id.clone().into_bytes()]);
-        headers.set_raw("X-Auth-Token", vec![self.auth_token.clone().into_bytes()]);
-        Some(headers)
+    fn headers(&self) -> Result<Option<HeaderMap>> {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_str("application/json")?);
+        headers.insert("X-User-Id", HeaderValue::from_str(&self.user_id)?);
+        headers.insert("X-Auth-Token", HeaderValue::from_str(&self.auth_token)?);
+        Ok(Some(headers))
     }
 
     fn query_params(&self) -> HashMap<&'static str, &str> {
@@ -486,6 +490,15 @@ pub struct MessageResponse {
     pub message: Message,
 }
 
+impl Message {
+    /// The content the of the attachment
+    pub fn content_type(&self) -> Result<HeaderValue> {
+        let mimetype = self.file.clone().unwrap_or_default().mimetype;
+        let mime: HeaderValue = mimetype.parse().chain_err(|| ErrorKind::UnknownMimeType(mimetype))?;
+        Ok(mime)
+    }
+}
+
 #[derive(Clone)]
 /// Rocket.Chat REST API v1
 pub struct RocketchatApi {
@@ -502,12 +515,7 @@ pub struct RocketchatApi {
 impl RocketchatApi {
     /// Create a new `RocketchatApi`.
     pub fn new(base_url: String, logger: Logger) -> RocketchatApi {
-        RocketchatApi {
-            base_url,
-            logger,
-            user_id: "".to_string(),
-            auth_token: "".to_string(),
-        }
+        RocketchatApi { base_url, logger, user_id: "".to_string(), auth_token: "".to_string() }
     }
 }
 
@@ -541,11 +549,8 @@ impl super::RocketchatApi for RocketchatApi {
 
                 let mut buffer = Vec::new();
                 resp.read_to_end(&mut buffer).chain_err(|| ErrorKind::InternalServerError)?;
-                let rocketchat_attachment = RocketchatAttachment {
-                    content_type: attachment.content_type,
-                    data: buffer,
-                    title: attachment.title,
-                };
+                let rocketchat_attachment =
+                    RocketchatAttachment { content_type: attachment.content_type, data: buffer, title: attachment.title };
                 files.push(rocketchat_attachment);
             }
         } else {
@@ -672,9 +677,7 @@ impl super::RocketchatApi for RocketchatApi {
             message_attachments_option = Some(message_attachments)
         };
 
-        let file = message_response.message.file.as_ref().map(|f| RocketchatFile {
-            mimetype: f.mimetype.clone(),
-        });
+        let file = message_response.message.file.as_ref().map(|f| RocketchatFile { mimetype: f.mimetype.clone() });
         let message = RocketchatMessage {
             attachments: message_attachments_option,
             id: message_response.message.id,
@@ -692,10 +695,7 @@ impl super::RocketchatApi for RocketchatApi {
             base_url: self.base_url.clone(),
             user_id: self.user_id.clone(),
             auth_token: self.auth_token.clone(),
-            payload: PostChatMessagePayload {
-                text: Some(text),
-                room_id,
-            },
+            payload: PostChatMessagePayload { text: Some(text), room_id },
         };
 
         let (body, status_code) = RestApi::call_rocketchat(&chat_post_message_endpoint)?;
@@ -786,13 +786,7 @@ impl super::RocketchatApi for RocketchatApi {
     fn login(&self, username: &str, password: &str) -> Result<(String, String)> {
         debug!(self.logger, "Logging in user with username {} on Rocket.Chat server {}", username, &self.base_url);
 
-        let login_endpoint = LoginEndpoint {
-            base_url: self.base_url.clone(),
-            payload: LoginPayload {
-                username,
-                password,
-            },
-        };
+        let login_endpoint = LoginEndpoint { base_url: self.base_url.clone(), payload: LoginPayload { username, password } };
 
         let (body, status_code) = RestApi::call_rocketchat(&login_endpoint)?;
         if !status_code.is_success() {
@@ -828,18 +822,14 @@ impl super::RocketchatApi for RocketchatApi {
         Ok(user)
     }
 
-    fn rooms_upload(&self, file: Vec<u8>, filename: &str, mimetype: Mime, room_id: &str) -> Result<()> {
+    fn rooms_upload(&self, file: Vec<u8>, filename: &str, mimetype: HeaderValue, room_id: &str) -> Result<()> {
         debug!(self.logger, "Uploading file to room {}", room_id);
 
         let post_file_message_endpoint = RoomsUploadEndpoint {
             base_url: self.base_url.clone(),
             user_id: self.user_id.clone(),
             auth_token: self.auth_token.clone(),
-            payload: PostFileMessagePayload {
-                file,
-                filename,
-                mimetype,
-            },
+            payload: PostFileMessagePayload { file, filename, mimetype },
             room_id,
         };
 
@@ -977,7 +967,7 @@ fn build_error(endpoint: &str, body: &str, status_code: &StatusCode) -> Error {
             }
         };
 
-    if *status_code == StatusCode::Unauthorized {
+    if *status_code == StatusCode::UNAUTHORIZED {
         return Error {
             error_chain: ErrorKind::RocketchatAuthenticationFailed(rocketchat_error_resp.message.unwrap_or_default()).into(),
             user_message: Some(t!(["errors", "authentication_failed"])),

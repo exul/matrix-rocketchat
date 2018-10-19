@@ -24,12 +24,7 @@ impl<'a> MessageHandler<'a> {
         logger: &'a Logger,
         matrix_api: Box<MatrixApi>,
     ) -> MessageHandler<'a> {
-        MessageHandler {
-            config,
-            connection,
-            logger,
-            matrix_api,
-        }
+        MessageHandler { config, connection, logger, matrix_api }
     }
 
     /// Handles messages that are sent in a room

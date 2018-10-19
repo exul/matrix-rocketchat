@@ -1,11 +1,11 @@
 use diesel::sqlite::SqliteConnection;
-use reqwest::mime::{self, Mime};
 use ruma_events::room::message::{MessageEvent, MessageEventContent};
 use slog::Logger;
 use url::Url;
 
 use api::{MatrixApi, RocketchatApi};
 use errors::*;
+use http::header::HeaderValue;
 use i18n::*;
 use models::{RocketchatServer, UserOnRocketchatServer};
 
@@ -19,11 +19,7 @@ pub struct Forwarder<'a> {
 impl<'a> Forwarder<'a> {
     /// Create a new `Forwarder`.
     pub fn new(connection: &'a SqliteConnection, logger: &'a Logger, matrix_api: &'a MatrixApi) -> Forwarder<'a> {
-        Forwarder {
-            connection,
-            logger,
-            matrix_api,
-        }
+        Forwarder { connection, logger, matrix_api }
     }
 
     /// Forwards messages to Rocket.Chat
@@ -83,7 +79,7 @@ impl<'a> Forwarder<'a> {
         let file_id = url.path().trim_left_matches('/');
         let file = self.matrix_api.get_content(host.to_string(), file_id.to_string())?;
 
-        let mime: Mime = self.parse_mimetype(mimetype)?;
+        let mime: HeaderValue = HeaderValue::from_str(&mimetype.unwrap_or_default())?;
 
         if let Err(err) = rocketchat_api.rooms_upload(file, body, mime, channel_id) {
             bail_error!(
@@ -94,15 +90,5 @@ impl<'a> Forwarder<'a> {
         }
 
         Ok(())
-    }
-
-    fn parse_mimetype(&self, mimetype: Option<String>) -> Result<Mime> {
-        let mime = mimetype
-            .clone()
-            .unwrap_or_else(|| mime::APPLICATION_OCTET_STREAM.to_string())
-            .parse()
-            .chain_err(|| ErrorKind::UnknownMimeType(mimetype.unwrap_or_default()))?;
-
-        Ok(mime)
     }
 }

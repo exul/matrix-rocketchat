@@ -1,5 +1,6 @@
 #![feature(try_from)]
 
+extern crate http;
 extern crate iron;
 extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
@@ -13,13 +14,13 @@ use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::{Arc, Mutex};
 
+use http::Method;
 use iron::status;
 use matrix_rocketchat::api::rocketchat::v1::LOGIN_PATH;
 use matrix_rocketchat::api::{MatrixApi, RequestData, RestApi};
 use matrix_rocketchat::models::Credentials;
 use matrix_rocketchat::models::{RocketchatServer, UserOnRocketchatServer};
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER};
-use reqwest::Method;
 use reqwest::StatusCode;
 use ruma_client_api::r0::send::send_message_event::Endpoint as SendMessageEventEndpoint;
 use ruma_client_api::Endpoint;
@@ -66,13 +67,11 @@ fn wrong_password_when_logging_in_via_chat_message() {
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(
         LOGIN_PATH,
-        handlers::RocketchatLogin {
-            successful: false,
-            rocketchat_user_id: Arc::new(Mutex::new(None)),
-        },
+        handlers::RocketchatLogin { successful: false, rocketchat_user_id: Arc::new(Mutex::new(None)) },
         "login",
     );
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
@@ -132,12 +131,13 @@ fn sucessfully_login_via_rest_api() {
     };
     let payload = to_string(&login_request).unwrap();
     let (response, status_code) = RestApi::call(
-        &Method::Post,
+        &Method::POST,
         &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
         RequestData::Body(payload),
         &HashMap::new(),
         None,
-    ).unwrap();
+    )
+    .unwrap();
 
     assert!(response.contains(
         "You are logged in. Return to your Matrix client and \
@@ -160,10 +160,7 @@ fn wrong_password_when_logging_in_via_rest_api() {
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(
         LOGIN_PATH,
-        handlers::RocketchatLogin {
-            successful: false,
-            rocketchat_user_id: Arc::new(Mutex::new(None)),
-        },
+        handlers::RocketchatLogin { successful: false, rocketchat_user_id: Arc::new(Mutex::new(None)) },
         "login",
     );
     let test = test.with_custom_rocketchat_routes(rocketchat_router).with_rocketchat_mock().with_connected_admin_room().run();
@@ -176,14 +173,15 @@ fn wrong_password_when_logging_in_via_rest_api() {
     };
     let payload = to_string(&login_request).unwrap();
     let (response, status_code) = RestApi::call(
-        &Method::Post,
+        &Method::POST,
         &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
         RequestData::Body(payload),
         &HashMap::new(),
         None,
-    ).unwrap();
+    )
+    .unwrap();
     assert!(response.contains("Authentication failed!"));
-    assert_eq!(status_code, StatusCode::Unauthorized);
+    assert_eq!(status_code, StatusCode::UNAUTHORIZED);
 }
 
 #[test]
@@ -209,12 +207,13 @@ fn login_multiple_times_via_rest_message() {
 
     for _ in 0..2 {
         let (response, status_code) = RestApi::call(
-            &Method::Post,
+            &Method::POST,
             &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
             RequestData::Body(payload.clone()),
             &HashMap::new(),
             None,
-        ).unwrap();
+        )
+        .unwrap();
         assert!(response.contains(
             "You are logged in. Return to your Matrix client and enter help in the admin room for more instructions.",
         ));
@@ -228,14 +227,15 @@ fn login_via_rest_api_with_invalid_payload() {
     let test = test.with_rocketchat_mock().with_connected_admin_room().run();
 
     let (response, status_code) = RestApi::call(
-        &Method::Post,
+        &Method::POST,
         &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
         RequestData::Body("not json".to_string()),
         &HashMap::new(),
         None,
-    ).unwrap();
+    )
+    .unwrap();
     assert!(response.contains("Could not process request, the submitted data is not valid"));
-    assert_eq!(status_code, StatusCode::UnprocessableEntity);
+    assert_eq!(status_code, StatusCode::UNPROCESSABLE_ENTITY);
 }
 
 #[test]
@@ -251,15 +251,16 @@ fn login_via_rest_api_with_a_non_existing_rocketchat_server() {
     let payload = to_string(&login_request).unwrap();
 
     let (response, status_code) = RestApi::call(
-        &Method::Post,
+        &Method::POST,
         &format!("http://{}/rocketchat/login", test.as_listening.as_ref().unwrap().socket),
         RequestData::Body(payload),
         &HashMap::new(),
         None,
-    ).unwrap();
+    )
+    .unwrap();
     let expected_respones = "Rocket.Chat server http://nonexisting.foo not found, it is probably not connected.";
     assert!(response.contains(expected_respones));
-    assert_eq!(status_code, StatusCode::NotFound);
+    assert_eq!(status_code, StatusCode::NOT_FOUND);
 }
 
 #[test]
@@ -327,14 +328,9 @@ fn server_does_not_respond_when_logging_in_via_chat_mesage() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = test.default_rocketchat_routes();
-    rocketchat_router.post(
-        LOGIN_PATH,
-        handlers::InvalidJsonResponse {
-            status: status::Ok,
-        },
-        "login",
-    );
-    let test = test.with_matrix_routes(matrix_router)
+    rocketchat_router.post(LOGIN_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "login");
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
@@ -363,14 +359,9 @@ fn the_user_gets_a_message_when_the_login_response_cannot_be_deserialized() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = test.default_rocketchat_routes();
-    rocketchat_router.post(
-        LOGIN_PATH,
-        handlers::InvalidJsonResponse {
-            status: status::Ok,
-        },
-        "login",
-    );
-    let test = test.with_matrix_routes(matrix_router)
+    rocketchat_router.post(LOGIN_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "login");
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_rocketchat_mock()
         .with_connected_admin_room()
@@ -402,13 +393,11 @@ fn the_user_gets_a_message_when_the_login_returns_an_error() {
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(
         LOGIN_PATH,
-        handlers::RocketchatErrorResponder {
-            status: status::InternalServerError,
-            message: "Spec Error".to_string(),
-        },
+        handlers::RocketchatErrorResponder { status: status::InternalServerError, message: "Spec Error".to_string() },
         "login",
     );
-    let test = test.with_matrix_routes(matrix_router)
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()

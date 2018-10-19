@@ -45,7 +45,8 @@ impl Handler for RocketchatInfo {
 
         let payload = r#"{
             "version": "VERSION"
-        }"#.replace("VERSION", self.version);
+        }"#
+        .replace("VERSION", self.version);
 
         Ok(Response::with((status::Ok, payload)))
     }
@@ -62,7 +63,8 @@ impl Handler for RocketchatLogin {
 
         let (status, payload) = match self.successful {
             true => {
-                let user_id: String = self.rocketchat_user_id
+                let user_id: String = self
+                    .rocketchat_user_id
                     .lock()
                     .unwrap()
                     .clone()
@@ -75,7 +77,8 @@ impl Handler for RocketchatLogin {
                         "authToken": "spec_auth_token",
                         "userId": "USER_ID"
                     }
-                 }"#.replace("USER_ID", &user_id),
+                 }"#
+                    .replace("USER_ID", &user_id),
                 )
             }
             false => (
@@ -83,7 +86,8 @@ impl Handler for RocketchatLogin {
                 r#"{
                     "status": "error",
                     "message": "Unauthorized"
-                }"#.to_string(),
+                }"#
+                .to_string(),
             ),
         };
 
@@ -102,7 +106,8 @@ impl Handler for RocketchatMe {
         let payload = r#"{
             "_id": "USERNAME_id",
             "username": "USERNAME"
-        }"#.replace("USERNAME", &self.username.lock().unwrap());
+        }"#
+        .replace("USERNAME", &self.username.lock().unwrap());
 
         Ok(Response::with((status::Ok, payload)))
     }
@@ -133,7 +138,8 @@ impl Handler for RocketchatChannelsList {
                 "ro": false,
                 "sysMes": true,
                 "_updatedAt": "2017-02-12T13:20:22.092Z"
-            }"#.replace("CHANNEL_NAME", channel_name);
+            }"#
+            .replace("CHANNEL_NAME", channel_name);
             channels.push(channel);
         }
 
@@ -165,10 +171,7 @@ impl Handler for RocketchatRoomMembers {
             Some(user_names) => {
                 let mut users = Vec::new();
                 for user_name in user_names {
-                    let user = User {
-                        id: format!("{}_id", user_name),
-                        username: user_name.to_string(),
-                    };
+                    let user = User { id: format!("{}_id", user_name), username: user_name.to_string() };
                     users.push(user);
                 }
 
@@ -212,7 +215,8 @@ impl Handler for RocketchatGroupsList {
                 "ro": false,
                 "sysMes": true,
                 "_updatedAt": "2017-02-12T13:20:22.092Z"
-            }"#.replace("GROUP_NAME", group_name);
+            }"#
+            .replace("GROUP_NAME", group_name);
             groups.push(channel);
         }
 
@@ -240,10 +244,7 @@ impl Handler for RocketchatJoinedRooms {
             Some(room_names) => {
                 let mut rooms = Vec::new();
                 for room_name in room_names {
-                    let room = Channel {
-                        id: format!("{}_id", room_name),
-                        name: Some(room_name.to_string()),
-                    };
+                    let room = Channel { id: format!("{}_id", room_name), name: Some(room_name.to_string()) };
                     rooms.push(room);
                 }
 
@@ -283,8 +284,9 @@ impl Handler for RocketchatDirectMessagesList {
                 "username": "admin",
                 "usernames": [
                     "USER_NAMES"
-                ]}"#.replace("DIRECT_MESSAGE_ID", id)
-                .replace("USER_NAMES", &user_names.join("\",\""));
+                ]}"#
+            .replace("DIRECT_MESSAGE_ID", id)
+            .replace("USER_NAMES", &user_names.join("\",\""));
             dms.push(dm);
         }
 
@@ -346,7 +348,8 @@ impl Handler for RocketchatUsersInfo {
                         "_id": "USERNAME_id"
                     },
                     "success": true
-                }"#.replace("USERNAME", username),
+                }"#
+                .replace("USERNAME", username),
             ),
             None => (
                 status::BadRequest,
@@ -354,7 +357,8 @@ impl Handler for RocketchatUsersInfo {
                     "success": false,
                     "error": "The required \"userId\" or \"username\" param was not provided [error-user-param-not-provided]",
                     "errorType": "error-user-param-not-provided"
-                    }"#.to_string(),
+                    }"#
+                .to_string(),
             ),
         };
 
@@ -371,11 +375,8 @@ impl Handler for RocketchatErrorResponder {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
         debug!(DEFAULT_LOGGER, "Rocket.Chat mock server got handle error request");
 
-        let error_response = RocketchatErrorResponse {
-            status: Some("error".to_string()),
-            message: Some(self.message.clone()),
-            error: None,
-        };
+        let error_response =
+            RocketchatErrorResponse { status: Some("error".to_string()), message: Some(self.message.clone()), error: None };
         let payload = serde_json::to_string(&error_response).unwrap();
         Ok(Response::with((self.status, payload)))
     }
@@ -574,9 +575,7 @@ impl Handler for MatrixGetDisplayName {
         }
 
         let displayname = user_list.get(&user_id).unwrap();
-        let get_display_name_response = get_display_name::Response {
-            displayname: displayname.to_owned(),
-        };
+        let get_display_name_response = get_display_name::Response { displayname: displayname.to_owned() };
 
         let payload = serde_json::to_string(&get_display_name_response).unwrap();
         Ok(Response::with((status::Ok, payload.to_string())))
@@ -591,9 +590,7 @@ impl MatrixCreateRoom {
     /// Create a `MatrixCreateRoom` handler with a message forwarder middleware.
     pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
-        let mut chain = Chain::new(MatrixCreateRoom {
-            as_url: as_url,
-        });
+        let mut chain = Chain::new(MatrixCreateRoom { as_url: as_url });
         chain.link_before(message_forwarder);
         (chain, receiver)
     }
@@ -632,7 +629,8 @@ impl Handler for MatrixCreateRoom {
             let payload = r#"{
                     "errcode":"M_UNKNOWN",
                     "error":"ERR_MSG"
-                }"#.replace("ERR_MSG", err);
+                }"#
+            .replace("ERR_MSG", err);
             return Ok(Response::with((status::Conflict, payload.to_string())));
         }
 
@@ -641,7 +639,8 @@ impl Handler for MatrixCreateRoom {
             let payload = r#"{
                     "errcode":"M_FORBIDDEN",
                     "error":"ERR_MSG"
-                }"#.replace("ERR_MSG", err);
+                }"#
+            .replace("ERR_MSG", err);
             return Ok(Response::with((status::Forbidden, payload.to_string())));
         }
 
@@ -664,16 +663,15 @@ impl Handler for MatrixCreateRoom {
                 let payload = r#"{
                     "errcode":"M_FORBIDDEN",
                     "error":"ERR_MSG"
-                }"#.replace("ERR_MSG", err);
+                }"#
+                .replace("ERR_MSG", err);
                 return Ok(Response::with((status::Forbidden, payload.to_string())));
             }
         }
 
         helpers::send_join_event_from_matrix(&self.as_url, room_id.clone(), user_id, None);
 
-        let response = create_room::Response {
-            room_id: room_id,
-        };
+        let response = create_room::Response { room_id: room_id };
         let payload = serde_json::to_string(&response).unwrap();
 
         Ok(Response::with((status::Ok, payload)))
@@ -694,9 +692,7 @@ impl Handler for MatrixState {
         let room_alias_map = mutex.lock().unwrap();
         if let Some(room_aliases) = room_alias_map.get(&room_id) {
             let aliases_event = AliasesEvent {
-                content: AliasesEventContent {
-                    aliases: room_aliases.to_owned(),
-                },
+                content: AliasesEventContent { aliases: room_aliases.to_owned() },
                 event_id: EventId::new("localhost").unwrap(),
                 event_type: EventType::RoomAliases,
                 prev_content: None,
@@ -746,31 +742,34 @@ impl Handler for SendRoomState {
         let room_states_payload: serde_json::Value = serde_json::from_str(&request_payload).unwrap();
 
         match room_states_payload {
-            serde_json::Value::Object(room_states) => for (k, v) in room_states {
-                let value = v.to_string().trim_matches('"').to_string();
+            serde_json::Value::Object(room_states) => {
+                for (k, v) in room_states {
+                    let value = v.to_string().trim_matches('"').to_string();
 
-                if let Some(EventType::RoomAliases) = event_type {
-                    let room_alias_id = RoomAliasId::try_from(value.as_ref()).unwrap();
+                    if let Some(EventType::RoomAliases) = event_type {
+                        let room_alias_id = RoomAliasId::try_from(value.as_ref()).unwrap();
 
-                    if let Err(err) = add_alias_to_room(request, room_id.clone(), room_alias_id) {
-                        debug!(DEFAULT_LOGGER, "{}", err);
-                        let payload = r#"{
+                        if let Err(err) = add_alias_to_room(request, room_id.clone(), room_alias_id) {
+                            debug!(DEFAULT_LOGGER, "{}", err);
+                            let payload = r#"{
                             "errcode":"M_UNKNOWN",
                             "error":"Room alias already exists."
                         }"#;
-                        return Ok(Response::with((status::Conflict, payload.to_string())));
-                    }
-                } else {
-                    if let Err(err) = add_state_to_room(request, &user_id, room_id.clone(), k, value) {
-                        debug!(DEFAULT_LOGGER, "{}", err);
-                        let payload = r#"{
+                            return Ok(Response::with((status::Conflict, payload.to_string())));
+                        }
+                    } else {
+                        if let Err(err) = add_state_to_room(request, &user_id, room_id.clone(), k, value) {
+                            debug!(DEFAULT_LOGGER, "{}", err);
+                            let payload = r#"{
                           "errcode":"M_FORBIDDEN",
                           "error":"ERR_MSG"
-                        }"#.replace("ERR_MSG", err);
-                        return Ok(Response::with((status::Forbidden, payload.to_string())));
+                        }"#
+                            .replace("ERR_MSG", err);
+                            return Ok(Response::with((status::Forbidden, payload.to_string())));
+                        }
                     }
                 }
-            },
+            }
             _ => panic!("JSON type not covered"),
         }
 
@@ -819,9 +818,7 @@ impl Handler for RoomMembers {
 
         let member_events = build_member_events_from_user_ids(&users_in_room_for_user, room_id);
 
-        let response = get_member_events::Response {
-            chunk: member_events,
-        };
+        let response = get_member_events::Response { chunk: member_events };
         let payload = serde_json::to_string(&response).unwrap();
         Ok(Response::with((status::Ok, payload)))
     }
@@ -841,9 +838,7 @@ impl Handler for StaticRoomMembers {
 
         let member_events = build_member_events_from_user_ids(&self.user_ids, room_id);
 
-        let response = get_member_events::Response {
-            chunk: member_events,
-        };
+        let response = get_member_events::Response { chunk: member_events };
         let payload = serde_json::to_string(&response).unwrap();
         Ok(Response::with((status::Ok, payload)))
     }
@@ -856,9 +851,7 @@ pub struct MatrixCreateContentHandler {
 impl MatrixCreateContentHandler {
     pub fn with_forwarder(uploaded_files: Arc<Mutex<Vec<String>>>) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
-        let mut chain = Chain::new(MatrixCreateContentHandler {
-            uploaded_files: uploaded_files,
-        });
+        let mut chain = Chain::new(MatrixCreateContentHandler { uploaded_files: uploaded_files });
         chain.link_before(message_forwarder);;
         (chain, receiver)
     }
@@ -869,9 +862,7 @@ impl Handler for MatrixCreateContentHandler {
         debug!(DEFAULT_LOGGER, "Matrix mock server got upload request");
 
         let file_id: String = thread_rng().gen_ascii_chars().take(24).collect();
-        let response = create_content::Response {
-            content_uri: format!("mxc://localhost/{}", &file_id),
-        };
+        let response = create_content::Response { content_uri: format!("mxc://localhost/{}", &file_id) };
 
         let mut uploaded_files = self.uploaded_files.lock().unwrap();
         uploaded_files.push(file_id);
@@ -939,10 +930,7 @@ impl Handler for GetRoomAlias {
         match get_room_id_for_alias(request, &room_alias) {
             Some(room_id) => {
                 debug!(DEFAULT_LOGGER, "Matrix mock server found room ID {} for alias {}", room_id, room_alias);
-                let get_alias_response = get_alias::Response {
-                    room_id: room_id,
-                    servers: vec!["localhsot".to_string()],
-                };
+                let get_alias_response = get_alias::Response { room_id: room_id, servers: vec!["localhsot".to_string()] };
                 let payload = serde_json::to_string(&get_alias_response).unwrap();
                 Ok(Response::with((status::Ok, payload.to_string())))
             }
@@ -1014,7 +1002,8 @@ impl Handler for GetRoomState {
                 let payload = r#"{
                     "errcode":"M_GUEST_ACCESS_FORBIDDEN",
                     "error":"ERR_MSG"
-                }"#.replace("ERR_MSG", err);
+                }"#
+                .replace("ERR_MSG", err);
                 return Ok(Response::with((status::Forbidden, payload.to_string())));
             }
         };
@@ -1061,10 +1050,7 @@ pub struct MatrixJoinRoom {
 impl MatrixJoinRoom {
     pub fn with_forwarder(as_url: String, send_inviter: bool) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
-        let mut chain = Chain::new(MatrixJoinRoom {
-            as_url: as_url,
-            send_inviter: send_inviter,
-        });
+        let mut chain = Chain::new(MatrixJoinRoom { as_url: as_url, send_inviter: send_inviter });
         chain.link_before(message_forwarder);;
         (chain, receiver)
     }
@@ -1114,15 +1100,12 @@ impl Handler for MatrixJoinRoom {
             let payload = r#"{
                     "errcode":"M_UNKNOWN",
                     "error":"ERR_MSG"
-                }"#.replace("ERR_MSG", err);
+                }"#
+            .replace("ERR_MSG", err);
             return Ok(Response::with((status::Conflict, payload.to_string())));
         }
 
-        let join_inviter = if self.send_inviter {
-            Some(inviter_id)
-        } else {
-            None
-        };
+        let join_inviter = if self.send_inviter { Some(inviter_id) } else { None };
         helpers::send_join_event_from_matrix(&self.as_url, room_id, user_id, join_inviter);
 
         Ok(Response::with((status::Ok, "{}")))
@@ -1136,9 +1119,7 @@ pub struct MatrixInviteUser {
 impl MatrixInviteUser {
     pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
-        let mut chain = Chain::new(MatrixInviteUser {
-            as_url: as_url,
-        });
+        let mut chain = Chain::new(MatrixInviteUser { as_url: as_url });
         chain.link_before(message_forwarder);;
         (chain, receiver)
     }
@@ -1184,9 +1165,7 @@ pub struct MatrixLeaveRoom {
 impl MatrixLeaveRoom {
     pub fn with_forwarder(as_url: String) -> (Chain, Receiver<String>) {
         let (message_forwarder, receiver) = MessageForwarder::new();
-        let mut chain = Chain::new(MatrixLeaveRoom {
-            as_url: as_url,
-        });
+        let mut chain = Chain::new(MatrixLeaveRoom { as_url: as_url });
         chain.link_before(message_forwarder);;
         (chain, receiver)
     }
@@ -1212,7 +1191,8 @@ impl Handler for MatrixLeaveRoom {
             let payload = r#"{
                     "errcode":"M_UNKNOWN",
                     "error":"ERR_MSG"
-                }"#.replace("ERR_MSG", err);
+                }"#
+            .replace("ERR_MSG", err);
             return Ok(Response::with((status::Conflict, payload.to_string())));
         }
 
@@ -1240,10 +1220,7 @@ impl Handler for MatrixErrorResponder {
     fn handle(&self, _request: &mut Request) -> IronResult<Response> {
         debug!(DEFAULT_LOGGER, "Matrix mock server got error responder request");
 
-        let error_response = MatrixErrorResponse {
-            errcode: "1234".to_string(),
-            error: self.message.clone(),
-        };
+        let error_response = MatrixErrorResponse { errcode: "1234".to_string(), error: self.message.clone() };
         let payload = serde_json::to_string(&error_response).unwrap();
         Ok(Response::with((self.status, payload)))
     }
@@ -1260,18 +1237,13 @@ impl BeforeMiddleware for MatrixActivatableErrorResponder {
         let request_payload = extract_payload(request);
 
         if self.active.load(Ordering::Relaxed) {
-            let error_response = MatrixErrorResponse {
-                errcode: "1234".to_string(),
-                error: self.message.clone(),
-            };
+            let error_response = MatrixErrorResponse { errcode: "1234".to_string(), error: self.message.clone() };
             let payload = serde_json::to_string(&error_response).unwrap();
             let err = IronError::new(TestError("Conditional Error".to_string()), (self.status, payload));
             return Err(err.into());
         }
 
-        let message = Message {
-            payload: request_payload,
-        };
+        let message = Message { payload: request_payload };
         request.extensions.insert::<Message>(message);
 
         Ok(())
@@ -1305,18 +1277,13 @@ impl BeforeMiddleware for MatrixConditionalErrorResponder {
         let request_payload = extract_payload(request);
 
         if request_payload.contains(self.conditional_content) {
-            let error_response = MatrixErrorResponse {
-                errcode: "1234".to_string(),
-                error: self.message.clone(),
-            };
+            let error_response = MatrixErrorResponse { errcode: "1234".to_string(), error: self.message.clone() };
             let payload = serde_json::to_string(&error_response).unwrap();
             let err = IronError::new(TestError("Conditional Error".to_string()), (self.status, payload));
             return Err(err.into());
         }
 
-        let message = Message {
-            payload: request_payload,
-        };
+        let message = Message { payload: request_payload };
         request.extensions.insert::<Message>(message);
 
         Ok(())
@@ -1329,10 +1296,7 @@ impl Handler for MatrixConditionalErrorResponder {
         let request_payload = extract_payload(request);
 
         if request_payload.contains(self.conditional_content) {
-            let error_response = MatrixErrorResponse {
-                errcode: "1234".to_string(),
-                error: self.message.clone(),
-            };
+            let error_response = MatrixErrorResponse { errcode: "1234".to_string(), error: self.message.clone() };
             let payload = serde_json::to_string(&error_response).unwrap();
             Ok(Response::with((self.status, payload)))
         } else {
@@ -1356,9 +1320,7 @@ impl BeforeMiddleware for ConditionalInvalidJsonResponse {
             return Err(err.into());
         }
 
-        let message = Message {
-            payload: request_payload,
-        };
+        let message = Message { payload: request_payload };
         request.extensions.insert::<Message>(message);
 
         Ok(())

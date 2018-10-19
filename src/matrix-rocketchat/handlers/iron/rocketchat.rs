@@ -21,10 +21,7 @@ pub struct Rocketchat {
 impl Rocketchat {
     /// Rocket.Chat endpoint with middleware
     pub fn chain(config: &Config, matrix_api: Box<MatrixApi>) -> Chain {
-        let rocketchat = Rocketchat {
-            config: config.clone(),
-            matrix_api,
-        };
+        let rocketchat = Rocketchat { config: config.clone(), matrix_api };
         let mut chain = Chain::new(rocketchat);
         chain.link_before(RocketchatToken {});
 

@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::io::Read;
 
-use url;
-use reqwest::{Body, Client, Method, Response, StatusCode, Url};
-use reqwest::header::Headers;
+use http::{HeaderMap, Method, StatusCode};
 use reqwest::multipart::Form;
+use reqwest::{Body, Client, Response, Url};
 use ruma_client_api::Method as RumaHttpMethod;
+use url;
 
-use errors::*;
 use api::rocketchat::Endpoint;
+use errors::*;
 
 /// Request data types.
 pub enum RequestData<T: Into<Body>> {
@@ -30,10 +30,10 @@ impl RestApi {
         params: &HashMap<&str, &'a str>,
     ) -> Result<(String, StatusCode)> {
         let method = match *method {
-            RumaHttpMethod::Delete => Method::Delete,
-            RumaHttpMethod::Get => Method::Get,
-            RumaHttpMethod::Post => Method::Post,
-            RumaHttpMethod::Put => Method::Put,
+            RumaHttpMethod::Delete => Method::DELETE,
+            RumaHttpMethod::Get => Method::GET,
+            RumaHttpMethod::Post => Method::POST,
+            RumaHttpMethod::Put => Method::PUT,
         };
 
         let data = RequestData::Body(payload.into());
@@ -48,10 +48,10 @@ impl RestApi {
         params: &HashMap<&str, &'a str>,
     ) -> Result<Response> {
         let method = match *method {
-            RumaHttpMethod::Delete => Method::Delete,
-            RumaHttpMethod::Get => Method::Get,
-            RumaHttpMethod::Post => Method::Post,
-            RumaHttpMethod::Put => Method::Put,
+            RumaHttpMethod::Delete => Method::DELETE,
+            RumaHttpMethod::Get => Method::GET,
+            RumaHttpMethod::Post => Method::POST,
+            RumaHttpMethod::Put => Method::PUT,
         };
 
         let data = RequestData::Body(payload.into());
@@ -60,12 +60,18 @@ impl RestApi {
 
     /// Call a Rocket.Chat API endpoint
     pub fn call_rocketchat<T: Into<Body>>(endpoint: &Endpoint<T>) -> Result<(String, StatusCode)> {
-        RestApi::call(&endpoint.method(), &endpoint.url(), endpoint.payload()?, &endpoint.query_params(), endpoint.headers())
+        RestApi::call(&endpoint.method(), &endpoint.url(), endpoint.payload()?, &endpoint.query_params(), endpoint.headers()?)
     }
 
     /// Get a file that was uploaded to Rocket.Chat
     pub fn get_rocketchat_file<T: Into<Body>>(endpoint: &Endpoint<T>) -> Result<Response> {
-        RestApi::call_raw(&endpoint.method(), &endpoint.url(), endpoint.payload()?, &endpoint.query_params(), endpoint.headers())
+        RestApi::call_raw(
+            &endpoint.method(),
+            &endpoint.url(),
+            endpoint.payload()?,
+            &endpoint.query_params(),
+            endpoint.headers()?,
+        )
     }
 
     /// Call a REST API endpoint
@@ -74,7 +80,7 @@ impl RestApi {
         url: &str,
         payload: RequestData<T>,
         params: &HashMap<&str, &'a str>,
-        headers: Option<Headers>,
+        headers: Option<HeaderMap>,
     ) -> Result<(String, StatusCode)> {
         let mut resp = RestApi::call_raw(method, url, payload, params, headers)?;
         let mut body = String::new();
@@ -88,26 +94,26 @@ impl RestApi {
         url: &str,
         data: RequestData<T>,
         params: &HashMap<&str, &'a str>,
-        headers: Option<Headers>,
+        headers: Option<HeaderMap>,
     ) -> Result<Response> {
         let client = Client::new();
         let encoded_url = RestApi::encode_url(url.to_string(), params)?;
 
         let mut req = match *method {
-            Method::Get => client.get(&encoded_url),
-            Method::Put => client.put(&encoded_url),
-            Method::Post => client.post(&encoded_url),
-            Method::Delete => client.delete(&encoded_url),
+            Method::GET => client.get(&encoded_url),
+            Method::PUT => client.put(&encoded_url),
+            Method::POST => client.post(&encoded_url),
+            Method::DELETE => client.delete(&encoded_url),
             _ => {
                 return Err(Error::from(ErrorKind::UnsupportedHttpMethod(method.to_string())));
             }
         };
 
         if let Some(headers) = headers {
-            req.headers(headers);
+            req = req.headers(headers);
         }
 
-        match data {
+        req = match data {
             RequestData::Body(body) => req.body(body),
             RequestData::MultipartForm(form) => req.multipart(form),
         };
@@ -124,8 +130,10 @@ impl RestApi {
                 [
                     url::form_urlencoded::byte_serialize(k.as_bytes()).collect::<String>(),
                     url::form_urlencoded::byte_serialize(v.as_bytes()).collect::<String>(),
-                ].join("="),
-            ].join("&")
+                ]
+                    .join("="),
+            ]
+                .join("&")
         });
         let url_string = [base, query_string].join("");
         let encoded_url = Url::parse(&url_string).chain_err(|| ErrorKind::ApiCallFailed(url_string))?;

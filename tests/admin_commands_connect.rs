@@ -63,13 +63,7 @@ fn attempt_to_connect_to_an_incompatible_rocketchat_server_version() {
 
     thread::spawn(move || {
         let mut rocketchat_router = Router::new();
-        rocketchat_router.get(
-            "/api/info",
-            handlers::RocketchatInfo {
-                version: "0.1.0",
-            },
-            "info",
-        );
+        rocketchat_router.get("/api/info", handlers::RocketchatInfo { version: "0.1.0" }, "info");
         let mut server = Iron::new(rocketchat_router);
         server.threads = IRON_THREADS;
         let listening = server.http(&socket_addr).unwrap();
@@ -94,7 +88,7 @@ fn attempt_to_connect_to_an_incompatible_rocketchat_server_version() {
 
     let message_received_by_matrix = receiver.recv_timeout(default_timeout()).unwrap();
     assert!(message_received_by_matrix.contains(
-        "No supported API version (>= 0.60) found for the Rocket.Chat server, \
+        "No supported API version (>= 0.70) found for the Rocket.Chat server, \
          found version: 0.1.0",
     ));
 
@@ -158,13 +152,7 @@ fn attempt_to_connect_to_a_server_with_the_correct_endpoint_but_an_incompatible_
 
     thread::spawn(move || {
         let mut rocketchat_router = Router::new();
-        rocketchat_router.get(
-            "/api/info",
-            handlers::InvalidJsonResponse {
-                status: status::Ok,
-            },
-            "info",
-        );
+        rocketchat_router.get("/api/info", handlers::InvalidJsonResponse { status: status::Ok }, "info");
         let mut server = Iron::new(rocketchat_router);
         server.threads = IRON_THREADS;
         let listening = server.http(&socket_addr).unwrap();
@@ -306,13 +294,7 @@ fn attempt_to_connect_with_a_rocketchat_server_id_that_is_already_in_use() {
 
     thread::spawn(move || {
         let mut rocketchat_router = Router::new();
-        rocketchat_router.get(
-            "/api/info",
-            handlers::RocketchatInfo {
-                version: DEFAULT_ROCKETCHAT_VERSION,
-            },
-            "info",
-        );
+        rocketchat_router.get("/api/info", handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION }, "info");
         let mut server = Iron::new(rocketchat_router);
         server.threads = IRON_THREADS;
         let listening = server.http(&socket_addr).unwrap();
@@ -372,9 +354,7 @@ fn connect_an_existing_server() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let admin_room_creator_handler = handlers::RoomStateCreate {
-        creator: UserId::try_from("@other_user:localhost").unwrap(),
-    };
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
         room_id: RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         event_type: EventType::RoomCreate.to_string(),
@@ -424,9 +404,7 @@ fn attempt_to_connect_to_an_existing_server_with_a_token() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let admin_room_creator_handler = handlers::RoomStateCreate {
-        creator: UserId::try_from("@other_user:localhost").unwrap(),
-    };
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
         room_id: RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         event_type: EventType::RoomCreate.to_string(),
@@ -488,13 +466,7 @@ fn attempt_to_connect_an_already_connected_room() {
 
     thread::spawn(move || {
         let mut rocketchat_router = Router::new();
-        rocketchat_router.get(
-            "/api/info",
-            handlers::RocketchatInfo {
-                version: "0.49.0",
-            },
-            "info",
-        );
+        rocketchat_router.get("/api/info", handlers::RocketchatInfo { version: "0.49.0" }, "info");
         let mut server = Iron::new(rocketchat_router);
         server.threads = IRON_THREADS;
         let listening = server.http(&socket_addr).unwrap();
@@ -592,10 +564,8 @@ fn connecting_a_room_failes_when_the_room_topic_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let error_responder = handlers::MatrixErrorResponder {
-        status: status::InternalServerError,
-        message: "Could not set room topic".to_string(),
-    };
+    let error_responder =
+        handlers::MatrixErrorResponder { status: status::InternalServerError, message: "Could not set room topic".to_string() };
     matrix_router.put("/_matrix/client/r0/rooms/:room_id/state/m.room.topic", error_responder, "put_room_topic");
     let test = test.with_matrix_routes(matrix_router).with_rocketchat_mock().with_admin_room().run();
 

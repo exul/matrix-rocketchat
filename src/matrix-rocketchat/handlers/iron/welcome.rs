@@ -1,5 +1,5 @@
-use iron::{status, Handler};
 use iron::prelude::*;
+use iron::{status, Handler};
 
 use i18n::*;
 

@@ -25,7 +25,8 @@ fn read_config_from_file() {
                         log_to_console: true
                         log_to_file: true
                         log_file_path: "matrix-rocketchat.log"
-                        use_https: false"#.replace("  ", ""); // hacky way to remove the whitespaces before the keys
+                        use_https: false"#
+        .replace("  ", ""); // hacky way to remove the whitespaces before the keys
     let temp_dir = TempDir::new(TEMP_DIR_NAME).unwrap();
     let config_path = temp_dir.path().join("test.config");
 

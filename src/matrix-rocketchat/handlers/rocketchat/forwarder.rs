@@ -1,8 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use diesel::sqlite::SqliteConnection;
-use reqwest::header::ContentType;
-use reqwest::mime;
 use ruma_events::room::message::MessageType;
 use ruma_identifiers::UserId;
 use slog::Logger;
@@ -11,6 +9,7 @@ use api::rocketchat::WebhookMessage;
 use api::{MatrixApi, RocketchatApi};
 use config::Config;
 use errors::*;
+use http::header::HeaderValue;
 use i18n::*;
 use log;
 use models::{RocketchatRoom, RocketchatServer, Room, UserOnRocketchatServer, VirtualUser};
@@ -42,13 +41,7 @@ impl<'a> Forwarder<'a> {
         matrix_api: &'a MatrixApi,
         virtual_user: &'a VirtualUser,
     ) -> Forwarder<'a> {
-        Forwarder {
-            config,
-            connection,
-            logger,
-            matrix_api,
-            virtual_user,
-        }
+        Forwarder { config, connection, logger, matrix_api, virtual_user }
     }
 
     /// Send a message to the Matrix channel.
@@ -285,18 +278,28 @@ impl<'a> Forwarder<'a> {
             let file_url = self.matrix_api.upload(file.data.to_vec(), file.content_type.clone())?;
             let message_type = self.message_type(&file.content_type);
             debug!(self.logger, "Uploaded file, URL is {}", file_url);
-            self.matrix_api.send_data_message(room.id.clone(), sender_id.clone(), file.title.clone(), file_url, message_type)?;
+            self.matrix_api.send_data_message(
+                room.id.clone(),
+                sender_id.clone(),
+                file.title.clone(),
+                file_url,
+                message_type,
+            )?;
         }
 
         Ok(())
     }
 
-    fn message_type(&self, content_type: &ContentType) -> MessageType {
-        match content_type.type_() {
-            mime::IMAGE => MessageType::Image,
-            mime::AUDIO => MessageType::Audio,
-            mime::VIDEO => MessageType::Video,
-            _ => MessageType::File,
+    fn message_type(&self, content_type: &HeaderValue) -> MessageType {
+        let raw_content_type = content_type.to_str().unwrap_or_default();
+        if raw_content_type.starts_with("image/") {
+            MessageType::Image
+        } else if raw_content_type.starts_with("audio/") {
+            MessageType::Audio
+        } else if raw_content_type.starts_with("video/") {
+            MessageType::Video
+        } else {
+            MessageType::File
         }
     }
 }

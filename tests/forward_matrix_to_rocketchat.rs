@@ -57,13 +57,7 @@ fn successfully_forwards_an_image_message_from_matrix_to_rocketchat() {
     let mut matrix_router = test.default_matrix_routes();
     let mut files = HashMap::new();
     files.insert("spec_id".to_string(), b"image".to_vec());
-    matrix_router.get(
-        GetContentEndpoint::router_path(),
-        handlers::MatrixGetContentHandler {
-            files: files,
-        },
-        "get_file",
-    );
+    matrix_router.get(GetContentEndpoint::router_path(), handlers::MatrixGetContentHandler { files: files }, "get_file");
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(format!("{}{}", ROOMS_UPLOAD_PATH, "/:channel_id"), message_forwarder, "upload");
 
@@ -95,13 +89,7 @@ fn successfully_forwards_a_file_message_from_matrix_to_rocketchat() {
     let mut matrix_router = test.default_matrix_routes();
     let mut files = HashMap::new();
     files.insert("spec_id".to_string(), b"file".to_vec());
-    matrix_router.get(
-        GetContentEndpoint::router_path(),
-        handlers::MatrixGetContentHandler {
-            files: files,
-        },
-        "get_file",
-    );
+    matrix_router.get(GetContentEndpoint::router_path(), handlers::MatrixGetContentHandler { files: files }, "get_file");
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(format!("{}{}", ROOMS_UPLOAD_PATH, "/:channel_id"), message_forwarder, "upload");
 
@@ -133,13 +121,7 @@ fn successfully_forwards_an_audio_message_from_matrix_to_rocketchat() {
     let mut matrix_router = test.default_matrix_routes();
     let mut files = HashMap::new();
     files.insert("spec_id".to_string(), b"audio".to_vec());
-    matrix_router.get(
-        GetContentEndpoint::router_path(),
-        handlers::MatrixGetContentHandler {
-            files: files,
-        },
-        "get_file",
-    );
+    matrix_router.get(GetContentEndpoint::router_path(), handlers::MatrixGetContentHandler { files: files }, "get_file");
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(format!("{}{}", ROOMS_UPLOAD_PATH, "/:channel_id"), message_forwarder, "upload");
 
@@ -171,13 +153,7 @@ fn successfully_forwards_a_video_message_from_matrix_to_rocketchat() {
     let mut matrix_router = test.default_matrix_routes();
     let mut files = HashMap::new();
     files.insert("spec_id".to_string(), b"video".to_vec());
-    matrix_router.get(
-        GetContentEndpoint::router_path(),
-        handlers::MatrixGetContentHandler {
-            files: files,
-        },
-        "get_file",
-    );
+    matrix_router.get(GetContentEndpoint::router_path(), handlers::MatrixGetContentHandler { files: files }, "get_file");
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(format!("{}{}", ROOMS_UPLOAD_PATH, "/:channel_id"), message_forwarder, "upload");
 
@@ -210,20 +186,11 @@ fn error_message_when_uploading_the_file_on_rocketchat_fails_when_forwarding_a_f
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut files = HashMap::new();
     files.insert("spec_id".to_string(), b"file".to_vec());
-    matrix_router.get(
-        GetContentEndpoint::router_path(),
-        handlers::MatrixGetContentHandler {
-            files: files,
-        },
-        "get_file",
-    );
+    matrix_router.get(GetContentEndpoint::router_path(), handlers::MatrixGetContentHandler { files: files }, "get_file");
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.post(
         format!("{}{}", ROOMS_UPLOAD_PATH, "/:channel_id"),
-        handlers::RocketchatErrorResponder {
-            message: "Spec error".to_string(),
-            status: status::BadRequest,
-        },
+        handlers::RocketchatErrorResponder { message: "Spec error".to_string(), status: status::BadRequest },
         "upload",
     );
 
@@ -268,9 +235,7 @@ fn no_message_is_forwarded_when_the_image_cannot_be_found() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.get(
         GetContentEndpoint::router_path(),
-        handlers::MatrixGetContentHandler {
-            files: HashMap::new(),
-        },
+        handlers::MatrixGetContentHandler { files: HashMap::new() },
         "get_file",
     );
     let mut rocketchat_router = test.default_rocketchat_routes();
@@ -561,9 +526,7 @@ fn the_user_gets_a_message_when_when_getting_the_canonical_room_alias_response_c
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.get(
         "/_matrix/client/r0/rooms/!spec_channel_id:localhost/state/m.room.canonical_alias",
-        handlers::InvalidJsonResponse {
-            status: status::Ok,
-        },
+        handlers::InvalidJsonResponse { status: status::Ok },
         "get_room_canonical_room_alias",
     );
 

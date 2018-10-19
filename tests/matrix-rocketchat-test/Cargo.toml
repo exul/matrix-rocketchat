@@ -8,7 +8,8 @@ license = "MIT OR Apache-2.0"
 path = "lib.rs"
 
 [dependencies]
-diesel = { version = "1.2", default-features = false, features = ["sqlite"] }
+diesel = { version = "1.3", default-features = false, features = ["sqlite"] }
+http = "0.1"
 iron = "0.6"
 lazy_static = "1.0"
 matrix_rocketchat = { path = "../.." }
@@ -16,7 +17,7 @@ persistent = "0.4"
 r2d2 = "0.8"
 r2d2-diesel = "1.0"
 rand = "0.4"
-reqwest = "0.8"
+reqwest = "0.9"
 router = "0.6"
 ruma-client-api = { git = "https://github.com/exul/ruma-client-api.git" }
 ruma-events = { git = "https://github.com/exul/ruma-events.git" }

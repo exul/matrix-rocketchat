@@ -23,14 +23,9 @@ pub struct Transactions {
 impl Transactions {
     /// Transactions endpoint with middleware
     pub fn chain(config: Config, matrix_api: Box<MatrixApi>) -> Chain {
-        let transactions = Transactions {
-            config: config.clone(),
-            matrix_api,
-        };
+        let transactions = Transactions { config: config.clone(), matrix_api };
         let mut chain = Chain::new(transactions);
-        chain.link_before(AccessToken {
-            config,
-        });
+        chain.link_before(AccessToken { config });
 
         chain
     }

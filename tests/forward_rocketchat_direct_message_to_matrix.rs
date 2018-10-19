@@ -53,10 +53,8 @@ fn successfully_forwards_a_direct_message_to_matrix() {
     let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
-    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
-        direct_messages: direct_messages,
-        status: status::Ok,
-    };
+    let direct_messages_list_handler =
+        handlers::RocketchatDirectMessagesList { direct_messages: direct_messages, status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test
@@ -146,10 +144,8 @@ fn successfully_forwards_a_direct_message_to_an_existing_dm_room_on_matrix() {
     let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
-    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
-        direct_messages: direct_messages,
-        status: status::Ok,
-    };
+    let direct_messages_list_handler =
+        handlers::RocketchatDirectMessagesList { direct_messages: direct_messages, status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
     let room_id = RoomId::try_from("!other_userDMRocketChat_id:localhost").unwrap();
     let spec_user_id = UserId::try_from("@spec_user:localhost").unwrap();
@@ -207,38 +203,22 @@ fn successfully_forwards_an_image_in_a_direct_message_to_matrix() {
         msg: "".to_string(),
         ts: "2017-12-12 11:11".to_string(),
         attachments: Some(attachments),
-        file: Some(File {
-            mimetype: "image/png".to_string(),
-        }),
-        u: UserInfo {
-            id: "spec_user_id".to_string(),
-            username: "spec_sender".to_string(),
-            name: "spec sender".to_string(),
-        },
+        file: Some(File { mimetype: "image/png".to_string() }),
+        u: UserInfo { id: "spec_user_id".to_string(), username: "spec_sender".to_string(), name: "spec sender".to_string() },
         mentions: Vec::new(),
         channels: Vec::new(),
         updated_at: "2017-12-12 11:11".to_string(),
     })));
-    let rocketchat_message_responder = handlers::RocketchatMessageResponder {
-        message: rocketchat_message,
-    };
+    let rocketchat_message_responder = handlers::RocketchatMessageResponder { message: rocketchat_message };
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("image.png".to_string(), b"image".to_vec());
-    rocketchat_router.get(
-        "/file-upload/:filename",
-        handlers::RocketchatFileResponder {
-            files: files,
-        },
-        "get_file",
-    );
+    rocketchat_router.get("/file-upload/:filename", handlers::RocketchatFileResponder { files: files }, "get_file");
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
-    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
-        direct_messages: direct_messages,
-        status: status::Ok,
-    };
+    let direct_messages_list_handler =
+        handlers::RocketchatDirectMessagesList { direct_messages: direct_messages, status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test
@@ -308,10 +288,8 @@ fn the_virtual_user_stays_in_the_direct_message_room_if_the_user_leaves() {
     let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
-    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
-        direct_messages: direct_messages,
-        status: status::Ok,
-    };
+    let direct_messages_list_handler =
+        handlers::RocketchatDirectMessagesList { direct_messages: direct_messages, status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let mut matrix_router = test.default_matrix_routes();
@@ -379,10 +357,8 @@ fn successfully_forwards_a_direct_message_to_a_matrix_room_that_was_bridged_befo
     let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
-    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
-        direct_messages: direct_messages,
-        status: status::Ok,
-    };
+    let direct_messages_list_handler =
+        handlers::RocketchatDirectMessagesList { direct_messages: direct_messages, status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let mut matrix_router = test.default_matrix_routes();
@@ -477,9 +453,7 @@ fn do_use_two_different_dm_rooms_when_both_users_are_on_matrix() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
-    let admin_room_creator_handler = handlers::RoomStateCreate {
-        creator: UserId::try_from("@other_user:localhost").unwrap(),
-    };
+    let admin_room_creator_handler = handlers::RoomStateCreate { creator: UserId::try_from("@other_user:localhost").unwrap() };
     let admin_room_creator_params = get_state_events_for_empty_key::PathParams {
         room_id: RoomId::try_from("!other_admin_room_id:localhost").unwrap(),
         event_type: EventType::RoomCreate.to_string(),
@@ -493,28 +467,17 @@ fn do_use_two_different_dm_rooms_when_both_users_are_on_matrix() {
     let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
-    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
-        direct_messages: direct_messages,
-        status: status::Ok,
-    };
+    let direct_messages_list_handler =
+        handlers::RocketchatDirectMessagesList { direct_messages: direct_messages, status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
     let login_user_id = Arc::new(Mutex::new(Some("spec_user_id".to_string())));
     rocketchat_router.post(
         LOGIN_PATH,
-        handlers::RocketchatLogin {
-            successful: true,
-            rocketchat_user_id: Arc::clone(&login_user_id),
-        },
+        handlers::RocketchatLogin { successful: true, rocketchat_user_id: Arc::clone(&login_user_id) },
         "login",
     );
     let me_username = Arc::new(Mutex::new("spec_user".to_string()));
-    rocketchat_router.get(
-        ME_PATH,
-        handlers::RocketchatMe {
-            username: Arc::clone(&me_username),
-        },
-        "me",
-    );
+    rocketchat_router.get(ME_PATH, handlers::RocketchatMe { username: Arc::clone(&me_username) }, "me");
 
     let test = test
         .with_matrix_routes(matrix_router)
@@ -642,10 +605,8 @@ fn do_not_forward_a_direct_message_if_the_receiver_is_the_senders_virtual_user()
     let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
-    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
-        direct_messages: direct_messages,
-        status: status::Ok,
-    };
+    let direct_messages_list_handler =
+        handlers::RocketchatDirectMessagesList { direct_messages: direct_messages, status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test
@@ -702,10 +663,8 @@ fn do_not_forwards_a_direct_message_to_a_room_if_the_user_is_no_longer_logged_in
     let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
-    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
-        direct_messages: direct_messages,
-        status: status::Ok,
-    };
+    let direct_messages_list_handler =
+        handlers::RocketchatDirectMessagesList { direct_messages: direct_messages, status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let mut matrix_router = test.default_matrix_routes();
@@ -791,10 +750,8 @@ fn no_room_is_created_when_the_user_doesn_not_have_access_to_the_matching_direct
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
     let mut rocketchat_router = test.default_rocketchat_routes();
-    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
-        direct_messages: HashMap::new(),
-        status: status::Ok,
-    };
+    let direct_messages_list_handler =
+        handlers::RocketchatDirectMessagesList { direct_messages: HashMap::new(), status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test
@@ -862,10 +819,7 @@ fn no_room_is_created_when_getting_the_direct_message_list_failes() {
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(
         DM_LIST_PATH,
-        handlers::RocketchatErrorResponder {
-            status: status::InternalServerError,
-            message: "Getting DMs failed".to_string(),
-        },
+        handlers::RocketchatErrorResponder { status: status::InternalServerError, message: "Getting DMs failed".to_string() },
         "direct_messages_list",
     );
 
@@ -902,19 +856,15 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_failes() {
     let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
-    let error_responder = handlers::MatrixErrorResponder {
-        status: status::InternalServerError,
-        message: "Could get initial sync".to_string(),
-    };
+    let error_responder =
+        handlers::MatrixErrorResponder { status: status::InternalServerError, message: "Could get initial sync".to_string() };
     matrix_router.get(SyncEventsEndpoint::router_path(), error_responder, "sync");
 
     let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
-    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
-        direct_messages: direct_messages,
-        status: status::Ok,
-    };
+    let direct_messages_list_handler =
+        handlers::RocketchatDirectMessagesList { direct_messages: direct_messages, status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test
@@ -980,10 +930,8 @@ fn no_room_is_created_when_getting_the_displayname_failes() {
     let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
-    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
-        direct_messages: direct_messages,
-        status: status::Ok,
-    };
+    let direct_messages_list_handler =
+        handlers::RocketchatDirectMessagesList { direct_messages: direct_messages, status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test
@@ -1022,13 +970,7 @@ fn no_room_is_created_when_the_direct_message_list_response_cannot_be_deserializ
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
     let mut rocketchat_router = test.default_rocketchat_routes();
-    rocketchat_router.get(
-        DM_LIST_PATH,
-        handlers::InvalidJsonResponse {
-            status: status::Ok,
-        },
-        "direct_messages_list",
-    );
+    rocketchat_router.get(DM_LIST_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "direct_messages_list");
 
     let test = test
         .with_matrix_routes(matrix_router)
@@ -1063,21 +1005,13 @@ fn no_additional_room_is_created_when_getting_the_initial_sync_response_cannot_b
     let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
-    matrix_router.get(
-        SyncEventsEndpoint::router_path(),
-        handlers::InvalidJsonResponse {
-            status: status::Ok,
-        },
-        "sync",
-    );
+    matrix_router.get(SyncEventsEndpoint::router_path(), handlers::InvalidJsonResponse { status: status::Ok }, "sync");
 
     let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
-    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
-        direct_messages: direct_messages,
-        status: status::Ok,
-    };
+    let direct_messages_list_handler =
+        handlers::RocketchatDirectMessagesList { direct_messages: direct_messages, status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test
@@ -1130,21 +1064,16 @@ fn no_room_is_created_when_getting_the_displayname_respones_cannot_be_deserializ
     let (create_room_forwarder, create_room_receiver) = handlers::MatrixCreateRoom::with_forwarder(test.config.as_url.clone());
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.post(CreateRoomEndpoint::router_path(), create_room_forwarder, "create_room");
-    let get_display_name_params = get_display_name::PathParams {
-        user_id: UserId::try_from("@rocketchat_rcid_other_user_id:localhost").unwrap(),
-    };
+    let get_display_name_params =
+        get_display_name::PathParams { user_id: UserId::try_from("@rocketchat_rcid_other_user_id:localhost").unwrap() };
     let get_display_name_path = GetDisplaynameEndpoint::request_path(get_display_name_params);
-    let invalid_json_responder = handlers::InvalidJsonResponse {
-        status: status::Ok,
-    };
+    let invalid_json_responder = handlers::InvalidJsonResponse { status: status::Ok };
     matrix_router.get(get_display_name_path, invalid_json_responder, "get_displayname_invalid_json");
     let mut rocketchat_router = test.default_rocketchat_routes();
     let mut direct_messages = HashMap::new();
     direct_messages.insert("spec_user_id_other_user_id", vec!["spec_user", "other_user"]);
-    let direct_messages_list_handler = handlers::RocketchatDirectMessagesList {
-        direct_messages: direct_messages,
-        status: status::Ok,
-    };
+    let direct_messages_list_handler =
+        handlers::RocketchatDirectMessagesList { direct_messages: direct_messages, status: status::Ok };
     rocketchat_router.get(DM_LIST_PATH, direct_messages_list_handler, "direct_messages_list");
 
     let test = test

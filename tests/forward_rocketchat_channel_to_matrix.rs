@@ -1,5 +1,6 @@
 #![feature(try_from)]
 
+extern crate http;
 extern crate iron;
 extern crate matrix_rocketchat;
 extern crate matrix_rocketchat_test;
@@ -15,13 +16,13 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
 
+use http::{Method, StatusCode};
 use iron::{status, Chain};
 use matrix_rocketchat::api::rocketchat::v1::{Attachment, File, Message, UserInfo, CHAT_GET_MESSAGE_PATH};
 use matrix_rocketchat::api::rocketchat::WebhookMessage;
 use matrix_rocketchat::api::{MatrixApi, RequestData, RestApi};
 use matrix_rocketchat::models::Room;
 use matrix_rocketchat_test::{default_timeout, handlers, helpers, MessageForwarder, Test, DEFAULT_LOGGER, RS_TOKEN};
-use reqwest::{Method, StatusCode};
 use ruma_client_api::r0::account::register::Endpoint as RegisterEndpoint;
 use ruma_client_api::r0::media::create_content::Endpoint as CreateContentEndpoint;
 use ruma_client_api::r0::membership::invite_user::Endpoint as InviteUserEndpoint;
@@ -266,32 +267,18 @@ fn successfully_forwards_an_image_from_rocketchat_to_matrix_when_the_user_is_not
         msg: "".to_string(),
         ts: "2017-12-12 11:11".to_string(),
         attachments: Some(attachments),
-        file: Some(File {
-            mimetype: "image/png".to_string(),
-        }),
-        u: UserInfo {
-            id: "spec_user_id".to_string(),
-            username: "spec_sender".to_string(),
-            name: "spec sender".to_string(),
-        },
+        file: Some(File { mimetype: "image/png".to_string() }),
+        u: UserInfo { id: "spec_user_id".to_string(), username: "spec_sender".to_string(), name: "spec sender".to_string() },
         mentions: Vec::new(),
         channels: Vec::new(),
         updated_at: "2017-12-12 11:11".to_string(),
     })));
-    let rocketchat_message_responder = handlers::RocketchatMessageResponder {
-        message: rocketchat_message,
-    };
+    let rocketchat_message_responder = handlers::RocketchatMessageResponder { message: rocketchat_message };
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("image.png".to_string(), b"image".to_vec());
-    rocketchat_router.get(
-        "/file-upload/:filename",
-        handlers::RocketchatFileResponder {
-            files: files,
-        },
-        "get_file",
-    );
+    rocketchat_router.get("/file-upload/:filename", handlers::RocketchatFileResponder { files: files }, "get_file");
 
     let test = test
         .with_matrix_routes(matrix_router)
@@ -362,32 +349,18 @@ fn successfully_forwards_an_audio_recording_from_rocketchat_to_matrix_when_the_u
         msg: "".to_string(),
         ts: "2017-12-12 11:11".to_string(),
         attachments: Some(attachments),
-        file: Some(File {
-            mimetype: "audio/x-wav".to_string(),
-        }),
-        u: UserInfo {
-            id: "spec_user_id".to_string(),
-            username: "spec_sender".to_string(),
-            name: "spec sender".to_string(),
-        },
+        file: Some(File { mimetype: "audio/x-wav".to_string() }),
+        u: UserInfo { id: "spec_user_id".to_string(), username: "spec_sender".to_string(), name: "spec sender".to_string() },
         mentions: Vec::new(),
         channels: Vec::new(),
         updated_at: "2017-12-12 11:11".to_string(),
     })));
-    let rocketchat_message_responder = handlers::RocketchatMessageResponder {
-        message: rocketchat_message,
-    };
+    let rocketchat_message_responder = handlers::RocketchatMessageResponder { message: rocketchat_message };
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("recording.wav".to_string(), b"audio".to_vec());
-    rocketchat_router.get(
-        "/file-upload/:filename",
-        handlers::RocketchatFileResponder {
-            files: files,
-        },
-        "get_file",
-    );
+    rocketchat_router.get("/file-upload/:filename", handlers::RocketchatFileResponder { files: files }, "get_file");
 
     let test = test
         .with_matrix_routes(matrix_router)
@@ -458,32 +431,18 @@ fn successfully_forwards_a_video_recording_from_rocketchat_to_matrix_when_the_us
         msg: "".to_string(),
         ts: "2017-12-12 11:11".to_string(),
         attachments: Some(attachments),
-        file: Some(File {
-            mimetype: "video/webm".to_string(),
-        }),
-        u: UserInfo {
-            id: "spec_user_id".to_string(),
-            username: "spec_sender".to_string(),
-            name: "spec sender".to_string(),
-        },
+        file: Some(File { mimetype: "video/webm".to_string() }),
+        u: UserInfo { id: "spec_user_id".to_string(), username: "spec_sender".to_string(), name: "spec sender".to_string() },
         mentions: Vec::new(),
         channels: Vec::new(),
         updated_at: "2017-12-12 11:11".to_string(),
     })));
-    let rocketchat_message_responder = handlers::RocketchatMessageResponder {
-        message: rocketchat_message,
-    };
+    let rocketchat_message_responder = handlers::RocketchatMessageResponder { message: rocketchat_message };
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("recording.webm".to_string(), b"video".to_vec());
-    rocketchat_router.get(
-        "/file-upload/:filename",
-        handlers::RocketchatFileResponder {
-            files: files,
-        },
-        "get_file",
-    );
+    rocketchat_router.get("/file-upload/:filename", handlers::RocketchatFileResponder { files: files }, "get_file");
 
     let test = test
         .with_matrix_routes(matrix_router)
@@ -545,32 +504,18 @@ fn do_not_forward_an_image_when_there_are_no_attachments() {
         msg: "".to_string(),
         ts: "2017-12-12 11:11".to_string(),
         attachments: None,
-        file: Some(File {
-            mimetype: "image/png".to_string(),
-        }),
-        u: UserInfo {
-            id: "spec_user_id".to_string(),
-            username: "spec_sender".to_string(),
-            name: "spec sender".to_string(),
-        },
+        file: Some(File { mimetype: "image/png".to_string() }),
+        u: UserInfo { id: "spec_user_id".to_string(), username: "spec_sender".to_string(), name: "spec sender".to_string() },
         mentions: Vec::new(),
         channels: Vec::new(),
         updated_at: "2017-12-12 11:11".to_string(),
     })));
-    let rocketchat_message_responder = handlers::RocketchatMessageResponder {
-        message: rocketchat_message,
-    };
+    let rocketchat_message_responder = handlers::RocketchatMessageResponder { message: rocketchat_message };
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("image.png".to_string(), b"image".to_vec());
-    rocketchat_router.get(
-        "/file-upload/:filename",
-        handlers::RocketchatFileResponder {
-            files: files,
-        },
-        "get_file",
-    );
+    rocketchat_router.get("/file-upload/:filename", handlers::RocketchatFileResponder { files: files }, "get_file");
 
     let test = test
         .with_matrix_routes(matrix_router)
@@ -618,10 +563,8 @@ fn do_not_forward_an_image_when_there_are_is_an_error_when_getting_the_message()
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.post(CreateContentEndpoint::router_path(), create_content_forwarder, "create_content");
 
-    let rocketchat_error_responder = handlers::RocketchatErrorResponder {
-        message: "Could not get image".to_string(),
-        status: status::InternalServerError,
-    };
+    let rocketchat_error_responder =
+        handlers::RocketchatErrorResponder { message: "Could not get image".to_string(), status: status::InternalServerError };
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_error_responder, "get_chat_message");
 
@@ -686,31 +629,20 @@ fn do_not_forward_an_image_when_there_are_is_an_error_when_getting_the_file() {
         msg: "".to_string(),
         ts: "2017-12-12 11:11".to_string(),
         attachments: Some(attachments),
-        file: Some(File {
-            mimetype: "image/png".to_string(),
-        }),
-        u: UserInfo {
-            id: "spec_user_id".to_string(),
-            username: "spec_sender".to_string(),
-            name: "spec sender".to_string(),
-        },
+        file: Some(File { mimetype: "image/png".to_string() }),
+        u: UserInfo { id: "spec_user_id".to_string(), username: "spec_sender".to_string(), name: "spec sender".to_string() },
         mentions: Vec::new(),
         channels: Vec::new(),
         updated_at: "2017-12-12 11:11".to_string(),
     })));
-    let rocketchat_message_responder = handlers::RocketchatMessageResponder {
-        message: rocketchat_message,
-    };
+    let rocketchat_message_responder = handlers::RocketchatMessageResponder { message: rocketchat_message };
     let mut rocketchat_router = test.default_rocketchat_routes();
     rocketchat_router.get(CHAT_GET_MESSAGE_PATH, rocketchat_message_responder, "get_chat_message");
     let mut files = HashMap::new();
     files.insert("image.png".to_string(), b"image".to_vec());
     rocketchat_router.get(
         "/file-upload/:filename",
-        handlers::RocketchatErrorResponder {
-            message: "Could not get file".to_string(),
-            status: status::InternalServerError,
-        },
+        handlers::RocketchatErrorResponder { message: "Could not get file".to_string(), status: status::InternalServerError },
         "get_file",
     );
 
@@ -866,9 +798,9 @@ fn rocketchat_sends_mal_formatted_json() {
     let url = format!("{}/rocketchat", &test.config.as_url);
 
     let params = HashMap::new();
-    let (_, status_code) = RestApi::call(&Method::Post, &url, RequestData::Body(payload), &params, None).unwrap();
+    let (_, status_code) = RestApi::call(&Method::POST, &url, RequestData::Body(payload), &params, None).unwrap();
 
-    assert_eq!(status_code, StatusCode::UnprocessableEntity)
+    assert_eq!(status_code, StatusCode::UNPROCESSABLE_ENTITY)
 }
 
 #[test]
@@ -877,9 +809,7 @@ fn no_message_is_forwarded_when_inviting_the_user_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let invite_handler = handlers::MatrixInviteUser {
-        as_url: test.config.as_url.clone(),
-    };
+    let invite_handler = handlers::MatrixInviteUser { as_url: test.config.as_url.clone() };
     let conditional_error = handlers::MatrixConditionalErrorResponder {
         status: status::InternalServerError,
         message: "Could not invite user".to_string(),
@@ -1076,9 +1006,9 @@ fn returns_unauthorized_when_the_rs_token_is_missing() {
     let url = format!("{}/rocketchat", &test.config.as_url);
 
     let params = HashMap::new();
-    let (_, status_code) = RestApi::call(&Method::Post, &url, RequestData::Body(payload), &params, None).unwrap();
+    let (_, status_code) = RestApi::call(&Method::POST, &url, RequestData::Body(payload), &params, None).unwrap();
 
-    assert_eq!(status_code, StatusCode::Unauthorized)
+    assert_eq!(status_code, StatusCode::UNAUTHORIZED)
 }
 
 #[test]
@@ -1098,7 +1028,7 @@ fn returns_forbidden_when_the_rs_token_does_not_match_a_server() {
     let url = format!("{}/rocketchat", &test.config.as_url);
 
     let params = HashMap::new();
-    let (_, status_code) = RestApi::call(&Method::Post, &url, RequestData::Body(payload), &params, None).unwrap();
+    let (_, status_code) = RestApi::call(&Method::POST, &url, RequestData::Body(payload), &params, None).unwrap();
 
-    assert_eq!(status_code, StatusCode::Forbidden)
+    assert_eq!(status_code, StatusCode::FORBIDDEN)
 }

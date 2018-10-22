@@ -1,6 +1,6 @@
 use diesel::sqlite::SqliteConnection;
-use iron::{Plugin, Request};
 use iron::typemap::Key;
+use iron::{Plugin, Request};
 use persistent::Write;
 use r2d2::{Pool, PooledConnection};
 use r2d2_diesel::ConnectionManager;

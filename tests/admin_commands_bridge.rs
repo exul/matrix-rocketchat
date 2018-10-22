@@ -614,9 +614,7 @@ fn the_user_gets_a_message_when_creating_the_room_failes() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
 
-    let create_room = handlers::MatrixCreateRoom {
-        as_url: test.config.as_url.clone(),
-    };
+    let create_room = handlers::MatrixCreateRoom { as_url: test.config.as_url.clone() };
     let conditional_error = handlers::MatrixConditionalErrorResponder {
         status: status::InternalServerError,
         message: "Could not set power levels".to_string(),
@@ -697,15 +695,10 @@ fn the_user_gets_a_message_when_inviting_the_user_failes() {
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let invite_path = invite_user::PathParams {
-        room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap(),
-    };
+    let invite_path = invite_user::PathParams { room_id: RoomId::try_from("!joined_channel_id:localhost").unwrap() };
     matrix_router.post(
         InviteEndpoint::request_path(invite_path),
-        handlers::MatrixErrorResponder {
-            status: status::InternalServerError,
-            message: "Could not invite user".to_string(),
-        },
+        handlers::MatrixErrorResponder { status: status::InternalServerError, message: "Could not invite user".to_string() },
         "invite",
     );
     let channels = test.channel_list();
@@ -784,10 +777,7 @@ fn the_user_gets_a_message_when_getting_the_room_alias_failes() {
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     matrix_router.get(
         GetAliasEndpoint::router_path(),
-        handlers::MatrixErrorResponder {
-            status: status::InternalServerError,
-            message: "Could not get room alias".to_string(),
-        },
+        handlers::MatrixErrorResponder { status: status::InternalServerError, message: "Could not get room alias".to_string() },
         "get_room_alias",
     );
     let channels = test.channel_list();
@@ -819,13 +809,9 @@ fn the_user_gets_a_message_when_the_create_room_response_cannot_be_deserialized(
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    let create_room = handlers::MatrixCreateRoom {
-        as_url: test.config.as_url.clone(),
-    };
-    let conditional_invalid_json_responder = handlers::ConditionalInvalidJsonResponse {
-        status: status::Ok,
-        conditional_content: "joined_channel",
-    };
+    let create_room = handlers::MatrixCreateRoom { as_url: test.config.as_url.clone() };
+    let conditional_invalid_json_responder =
+        handlers::ConditionalInvalidJsonResponse { status: status::Ok, conditional_content: "joined_channel" };
     let mut create_room_with_invalid_error_responder = Chain::new(create_room);
     create_room_with_invalid_error_responder.link_before(conditional_invalid_json_responder);
 
@@ -863,13 +849,7 @@ fn the_user_gets_a_message_when_the_users_info_response_cannot_be_deserialized()
     channels.lock().unwrap().insert("joined_channel", vec!["spec_user"]);
 
     let mut rocketchat_router = test.default_rocketchat_routes();
-    rocketchat_router.get(
-        USERS_INFO_PATH,
-        handlers::InvalidJsonResponse {
-            status: status::Ok,
-        },
-        "users_info",
-    );
+    rocketchat_router.get(USERS_INFO_PATH, handlers::InvalidJsonResponse { status: status::Ok }, "users_info");
 
     let test = test
         .with_matrix_routes(matrix_router)
@@ -909,13 +889,7 @@ fn the_user_gets_a_message_when_getting_the_room_alias_response_cannot_be_deseri
     let (message_forwarder, receiver) = MessageForwarder::new();
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
-    matrix_router.get(
-        GetAliasEndpoint::router_path(),
-        handlers::InvalidJsonResponse {
-            status: status::Ok,
-        },
-        "get_room_alias",
-    );
+    matrix_router.get(GetAliasEndpoint::router_path(), handlers::InvalidJsonResponse { status: status::Ok }, "get_room_alias");
     let channels = test.channel_list();
     channels.lock().unwrap().insert("joined_channel", vec!["spec_user"]);
     let test =

@@ -1,5 +1,5 @@
-use diesel::Connection;
 use diesel::sqlite::SqliteConnection;
+use diesel::Connection;
 use hyper_native_tls::NativeTlsServer;
 use iron::{Chain, Iron, Listening};
 use persistent::{State, Write};
@@ -26,10 +26,7 @@ pub struct Server<'a> {
 impl<'a> Server<'a> {
     /// Create a new `Server` with a given configuration.
     pub fn new(config: &Config, logger: Logger) -> Server {
-        Server {
-            config,
-            logger,
-        }
+        Server { config, logger }
     }
 
     /// Runs the application service bridge.
@@ -53,7 +50,9 @@ impl<'a> Server<'a> {
             let pkcs12_path = self.config.pkcs12_path.clone().unwrap_or_default();
             let pkcs12_password = self.config.pkcs12_password.clone().unwrap_or_default();
             info!(self.logger, "Using HTTPS"; "pkcs12_path" => &pkcs12_path);
-            let ssl = NativeTlsServer::new(pkcs12_path, &pkcs12_password).chain_err(|| ErrorKind::ServerStartupError).map_err(Error::from)?;
+            let ssl = NativeTlsServer::new(pkcs12_path, &pkcs12_password)
+                .chain_err(|| ErrorKind::ServerStartupError)
+                .map_err(Error::from)?;
             server.https(self.config.as_address, ssl)
         } else {
             info!(self.logger, "Using HTTP");
@@ -69,14 +68,7 @@ impl<'a> Server<'a> {
         router.get("/", Welcome {}, "welcome");
         router.put("/transactions/:txn_id", Transactions::chain(self.config.clone(), matrix_api.clone()), "transactions");
         router.post("/rocketchat", Rocketchat::chain(self.config, matrix_api.clone()), "rocketchat");
-        router.post(
-            "/rocketchat/login",
-            RocketchatLogin {
-                config: self.config.clone(),
-                matrix_api,
-            },
-            "rocketchat_login",
-        );
+        router.post("/rocketchat/login", RocketchatLogin { config: self.config.clone(), matrix_api }, "rocketchat_login");
         router
     }
 

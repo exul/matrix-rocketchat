@@ -3,11 +3,11 @@ use std::convert::TryFrom;
 
 use super::{DEFAULT_LOGGER, HS_TOKEN};
 use diesel::sqlite::SqliteConnection;
+use http::{Method, StatusCode};
 use matrix_rocketchat::api::{MatrixApi, RequestData, RestApi};
 use matrix_rocketchat::models::Events;
 use matrix_rocketchat::models::UserOnRocketchatServer;
 use matrix_rocketchat::Config;
-use reqwest::{Method, StatusCode};
 use ruma_client_api::r0::send::send_state_event_for_empty_key::{self, Endpoint as SendStateEventForEmptyKeyEndpoint};
 use ruma_client_api::Endpoint;
 use ruma_events::collections::all::Event;
@@ -57,9 +57,7 @@ pub fn send_invite_event_from_matrix(as_url: &str, room_id: RoomId, user_id: Use
         user_id: inviter_id,
     };
 
-    let events = Events {
-        events: vec![Box::new(Event::RoomMember(invite_event))],
-    };
+    let events = Events { events: vec![Box::new(Event::RoomMember(invite_event))] };
 
     let invite_payload = to_string(&events).unwrap();
 
@@ -92,9 +90,7 @@ pub fn send_join_event_from_matrix(as_url: &str, room_id: RoomId, user_id: UserI
         user_id: user_id,
     };
 
-    let events = Events {
-        events: vec![Box::new(Event::RoomMember(join_event))],
-    };
+    let events = Events { events: vec![Box::new(Event::RoomMember(join_event))] };
     let join_payload = to_string(&events).unwrap();
     simulate_message_from_matrix(&as_url, &join_payload);
 }
@@ -122,19 +118,14 @@ pub fn send_leave_event_from_matrix(as_url: &str, room_id: RoomId, user_id: User
         user_id: user_id,
     };
 
-    let events = Events {
-        events: vec![Box::new(Event::RoomMember(leave_event))],
-    };
+    let events = Events { events: vec![Box::new(Event::RoomMember(leave_event))] };
     let leave_payload = to_string(&events).unwrap();
     simulate_message_from_matrix(as_url, &leave_payload);
 }
 
 pub fn send_room_message_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId, body: String) {
     let message_event = MessageEvent {
-        content: MessageEventContent::Text(TextMessageEventContent {
-            body: body,
-            msgtype: MessageType::Text,
-        }),
+        content: MessageEventContent::Text(TextMessageEventContent { body: body, msgtype: MessageType::Text }),
         event_id: EventId::new("localhost").unwrap(),
         event_type: EventType::RoomMessage,
         room_id: room_id,
@@ -142,9 +133,7 @@ pub fn send_room_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Use
         user_id: user_id,
     };
 
-    let events = Events {
-        events: vec![Box::new(Event::RoomMessage(message_event))],
-    };
+    let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
     let payload = to_string(&events).unwrap();
 
     simulate_message_from_matrix(as_url, &payload);
@@ -172,9 +161,7 @@ pub fn send_image_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Us
         user_id: user_id,
     };
 
-    let events = Events {
-        events: vec![Box::new(Event::RoomMessage(message_event))],
-    };
+    let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
     let payload = to_string(&events).unwrap();
 
     simulate_message_from_matrix(as_url, &payload);
@@ -184,10 +171,7 @@ pub fn send_file_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Use
     let message_event = MessageEvent {
         content: MessageEventContent::File(FileMessageEventContent {
             body: body,
-            info: Some(FileInfo {
-                mimetype: Some("text/plain".to_string()),
-                size: None,
-            }),
+            info: Some(FileInfo { mimetype: Some("text/plain".to_string()), size: None }),
             msgtype: MessageType::File,
             thumbnail_info: None,
             thumbnail_url: None,
@@ -200,9 +184,7 @@ pub fn send_file_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Use
         user_id: user_id,
     };
 
-    let events = Events {
-        events: vec![Box::new(Event::RoomMessage(message_event))],
-    };
+    let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
     let payload = to_string(&events).unwrap();
 
     simulate_message_from_matrix(as_url, &payload);
@@ -212,11 +194,7 @@ pub fn send_audio_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Us
     let message_event = MessageEvent {
         content: MessageEventContent::Audio(AudioMessageEventContent {
             body: body,
-            info: Some(AudioInfo {
-                mimetype: Some("audio/x-wav".to_string()),
-                duration: None,
-                size: None,
-            }),
+            info: Some(AudioInfo { mimetype: Some("audio/x-wav".to_string()), duration: None, size: None }),
             msgtype: MessageType::Audio,
             url: url,
         }),
@@ -227,9 +205,7 @@ pub fn send_audio_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Us
         user_id: user_id,
     };
 
-    let events = Events {
-        events: vec![Box::new(Event::RoomMessage(message_event))],
-    };
+    let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
     let payload = to_string(&events).unwrap();
 
     simulate_message_from_matrix(as_url, &payload);
@@ -258,9 +234,7 @@ pub fn send_video_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Us
         user_id: user_id,
     };
 
-    let events = Events {
-        events: vec![Box::new(Event::RoomMessage(message_event))],
-    };
+    let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
     let payload = to_string(&events).unwrap();
 
     simulate_message_from_matrix(as_url, &payload);
@@ -268,10 +242,7 @@ pub fn send_video_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Us
 
 pub fn send_emote_message_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId, body: String) {
     let message_event = MessageEvent {
-        content: MessageEventContent::Text(TextMessageEventContent {
-            body: body,
-            msgtype: MessageType::Emote,
-        }),
+        content: MessageEventContent::Text(TextMessageEventContent { body: body, msgtype: MessageType::Emote }),
         event_id: EventId::new("localhost").unwrap(),
         event_type: EventType::RoomMessage,
         room_id: room_id,
@@ -279,9 +250,7 @@ pub fn send_emote_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Us
         user_id: user_id,
     };
 
-    let events = Events {
-        events: vec![Box::new(Event::RoomMessage(message_event))],
-    };
+    let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
     let payload = to_string(&events).unwrap();
 
     simulate_message_from_matrix(as_url, &payload);
@@ -291,13 +260,13 @@ pub fn simulate_message_from_matrix(as_url: &str, payload: &str) -> (String, Sta
     let url = format!("{}/transactions/{}", as_url, "specid");
     let mut params = HashMap::new();
     params.insert("access_token", HS_TOKEN);
-    RestApi::call(&Method::Put, &url, RequestData::Body(payload.to_owned()), &params, None).unwrap()
+    RestApi::call(&Method::PUT, &url, RequestData::Body(payload.to_owned()), &params, None).unwrap()
 }
 
 pub fn simulate_message_from_rocketchat(as_url: &str, payload: &str) -> (String, StatusCode) {
     let url = format!("{}/rocketchat", as_url);
     let params = HashMap::new();
-    RestApi::call(&Method::Post, &url, RequestData::Body(payload.to_owned()), &params, None).unwrap()
+    RestApi::call(&Method::POST, &url, RequestData::Body(payload.to_owned()), &params, None).unwrap()
 }
 
 pub fn logout_user_from_rocketchat_server_on_bridge(
@@ -311,10 +280,7 @@ pub fn logout_user_from_rocketchat_server_on_bridge(
 }
 
 pub fn add_room_alias_id(config: &Config, room_id: RoomId, room_alias_id: RoomAliasId, user_id: UserId, access_token: &str) {
-    let path_params = send_state_event_for_empty_key::PathParams {
-        room_id: room_id,
-        event_type: EventType::RoomAliases,
-    };
+    let path_params = send_state_event_for_empty_key::PathParams { room_id: room_id, event_type: EventType::RoomAliases };
     let endpoint = config.hs_url.clone() + &SendStateEventForEmptyKeyEndpoint::request_path(path_params);
     let room_alias = room_alias_id.to_string();
     let id = user_id.to_string();

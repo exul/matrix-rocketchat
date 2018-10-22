@@ -4,13 +4,16 @@
 use std::error::Error as StdError;
 use std::fmt::Error as FmtError;
 use std::fmt::{Display, Formatter};
+use std::io::Error as IOError;
 use std::result::Result as StdResult;
 
 use diesel::result::Error as DieselError;
 use diesel_migrations::RunMigrationsError;
+use http::header::{InvalidHeaderValue, ToStrError};
 use iron::modifier::Modifier;
 use iron::status::Status;
 use iron::{IronError, Response};
+use reqwest::Error as ReqwestError;
 use ruma_identifiers::RoomId;
 use serde::{Deserialize, Deserializer};
 use serde_json;
@@ -19,19 +22,13 @@ use i18n::*;
 
 macro_rules! simple_error {
     ($e:expr) => {
-        Error {
-            error_chain: $e.into(),
-            user_message: None,
-        }
+        Error { error_chain: $e.into(), user_message: None }
     };
 }
 
 macro_rules! user_error {
     ($e:expr, $u:expr) => {
-        Error {
-            error_chain: $e.into(),
-            user_message: Some($u),
-        }
+        Error { error_chain: $e.into(), user_message: Some($u) }
     };
 }
 
@@ -444,13 +441,34 @@ impl From<RunMigrationsError> for Error {
     }
 }
 
+impl From<InvalidHeaderValue> for Error {
+    fn from(error: InvalidHeaderValue) -> Error {
+        simple_error!(format!("{}", error))
+    }
+}
+
+impl From<ToStrError> for Error {
+    fn from(error: ToStrError) -> Error {
+        simple_error!(format!("{}", error))
+    }
+}
+
+impl From<ReqwestError> for Error {
+    fn from(error: ReqwestError) -> Error {
+        simple_error!(format!("{}", error))
+    }
+}
+
+impl From<IOError> for Error {
+    fn from(error: IOError) -> Error {
+        simple_error!(format!("{}", error))
+    }
+}
+
 impl From<Error> for IronError {
     fn from(error: Error) -> IronError {
         let response = Response::with(&error);
-        IronError {
-            error: Box::new(error),
-            response,
-        }
+        IronError { error: Box::new(error), response }
     }
 }
 
@@ -462,10 +480,7 @@ impl<'a> Modifier<Response> for &'a Error {
         };
 
         let causes = self.error_chain.iter().skip(1).map(|e| format!("{}", e)).collect();
-        let resp = ErrorResponse {
-            error: error_message,
-            causes,
-        };
+        let resp = ErrorResponse { error: error_message, causes };
 
         let err_msg = serde_json::to_string(&resp).expect("ErrorResponse is always serializable");
         response.status = Some(self.status_code());

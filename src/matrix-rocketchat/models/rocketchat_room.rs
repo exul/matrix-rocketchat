@@ -31,13 +31,7 @@ impl<'a> RocketchatRoom<'a> {
         id: String,
         server_id: &'a str,
     ) -> RocketchatRoom<'a> {
-        RocketchatRoom {
-            config,
-            logger,
-            matrix_api,
-            id,
-            server_id,
-        }
+        RocketchatRoom { config, logger, matrix_api, id, server_id }
     }
 
     /// Create a new rocketchat room model based on the Rocket.Chat channel or group name and server.
@@ -52,17 +46,18 @@ impl<'a> RocketchatRoom<'a> {
         let mut rocketchat_rooms = rocketchat_api.channels_list()?;
         let groups = rocketchat_api.groups_list()?;
         rocketchat_rooms.extend(groups.iter().cloned());
-        let id = rocketchat_rooms
-            .iter()
-            .filter_map(|rocketchat_room| {
-                if rocketchat_room.name == Some(name.to_string()) {
-                    Some(rocketchat_room.id.clone())
-                } else {
-                    None
-                }
-            })
-            .next()
-            .unwrap_or_default();
+        let id =
+            rocketchat_rooms
+                .iter()
+                .filter_map(|rocketchat_room| {
+                    if rocketchat_room.name == Some(name.to_string()) {
+                        Some(rocketchat_room.id.clone())
+                    } else {
+                        None
+                    }
+                })
+                .next()
+                .unwrap_or_default();
 
         let rocketchat_room = RocketchatRoom::new(config, logger, matrix_api, id, server_id);
         Ok(rocketchat_room)

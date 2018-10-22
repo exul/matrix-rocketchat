@@ -33,13 +33,7 @@ impl<'a> CommandHandler<'a> {
         matrix_api: &'a MatrixApi,
         admin_room: &'a Room<'a>,
     ) -> CommandHandler<'a> {
-        CommandHandler {
-            config,
-            connection,
-            logger,
-            matrix_api,
-            admin_room,
-        }
+        CommandHandler { config, connection, logger, matrix_api, admin_room }
     }
 
     /// Handles command messages from an admin room
@@ -181,11 +175,8 @@ impl<'a> CommandHandler<'a> {
         // see if we can reach the server and if the server has a supported API version
         RocketchatApi::new(rocketchat_url.to_owned(), self.logger.clone())?;
 
-        let new_rocketchat_server = NewRocketchatServer {
-            id: rocketchat_server_id,
-            rocketchat_url,
-            rocketchat_token: Some(token),
-        };
+        let new_rocketchat_server =
+            NewRocketchatServer { id: rocketchat_server_id, rocketchat_url, rocketchat_token: Some(token) };
 
         RocketchatServer::insert(self.connection, &new_rocketchat_server)
     }
@@ -391,7 +382,8 @@ impl<'a> CommandHandler<'a> {
 
         let channel_list =
             self.format_rocketchat_rooms_list(rocketchat_server_id, user_id, &channels, &joined_rocketchat_rooms)?;
-        let groups_list = self.format_rocketchat_rooms_list(rocketchat_server_id, user_id, &groups, &joined_rocketchat_rooms)?;
+        let groups_list =
+            self.format_rocketchat_rooms_list(rocketchat_server_id, user_id, &groups, &joined_rocketchat_rooms)?;
         let channels_title = t!(["admin_room", "channels"]).l(DEFAULT_LANGUAGE);
         let groups_title = t!(["admin_room", "groups"]).l(DEFAULT_LANGUAGE);
         let list = format!("{}:\n{}\n{}:\n{}", channels_title, channel_list, groups_title, groups_list);
@@ -438,15 +430,17 @@ impl<'a> CommandHandler<'a> {
     /// in, etc.).
     pub fn build_help_message(connection: &SqliteConnection, room: &Room, as_url: String, user_id: &UserId) -> Result<String> {
         let message = match room.rocketchat_server_for_admin_room(connection)? {
-            Some(server) => if UserOnRocketchatServer::find(connection, user_id, server.id)?.is_logged_in() {
-                t!(["admin_room", "usage_instructions"]).with_vars(vec![("rocketchat_url", server.rocketchat_url)])
-            } else {
-                t!(["admin_room", "login_instructions"]).with_vars(vec![
-                    ("rocketchat_url", server.rocketchat_url),
-                    ("as_url", as_url),
-                    ("user_id", user_id.to_string()),
-                ])
-            },
+            Some(server) => {
+                if UserOnRocketchatServer::find(connection, user_id, server.id)?.is_logged_in() {
+                    t!(["admin_room", "usage_instructions"]).with_vars(vec![("rocketchat_url", server.rocketchat_url)])
+                } else {
+                    t!(["admin_room", "login_instructions"]).with_vars(vec![
+                        ("rocketchat_url", server.rocketchat_url),
+                        ("as_url", as_url),
+                        ("user_id", user_id.to_string()),
+                    ])
+                }
+            }
             None => {
                 let connected_servers = RocketchatServer::find_connected_servers(connection)?;
                 let server_list = if connected_servers.is_empty() {

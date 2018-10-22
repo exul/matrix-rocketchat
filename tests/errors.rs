@@ -25,14 +25,9 @@ fn the_user_gets_a_message_when_the_rocketchat_error_cannot_be_deserialized() {
     let mut matrix_router = test.default_matrix_routes();
     matrix_router.put(SendMessageEventEndpoint::router_path(), message_forwarder, "send_message_event");
     let mut rocketchat_router = test.default_rocketchat_routes();
-    rocketchat_router.post(
-        LOGIN_PATH,
-        handlers::InvalidJsonResponse {
-            status: status::InternalServerError,
-        },
-        "login",
-    );
-    let test = test.with_matrix_routes(matrix_router)
+    rocketchat_router.post(LOGIN_PATH, handlers::InvalidJsonResponse { status: status::InternalServerError }, "login");
+    let test = test
+        .with_matrix_routes(matrix_router)
         .with_rocketchat_mock()
         .with_custom_rocketchat_routes(rocketchat_router)
         .with_connected_admin_room()

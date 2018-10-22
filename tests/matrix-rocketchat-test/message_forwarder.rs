@@ -1,15 +1,15 @@
 use std::borrow::Cow;
-use std::convert::TryFrom;
 use std::collections::HashMap;
+use std::convert::TryFrom;
 use std::io::Read;
-use std::sync::Mutex;
 use std::sync::mpsc::{channel, Receiver, Sender};
+use std::sync::Mutex;
 
-use iron::{status, AfterMiddleware, BeforeMiddleware, Handler};
 use iron::prelude::*;
 use iron::typemap::Key;
-use iron::url::Url;
 use iron::url::percent_encoding::percent_decode;
+use iron::url::Url;
+use iron::{status, AfterMiddleware, BeforeMiddleware, Handler};
 use matrix_rocketchat::errors::MatrixErrorResponse;
 use persistent::Write;
 use router::Router;
@@ -44,10 +44,7 @@ impl MessageForwarder {
 
     fn build(path_filter: Option<&'static str>) -> (MessageForwarder, Receiver<String>) {
         let (tx, rx) = channel::<String>();
-        let message_forwarder = MessageForwarder {
-            tx: Mutex::new(tx),
-            path_filter: path_filter,
-        };
+        let message_forwarder = MessageForwarder { tx: Mutex::new(tx), path_filter: path_filter };
         (message_forwarder, rx)
     }
 }
@@ -117,10 +114,8 @@ fn validate_message_forwarding_for_user(request: &mut Request, url: Url) -> Iron
     let users_in_room = &users_in_rooms.get(&room_id).unwrap_or(&empty_users);
 
     if !users_in_room.iter().any(|(id, &(membership, _))| id == &user_id && membership == MembershipState::Join) {
-        let matrix_err = MatrixErrorResponse {
-            errcode: "M_FORBIDDEN".to_string(),
-            error: format!("{} not in room {}", user_id, room_id),
-        };
+        let matrix_err =
+            MatrixErrorResponse { errcode: "M_FORBIDDEN".to_string(), error: format!("{} not in room {}", user_id, room_id) };
 
         let err_payload = serde_json::to_string(&matrix_err).unwrap();
         let err = IronError::new(TestError("Send message error".to_string()), (status::Forbidden, err_payload));

@@ -39,12 +39,7 @@ pub struct Room<'a> {
 impl<'a> Room<'a> {
     /// Create a new room model, to interact with Matrix rooms.
     pub fn new(config: &'a Config, logger: &'a Logger, matrix_api: &'a MatrixApi, id: RoomId) -> Room<'a> {
-        Room {
-            config,
-            logger,
-            matrix_api,
-            id,
-        }
+        Room { config, logger, matrix_api, id }
     }
 
     /// Create a room on the Matrix homeserver with the power levels for a bridged room.
@@ -342,7 +337,7 @@ impl<'a> Room<'a> {
     /// Add a room to the cache.
     /// This will speed-up future direct messages because the direct message room lookup is done via
     /// cache instead of going through the users rooms.
-    fn add_to_cache(&self, channel_id: String, receiver_id: &UserId) -> () {
+    fn add_to_cache(&self, channel_id: String, receiver_id: &UserId) {
         match DM_ROOMS.lock() {
             Ok(mut dm_rooms) => {
                 debug!(self.logger, "Adding DM room {} with receiver {} to cache", channel_id, receiver_id);

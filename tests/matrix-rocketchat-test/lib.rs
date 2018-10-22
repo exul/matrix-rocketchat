@@ -1,6 +1,7 @@
 #![feature(try_from)]
 
 extern crate diesel;
+extern crate http;
 extern crate iron;
 #[macro_use]
 extern crate lazy_static;
@@ -90,7 +91,7 @@ pub const RS_TOKEN: &str = "rt";
 /// Number of threads that iron uses when running tests
 pub const IRON_THREADS: usize = 4;
 /// The version the mock Rocket.Chat server announces
-pub const DEFAULT_ROCKETCHAT_VERSION: &str = "0.60.0";
+pub const DEFAULT_ROCKETCHAT_VERSION: &str = "0.70.4";
 
 lazy_static! {
     /// Default logger
@@ -525,24 +526,13 @@ impl Test {
 
         router.get(SyncEventsEndpoint::router_path(), handlers::MatrixSync {}, "sync");
 
-        let join_room_handler = handlers::MatrixJoinRoom {
-            as_url: self.config.as_url.clone(),
-            send_inviter: true,
-        };
+        let join_room_handler = handlers::MatrixJoinRoom { as_url: self.config.as_url.clone(), send_inviter: true };
         router.post(JoinRoomByIdEndpoint::router_path(), join_room_handler, "join_room");
 
-        let leave_room_handler = handlers::MatrixLeaveRoom {
-            as_url: self.config.as_url.clone(),
-        };
+        let leave_room_handler = handlers::MatrixLeaveRoom { as_url: self.config.as_url.clone() };
         router.post(LeaveRoomEndpoint::router_path(), leave_room_handler, "leave_room");
 
-        router.get(
-            "/_matrix/client/versions",
-            handlers::MatrixVersion {
-                versions: default_matrix_api_versions(),
-            },
-            "versions",
-        );
+        router.get("/_matrix/client/versions", handlers::MatrixVersion { versions: default_matrix_api_versions() }, "versions");
 
         let mut get_state_events_for_empty_key = Chain::new(handlers::GetRoomState {});
         get_state_events_for_empty_key.link_before(handlers::PermissionCheck {});
@@ -568,15 +558,11 @@ impl Test {
 
         router.post(
             CreateRoomEndpoint::router_path(),
-            handlers::MatrixCreateRoom {
-                as_url: self.config.as_url.clone(),
-            },
+            handlers::MatrixCreateRoom { as_url: self.config.as_url.clone() },
             "create_room",
         );
 
-        let invite_user_handler = handlers::MatrixInviteUser {
-            as_url: self.config.as_url.clone(),
-        };
+        let invite_user_handler = handlers::MatrixInviteUser { as_url: self.config.as_url.clone() };
         router.post(InviteUserEndpoint::router_path(), invite_user_handler, "invite_user");
 
         let mut send_room_state = Chain::new(handlers::SendRoomState {});
@@ -600,67 +586,40 @@ impl Test {
     pub fn default_rocketchat_routes(&self) -> Router {
         let mut router = Router::new();
 
-        router.get(
-            "/api/info",
-            handlers::RocketchatInfo {
-                version: DEFAULT_ROCKETCHAT_VERSION,
-            },
-            "info",
-        );
+        router.get("/api/info", handlers::RocketchatInfo { version: DEFAULT_ROCKETCHAT_VERSION }, "info");
 
         let login_user_id = Arc::new(Mutex::new(Some("spec_user_id".to_string())));
         router.post(
             LOGIN_PATH,
-            handlers::RocketchatLogin {
-                successful: true,
-                rocketchat_user_id: Arc::clone(&login_user_id),
-            },
+            handlers::RocketchatLogin { successful: true, rocketchat_user_id: Arc::clone(&login_user_id) },
             "login",
         );
 
         let me_username = Arc::new(Mutex::new("spec_user".to_string()));
-        router.get(
-            ME_PATH,
-            handlers::RocketchatMe {
-                username: Arc::clone(&me_username),
-            },
-            "me",
-        );
+        router.get(ME_PATH, handlers::RocketchatMe { username: Arc::clone(&me_username) }, "me");
         router.get(USERS_INFO_PATH, handlers::RocketchatUsersInfo {}, "users_info");
 
         router.get(
             CHANNELS_LIST_PATH,
-            handlers::RocketchatChannelsList {
-                status: status::Ok,
-                channels: Arc::clone(&self.channels),
-            },
+            handlers::RocketchatChannelsList { status: status::Ok, channels: Arc::clone(&self.channels) },
             "channels_list",
         );
 
         router.get(
             CHANNELS_MEMBERS_PATH,
-            handlers::RocketchatRoomMembers {
-                status: status::Ok,
-                channels: Arc::clone(&self.channels),
-            },
+            handlers::RocketchatRoomMembers { status: status::Ok, channels: Arc::clone(&self.channels) },
             "get_room_members",
         );
 
         router.get(
             GROUPS_LIST_PATH,
-            handlers::RocketchatGroupsList {
-                status: status::Ok,
-                groups: Arc::clone(&self.groups),
-            },
+            handlers::RocketchatGroupsList { status: status::Ok, groups: Arc::clone(&self.groups) },
             "groups_list",
         );
 
         router.get(
             GROUPS_MEMBERS_PATH,
-            handlers::RocketchatRoomMembers {
-                status: status::Ok,
-                channels: Arc::clone(&self.groups),
-            },
+            handlers::RocketchatRoomMembers { status: status::Ok, channels: Arc::clone(&self.groups) },
             "get_group_members",
         );
 
@@ -757,9 +716,7 @@ pub fn extract_payload(request: &mut Request) -> String {
             payload = message.payload.clone()
         }
     } else {
-        let message = Message {
-            payload: payload.clone(),
-        };
+        let message = Message { payload: payload.clone() };
         request.extensions.insert::<Message>(message);
     }
 

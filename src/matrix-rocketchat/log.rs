@@ -1,5 +1,5 @@
-use iron::{Plugin, Request};
 use iron::typemap::Key;
+use iron::{Plugin, Request};
 use persistent::State;
 use slog::Logger;
 

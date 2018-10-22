@@ -10,10 +10,12 @@ extern crate diesel;
 extern crate diesel_migrations;
 #[macro_use]
 extern crate error_chain;
+extern crate http;
 extern crate hyper_native_tls;
 extern crate iron;
 #[macro_use]
 extern crate lazy_static;
+extern crate mime;
 extern crate persistent;
 extern crate pulldown_cmark;
 extern crate r2d2;

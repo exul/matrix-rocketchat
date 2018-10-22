@@ -20,11 +20,7 @@ pub struct VirtualUser<'a> {
 impl<'a> VirtualUser<'a> {
     /// Create a new virtual users model, to interact with Matrix virtual users.
     pub fn new(config: &'a Config, logger: &'a Logger, matrix_api: &'a MatrixApi) -> VirtualUser<'a> {
-        VirtualUser {
-            config,
-            logger,
-            matrix_api,
-        }
+        VirtualUser { config, logger, matrix_api }
     }
 
     /// Register a virtual user on the Matrix server and assign it to a Rocket.Chat server.

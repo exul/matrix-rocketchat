@@ -19,8 +19,8 @@ use std::process;
 
 use clap::{App, Arg};
 use iron::Listening;
-use matrix_rocketchat::{Config, Server};
 use matrix_rocketchat::errors::*;
+use matrix_rocketchat::{Config, Server};
 use slog::{Drain, FnValue, Level, LevelFilter, Record};
 
 fn main() {

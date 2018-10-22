@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
+use http::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+use http::Method;
 use iron::typemap::Key;
-use reqwest::header::{ContentType, Headers};
-use reqwest::mime::Mime;
-use reqwest::{Body, Method};
+use reqwest::Body;
 use serde_json;
 use slog::Logger;
 
@@ -16,7 +16,7 @@ pub mod v1;
 
 const MAX_REQUESTS_PER_ENDPOINT_CALL: i32 = 1000;
 const MIN_MAJOR_VERSION: i32 = 0;
-const MIN_MINOR_VERSION: i32 = 60;
+const MIN_MINOR_VERSION: i32 = 70;
 
 /// A Rocket.Chat REST API endpoint.
 pub trait Endpoint<T: Into<Body>> {
@@ -27,7 +27,7 @@ pub trait Endpoint<T: Into<Body>> {
     /// Payload that is sent to the server
     fn payload(&self) -> Result<RequestData<T>>;
     /// Headers that are sent to the server
-    fn headers(&self) -> Option<Headers>;
+    fn headers(&self) -> Result<Option<HeaderMap>>;
     /// The query parameters that are used when sending the request
     fn query_params(&self) -> HashMap<&'static str, &str> {
         HashMap::new()
@@ -37,7 +37,7 @@ pub trait Endpoint<T: Into<Body>> {
 /// A file that was uploaded to Rocket.Chat
 pub struct Attachment {
     /// The content type according to RFC7231
-    pub content_type: ContentType,
+    pub content_type: HeaderValue,
     /// The file
     pub data: Vec<u8>,
     /// A title that describes the file
@@ -78,7 +78,7 @@ pub struct File {
 #[derive(Clone, Debug)]
 pub struct MessageAttachment {
     /// The content type according to RFC7231
-    pub content_type: ContentType,
+    pub content_type: HeaderValue,
     /// URL to download the image, it's only present when the attachment is an image
     pub image_url: Option<String>,
     /// An optional title for the file
@@ -141,7 +141,7 @@ pub trait RocketchatApi {
     /// Get current user information
     fn me(&self) -> Result<User>;
     /// Post a message with an attachment
-    fn rooms_upload(&self, file: Vec<u8>, filename: &str, mimetype: Mime, room_id: &str) -> Result<()>;
+    fn rooms_upload(&self, file: Vec<u8>, filename: &str, mimetype: HeaderValue, room_id: &str) -> Result<()>;
     /// Get information like user_id, status, etc. about a user
     fn users_info(&self, username: &str) -> Result<User>;
     /// Set credentials that are used for all API calls that need authentication
@@ -161,7 +161,7 @@ impl RocketchatApi {
         let url = base_url.clone() + "/api/info";
         let params = HashMap::new();
 
-        let (body, status_code) = match RestApi::call(&Method::Get, &url, RequestData::Body(""), &params, None) {
+        let (body, status_code) = match RestApi::call(&Method::GET, &url, RequestData::Body(""), &params, None) {
             Ok((body, status_code)) => (body, status_code),
             Err(err) => {
                 debug!(logger, "{}", err);

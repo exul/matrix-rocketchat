@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use http::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+use http::header::{HeaderMap, HeaderValue};
 use http::Method;
 use iron::typemap::Key;
 use reqwest::Body;

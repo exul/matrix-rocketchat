@@ -76,7 +76,7 @@ impl<'a> Forwarder<'a> {
     ) -> Result<()> {
         let url = Url::parse(url).chain_err(|| ErrorKind::InternalServerError)?;
         let host = url.host_str().unwrap_or_default();
-        let file_id = url.path().trim_left_matches('/');
+        let file_id = url.path().trim_start_matches('/');
         let file = self.matrix_api.get_content(host.to_string(), file_id.to_string())?;
 
         let mime: HeaderValue = HeaderValue::from_str(&mimetype.unwrap_or_default())?;

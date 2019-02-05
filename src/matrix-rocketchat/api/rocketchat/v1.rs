@@ -3,7 +3,6 @@ use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 
 use http::header::{HeaderValue, CONTENT_TYPE};
 use http::{HeaderMap, Method, StatusCode};
-use mime::Mime;
 use reqwest::multipart::{Form, Part};
 use serde_json;
 use slog::Logger;

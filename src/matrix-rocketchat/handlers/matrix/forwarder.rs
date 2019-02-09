@@ -25,7 +25,7 @@ impl<'a> Forwarder<'a> {
     /// Forwards messages to Rocket.Chat
     pub fn process(&self, event: &MessageEvent, server: RocketchatServer, channel_id: &str) -> Result<()> {
         let mut user_on_rocketchat_server =
-            match UserOnRocketchatServer::find_by_matrix_user_id(self.connection, &event.user_id, server.id)? {
+            match UserOnRocketchatServer::find_by_matrix_user_id(self.connection, &event.sender, server.id)? {
                 Some(user_on_rocketchat_server) => user_on_rocketchat_server,
                 None => {
                     debug!(self.logger, "Skipping event, because it was sent by a virtual user");
@@ -43,20 +43,20 @@ impl<'a> Forwarder<'a> {
                 rocketchat_api.chat_post_message(&content.body, channel_id)?;
             }
             MessageEventContent::Image(ref content) => {
-                let mimetype = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
-                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mimetype, &content.body, channel_id)?;
+                let mt = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
+                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, Some(mt), &content.body, channel_id)?;
             }
             MessageEventContent::File(ref content) => {
-                let mimetype = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
-                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mimetype, &content.body, channel_id)?;
+                let mt = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
+                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, Some(mt), &content.body, channel_id)?;
             }
             MessageEventContent::Audio(ref content) => {
-                let mimetype = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
-                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mimetype, &content.body, channel_id)?;
+                let mt = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
+                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mt, &content.body, channel_id)?;
             }
             MessageEventContent::Video(ref content) => {
-                let mimetype = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
-                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mimetype, &content.body, channel_id)?;
+                let mt = content.clone().info.chain_err(|| ErrorKind::MissingMimeType)?.mimetype;
+                self.forward_file_to_rocketchat(rocketchat_api.as_ref(), &content.url, mt, &content.body, channel_id)?;
             }
             MessageEventContent::Emote(_) | MessageEventContent::Location(_) | MessageEventContent::Notice(_) => {
                 info!(self.logger, "Not forwarding message, forwarding emote, location or notice messages is not implemented.")

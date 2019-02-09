@@ -49,9 +49,10 @@ fn unknown_event_types_are_skipped() {
         content: HangupEventContent { call_id: "1234".to_string(), version: 1 },
         event_id: EventId::new("localhost").unwrap(),
         event_type: EventType::CallHangup,
-        room_id: RoomId::new("localhost").unwrap(),
-        user_id: UserId::new("localhost").unwrap(),
+        room_id: Some(RoomId::new("localhost").unwrap()),
+        sender: UserId::new("localhost").unwrap(),
         unsigned: None,
+        origin_server_ts: 0,
     };
 
     let events = Events { events: vec![Box::new(Event::CallHangup(unknown_event))] };

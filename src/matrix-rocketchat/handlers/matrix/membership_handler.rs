@@ -55,12 +55,12 @@ impl<'a> MembershipHandler<'a> {
                 self.handle_bot_join(matrix_bot_user_id)?;
             }
             MembershipState::Join => {
-                debug!(self.logger, "Received join event for user {} and room {}", &state_key, &event.room_id);
+                debug!(self.logger, "Received join event for user {} and room {}", &state_key, self.room.id);
 
                 self.handle_user_join()?;
             }
             MembershipState::Leave if !addressed_to_matrix_bot => {
-                debug!(self.logger, "User {} left room {}", event.user_id, event.room_id);
+                debug!(self.logger, "User {} left room {}", event.sender, self.room.id);
 
                 self.handle_user_leave()?;
             }
@@ -183,7 +183,7 @@ impl<'a> MembershipHandler<'a> {
 
     fn is_private_room(&self) -> Result<bool> {
         let room_members_events = self.matrix_api.get_room_members(self.room.id.clone(), None)?;
-        let mut user_ids: Vec<&UserId> = room_members_events.iter().map(|m| &m.user_id).collect();
+        let mut user_ids: Vec<&UserId> = room_members_events.iter().map(|m| &m.sender).collect();
         user_ids.dedup();
         Ok(user_ids.len() <= 2)
     }

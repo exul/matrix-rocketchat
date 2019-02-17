@@ -468,6 +468,7 @@ fn unkown_membership_states_are_skipped() {
 
     let unknown_event = MemberEvent {
         content: MemberEventContent {
+            is_direct: None,
             avatar_url: None,
             displayname: None,
             membership: MembershipState::Ban,
@@ -477,10 +478,11 @@ fn unkown_membership_states_are_skipped() {
         event_type: EventType::RoomMember,
         invite_room_state: None,
         prev_content: None,
-        room_id: RoomId::new("localhost").unwrap(),
+        room_id: Some(RoomId::new("localhost").unwrap()),
         state_key: "@spec_user:localhost".to_string(),
         unsigned: None,
-        user_id: UserId::new("localhost").unwrap(),
+        sender: UserId::new("localhost").unwrap(),
+        origin_server_ts: 0,
     };
 
     let events = Events { events: vec![Box::new(Event::RoomMember(unknown_event))] };

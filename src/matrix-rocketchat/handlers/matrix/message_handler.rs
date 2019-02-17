@@ -29,19 +29,27 @@ impl<'a> MessageHandler<'a> {
 
     /// Handles messages that are sent in a room
     pub fn process(&self, event: &MessageEvent) -> Result<()> {
-        if event.user_id == self.config.matrix_bot_user_id()? {
+        if event.sender == self.config.matrix_bot_user_id()? {
             debug!(self.logger, "Skipping event, because it was sent by the bot user");
             return Ok(());
         }
 
+        let room_id = match &event.room_id {
+            Some(room_id) => room_id,
+            None => {
+                debug!(self.logger, "Skipping event, no room is specified");
+                return Ok(());
+            }
+        };
+
         let matrix_api = self.matrix_api.as_ref();
-        let room = Room::new(self.config, self.logger, self.matrix_api.as_ref(), event.room_id.clone());
+        let room = Room::new(self.config, self.logger, self.matrix_api.as_ref(), room_id.clone());
         if room.is_admin_room()? {
             CommandHandler::new(self.config, self.connection, self.logger, matrix_api, &room).process(event)?;
         } else if let Some((server, channel_id)) = self.get_rocketchat_server_with_room(&room)? {
             Forwarder::new(self.connection, self.logger, matrix_api).process(event, server, &channel_id)?;
         } else {
-            debug!(self.logger, "Skipping event, because the room {} is not bridged", &event.room_id);
+            debug!(self.logger, "Skipping event, because the room {} is not bridged", room_id);
         }
 
         Ok(())

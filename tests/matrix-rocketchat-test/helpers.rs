@@ -42,6 +42,7 @@ pub fn create_room(config: &Config, room_name: &str, sender_id: UserId, user_id:
 pub fn send_invite_event_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId, inviter_id: UserId) {
     let invite_event = MemberEvent {
         content: MemberEventContent {
+            is_direct: None,
             avatar_url: None,
             displayname: None,
             membership: MembershipState::Invite,
@@ -51,10 +52,11 @@ pub fn send_invite_event_from_matrix(as_url: &str, room_id: RoomId, user_id: Use
         event_type: EventType::RoomMember,
         invite_room_state: None,
         prev_content: None,
-        room_id: room_id.clone(),
+        room_id: Some(room_id.clone()),
         state_key: format!("{}", user_id),
         unsigned: None,
-        user_id: inviter_id,
+        sender: inviter_id,
+        origin_server_ts: 0,
     };
 
     let events = Events { events: vec![Box::new(Event::RoomMember(invite_event))] };
@@ -79,15 +81,17 @@ pub fn send_join_event_from_matrix(as_url: &str, room_id: RoomId, user_id: UserI
             displayname: None,
             membership: MembershipState::Join,
             third_party_invite: None,
+            is_direct: None,
         },
         event_id: EventId::new("localhost").unwrap(),
         event_type: EventType::RoomMember,
         invite_room_state: None,
         prev_content: None,
-        room_id: room_id,
+        room_id: Some(room_id),
         state_key: format!("{}", &user_id),
         unsigned: unsigned,
-        user_id: user_id,
+        sender: user_id,
+        origin_server_ts: 0,
     };
 
     let events = Events { events: vec![Box::new(Event::RoomMember(join_event))] };
@@ -107,15 +111,17 @@ pub fn send_leave_event_from_matrix(as_url: &str, room_id: RoomId, user_id: User
             displayname: None,
             membership: MembershipState::Leave,
             third_party_invite: None,
+            is_direct: None,
         },
         event_id: EventId::new("localhost").unwrap(),
         event_type: EventType::RoomMember,
         invite_room_state: None,
         prev_content: None,
-        room_id: room_id,
+        room_id: Some(room_id),
         state_key: format!("{}", user_id),
         unsigned: None,
-        user_id: user_id,
+        sender: user_id,
+        origin_server_ts: 0,
     };
 
     let events = Events { events: vec![Box::new(Event::RoomMember(leave_event))] };
@@ -128,9 +134,10 @@ pub fn send_room_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Use
         content: MessageEventContent::Text(TextMessageEventContent { body: body, msgtype: MessageType::Text }),
         event_id: EventId::new("localhost").unwrap(),
         event_type: EventType::RoomMessage,
-        room_id: room_id,
+        room_id: Some(room_id),
         unsigned: None,
-        user_id: user_id,
+        sender: user_id,
+        origin_server_ts: 0,
     };
 
     let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
@@ -144,21 +151,22 @@ pub fn send_image_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Us
         content: MessageEventContent::Image(ImageMessageEventContent {
             body: body,
             info: Some(ImageInfo {
-                height: Some(100),
-                mimetype: Some("image/png".to_string()),
-                size: Some(100),
-                width: Some(100),
+                height: 100,
+                mimetype: "image/png".to_string(),
+                size: 100,
+                width: 100,
+                thumbnail_info: None,
+                thumbnail_url: None,
             }),
             msgtype: MessageType::Image,
-            thumbnail_info: None,
-            thumbnail_url: None,
             url: url,
         }),
         event_id: EventId::new("localhost").unwrap(),
         event_type: EventType::RoomMessage,
-        room_id: room_id,
+        room_id: Some(room_id),
         unsigned: None,
-        user_id: user_id,
+        sender: user_id,
+        origin_server_ts: 0,
     };
 
     let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
@@ -170,18 +178,18 @@ pub fn send_image_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Us
 pub fn send_file_message_from_matrix(as_url: &str, room_id: RoomId, user_id: UserId, body: String, url: String) {
     let message_event = MessageEvent {
         content: MessageEventContent::File(FileMessageEventContent {
+            filename: "test.txt".to_string(),
             body: body,
-            info: Some(FileInfo { mimetype: Some("text/plain".to_string()), size: None }),
+            info: Some(FileInfo { mimetype: "text/plain".to_string(), size: 10, thumbnail_info: None, thumbnail_url: None }),
             msgtype: MessageType::File,
-            thumbnail_info: None,
-            thumbnail_url: None,
             url: url,
         }),
         event_id: EventId::new("localhost").unwrap(),
         event_type: EventType::RoomMessage,
-        room_id: room_id,
+        room_id: Some(room_id),
         unsigned: None,
-        user_id: user_id,
+        sender: user_id,
+        origin_server_ts: 0,
     };
 
     let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
@@ -200,9 +208,10 @@ pub fn send_audio_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Us
         }),
         event_id: EventId::new("localhost").unwrap(),
         event_type: EventType::RoomMessage,
-        room_id: room_id,
+        room_id: Some(room_id),
         unsigned: None,
-        user_id: user_id,
+        sender: user_id,
+        origin_server_ts: 0,
     };
 
     let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
@@ -229,9 +238,10 @@ pub fn send_video_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Us
         }),
         event_id: EventId::new("localhost").unwrap(),
         event_type: EventType::RoomMessage,
-        room_id: room_id,
+        room_id: Some(room_id),
         unsigned: None,
-        user_id: user_id,
+        sender: user_id,
+        origin_server_ts: 0,
     };
 
     let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };
@@ -245,9 +255,10 @@ pub fn send_emote_message_from_matrix(as_url: &str, room_id: RoomId, user_id: Us
         content: MessageEventContent::Text(TextMessageEventContent { body: body, msgtype: MessageType::Emote }),
         event_id: EventId::new("localhost").unwrap(),
         event_type: EventType::RoomMessage,
-        room_id: room_id,
+        room_id: Some(room_id),
         unsigned: None,
-        user_id: user_id,
+        sender: user_id,
+        origin_server_ts: 0,
     };
 
     let events = Events { events: vec![Box::new(Event::RoomMessage(message_event))] };

@@ -36,17 +36,31 @@ impl<'a> Dispatcher<'a> {
         for event in events {
             match *event {
                 Event::RoomMember(member_event) => {
-                    let room = Room::new(self.config, self.logger, self.matrix_api.as_ref(), member_event.room_id.clone());
+                    let room_id = match &member_event.room_id {
+                        Some(room_id) => room_id,
+                        None => {
+                            debug!(self.logger, "Skipping event, no room is specified");
+                            return Ok(());
+                        }
+                    };
+                    let room = Room::new(self.config, self.logger, self.matrix_api.as_ref(), room_id.clone());
                     let handler =
                         MembershipHandler::new(self.config, self.connection, self.logger, self.matrix_api.as_ref(), &room);
                     if let Err(err) = handler.process(&member_event) {
-                        return self.handle_error(&err, &member_event.room_id);
+                        return self.handle_error(&err, room_id);
                     }
                 }
                 Event::RoomMessage(message_event) => {
+                    let room_id = match &message_event.room_id {
+                        Some(room_id) => room_id,
+                        None => {
+                            debug!(self.logger, "Skipping event, no room is specified");
+                            return Ok(());
+                        }
+                    };
                     let handler = MessageHandler::new(self.config, self.connection, self.logger, self.matrix_api.clone());
                     if let Err(err) = handler.process(&message_event) {
-                        return self.handle_error(&err, &message_event.room_id);
+                        return self.handle_error(&err, room_id);
                     }
                 }
                 _ => debug!(self.logger, "Skipping event, because the event type is not known"),

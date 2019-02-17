@@ -696,10 +696,11 @@ impl Handler for MatrixState {
                 event_id: EventId::new("localhost").unwrap(),
                 event_type: EventType::RoomAliases,
                 prev_content: None,
-                room_id: room_id.clone(),
+                room_id: Some(room_id.clone()),
                 state_key: "localhost".to_string(),
                 unsigned: None,
-                user_id: user_id.clone(),
+                sender: user_id.clone(),
+                origin_server_ts: 0,
             };
 
             room_states.push(StateEvent::RoomAliases(aliases_event));
@@ -896,6 +897,7 @@ fn build_member_events_from_user_ids(users: &Vec<(UserId, MembershipState)>, roo
     for &(ref user, membership_state) in users.iter() {
         let member_event = MemberEvent {
             content: MemberEventContent {
+                is_direct: None,
                 avatar_url: None,
                 displayname: None,
                 membership: membership_state,
@@ -905,10 +907,11 @@ fn build_member_events_from_user_ids(users: &Vec<(UserId, MembershipState)>, roo
             event_type: EventType::RoomMember,
             invite_room_state: None,
             prev_content: None,
-            room_id: room_id.clone(),
+            room_id: Some(room_id.clone()),
             state_key: user.to_string(),
             unsigned: None,
-            user_id: user.clone(),
+            sender: user.clone(),
+            origin_server_ts: 0,
         };
         member_events.push(member_event);
     }

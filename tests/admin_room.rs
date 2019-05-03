@@ -1,5 +1,3 @@
-#![feature(try_from)]
-
 extern crate diesel;
 extern crate iron;
 extern crate matrix_rocketchat;

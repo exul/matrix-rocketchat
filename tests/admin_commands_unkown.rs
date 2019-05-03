@@ -1,5 +1,3 @@
-#![feature(try_from)]
-
 extern crate matrix_rocketchat_test;
 extern crate router;
 extern crate ruma_client_api;

@@ -15,18 +15,13 @@ There will be breaking changes!**
 
 ## Compiling from Source
 
-To compile the application service you need Rust nightly (I know that's bad,
-sorry).
-
-This will change, once [ruma-identifiers](https://github.com/ruma/ruma-identifiers)
-is working on stable rust.
+To compile the application service you need Rust >= 1.34.
 
 It's highly recommended that you use [rustup](https://www.rustup.rs).
 
 ```
 git clone https://github.com/exul/matrix-rocketchat.git
 cd matrix-rocketchat
-rustup override set nightly
 cargo build --release
 ./target/release/matrix-rocketchat
 ```

@@ -1,6 +1,5 @@
 //! Application service to bridge Matrix <-> Rocket.Chat.
 
-#![feature(try_from, nll)]
 #![deny(missing_docs)]
 #![recursion_limit = "256"]
 

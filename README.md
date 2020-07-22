@@ -7,11 +7,13 @@
 This is an application service that bridges [Matrix](https://matrix.org) to
 [Rocket.Chat](https://rocket.chat).
 
+**This Project is currently not maintained.**
+There were breaking changes in the matrix API, which means that inviting the bot doesn't work (other things might be broken too). I _might_ work on a re-write of the bridge. But if I ever release it, then it will take quite some time.
+
 **Warning: This application service is still in development. Do not use it!
 There will be breaking changes!**
 
 ![matrix-rocketchat](https://cloud.githubusercontent.com/assets/1886214/24167507/457d5ea2-0e77-11e7-8102-c14e4c04e4dd.png)
-
 
 ## Compiling from Source
 

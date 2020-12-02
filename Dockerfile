@@ -21,6 +21,7 @@ RUN apt-get update && \
     curl -sOSL https://static.rust-lang.org/dist/${RUST_NIGHTLY_NAME}.tar.gz && \
     curl -s https://static.rust-lang.org/dist/${RUST_NIGHTLY_NAME}.tar.gz.sha256 | sha256sum -c - && \
     tar -xzf ${RUST_NIGHTLY_NAME}.tar.gz && \
+    cp ./install ./${RUST_NIGHTLY_NAME}/install.sh && \
     ./${RUST_NIGHTLY_NAME}/install.sh && \
 		curl -sOSL https://github.com/SimonKagstrom/kcov/archive/master.zip && \
     unzip master.zip && \
